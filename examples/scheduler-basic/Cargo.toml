@@ -1,0 +1,16 @@
+[package]
+name = "plenora-runtime-example-scheduler-basic"
+description = "Minimal bounded generic scheduler example."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+plenora-runtime-scheduler = { path = "../../crates/plenora-runtime-scheduler", version = "=0.1.0" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

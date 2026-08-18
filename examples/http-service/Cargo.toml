@@ -1,0 +1,17 @@
+[package]
+name = "plenora-example-http-service"
+description = "Minimal HTTP service example."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+axum.workspace = true
+plenora-runtime-core = { version = "=0.1.0", path = "../../crates/plenora-runtime-core" }
+plenora-runtime-http = { version = "=0.1.0", path = "../../crates/plenora-runtime-http" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,22 @@
+[package]
+name = "plenora-runtime-scheduler"
+description = "Backend-neutral bounded scheduling and programmed dispatch contracts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+cron.workspace = true
+plenora-runtime-core = { path = "../plenora-runtime-core", version = "=0.1.0" }
+tokio = { workspace = true, features = ["sync", "time"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+
+[lints]
+workspace = true

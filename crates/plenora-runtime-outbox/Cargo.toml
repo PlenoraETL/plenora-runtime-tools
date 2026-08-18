@@ -1,0 +1,20 @@
+[package]
+name = "plenora-runtime-outbox"
+description = "Persistence-neutral outbox, inbox, and idempotency contracts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+uuid.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

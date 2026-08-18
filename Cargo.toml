@@ -1,0 +1,51 @@
+[workspace]
+resolver = "3"
+exclude = ["fuzz"]
+members = [
+    "adapters/*",
+    "crates/*",
+    "examples/*",
+    "tests/architecture",
+    "tests/integration",
+    "tests/memory",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+license-file = "LICENSE"
+
+[workspace.dependencies]
+apalis = { version = "=0.7.4", default-features = false, features = ["catch-panic", "limit"] }
+async-trait = { version = "=0.1.92" }
+async-nats = { version = "=0.50.0", default-features = false, features = ["chrono", "jetstream", "nkeys", "ring"] }
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio", "tracing"] }
+base64 = { version = "=0.22.1" }
+bytes = { version = "=1.12.1" }
+chrono = { version = "=0.4.45", default-features = false, features = ["std"] }
+chrono-tz = { version = "=0.10.4", default-features = false, features = ["std"] }
+cron = { version = "=0.17.0", default-features = false }
+futures-util = { version = "=0.3.34", default-features = false, features = ["async-await", "std"] }
+opentelemetry = { version = "=0.32.0", default-features = false, features = ["trace"] }
+serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.1", default-features = false }
+tower = { version = "=0.5.3", default-features = false, features = ["limit", "util"] }
+tower-http = { version = "=0.7.0", default-features = false, features = ["request-id", "sensitive-headers", "trace"] }
+tracing = { version = "=0.1.44", default-features = false, features = ["attributes", "std"] }
+tracing-opentelemetry = { version = "=0.33.0", default-features = false }
+uuid = { version = "=1.24.1", features = ["v4"] }
+
+[workspace.lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+expect_used = "deny"
+panic = "deny"
+todo = "warn"
+unimplemented = "deny"
+unwrap_used = "deny"

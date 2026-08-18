@@ -1,0 +1,24 @@
+[package]
+name = "plenora-runtime-testkit"
+description = "Deterministic fakes and fault-injection support for runtime consumers."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../plenora-runtime-capabilities" }
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+plenora-runtime-outbox = { version = "=0.1.0", path = "../plenora-runtime-outbox" }
+plenora-runtime-worker = { version = "=0.1.0", path = "../plenora-runtime-worker" }
+
+[dev-dependencies]
+bytes.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+
+[lints]
+workspace = true

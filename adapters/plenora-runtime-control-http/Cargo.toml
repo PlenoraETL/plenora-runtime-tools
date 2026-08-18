@@ -1,0 +1,25 @@
+[package]
+name = "plenora-runtime-control-http"
+description = "Opt-in HTTP adapter for the Plenora runtime control plane."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+axum = { workspace = true, features = ["http1", "json"] }
+plenora-runtime-control = { path = "../../crates/plenora-runtime-control", version = "=0.1.0" }
+plenora-runtime-resources = { path = "../../crates/plenora-runtime-resources", version = "=0.1.0" }
+plenora-runtime-scheduler = { path = "../../crates/plenora-runtime-scheduler", version = "=0.1.0" }
+plenora-runtime-worker = { path = "../../crates/plenora-runtime-worker", version = "=0.1.0" }
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+async-trait.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tower = { workspace = true, features = ["util"] }
+
+[lints]
+workspace = true

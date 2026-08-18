@@ -1,0 +1,21 @@
+[package]
+name = "plenora-runtime-worker"
+description = "Worker execution contracts and bounded runtime coordination."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+tokio = { workspace = true, features = ["macros", "sync", "time"] }
+
+[dev-dependencies]
+bytes.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "test-util", "time"] }
+
+[lints]
+workspace = true

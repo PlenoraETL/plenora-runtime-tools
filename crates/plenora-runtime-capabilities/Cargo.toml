@@ -1,0 +1,20 @@
+[package]
+name = "plenora-runtime-capabilities"
+description = "Bounded capability registry and generic worker dispatcher for Plenora integrations."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+plenora-runtime-worker = { version = "=0.1.0", path = "../plenora-runtime-worker" }
+
+[dev-dependencies]
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true

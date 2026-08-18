@@ -1,0 +1,22 @@
+[package]
+name = "plenora-runtime-control"
+description = "Bounded backend-neutral runtime control-plane contracts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+plenora-runtime-messaging = { path = "../plenora-runtime-messaging", version = "=0.1.0" }
+plenora-runtime-resources = { path = "../plenora-runtime-resources", version = "=0.1.0" }
+plenora-runtime-scheduler = { path = "../plenora-runtime-scheduler", version = "=0.1.0" }
+plenora-runtime-subprocess = { path = "../plenora-runtime-subprocess", version = "=0.1.0" }
+plenora-runtime-worker = { path = "../plenora-runtime-worker", version = "=0.1.0" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

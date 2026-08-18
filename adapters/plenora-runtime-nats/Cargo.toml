@@ -1,0 +1,25 @@
+[package]
+name = "plenora-runtime-nats"
+description = "NATS JetStream adapter for Plenora messaging contracts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+async-nats.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+futures-util.workspace = true
+plenora-runtime-core = { version = "=0.1.0", path = "../../crates/plenora-runtime-core" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../../crates/plenora-runtime-messaging" }
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }

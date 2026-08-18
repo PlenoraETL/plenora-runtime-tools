@@ -1,0 +1,17 @@
+[package]
+name = "plenora-runtime-observability"
+description = "Backend-neutral runtime observability conventions and hooks."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+opentelemetry.workspace = true
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+tracing.workspace = true
+tracing-opentelemetry.workspace = true

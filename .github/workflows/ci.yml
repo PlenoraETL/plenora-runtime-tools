@@ -1,0 +1,241 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact commit SHA to qualify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualification-sha:
+    name: Verify qualification SHA
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify explicitly requested commit
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ACTUAL_SHA: ${{ github.sha }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: test "$EXPECTED_SHA" = "$ACTUAL_SHA"
+
+  quality:
+    name: Quality (${{ matrix.os }})
+    needs: qualification-sha
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt --component clippy
+
+      - name: Select pinned Rust toolchain
+        run: rustup default 1.97.1
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Check workspace
+        run: cargo check --workspace --all-targets --locked
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Run tests
+        run: cargo test --workspace --all-targets --all-features --locked
+
+      - name: Build documentation
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --no-deps --all-features --locked
+
+  dependency-policy:
+    name: Dependency policy
+    needs: qualification-sha
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal
+
+      - name: Select pinned Rust toolchain
+        run: rustup default 1.97.1
+
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit --version 0.22.2
+
+      - name: Audit dependencies
+        run: cargo audit
+
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny --version 0.20.2
+
+      - name: Check dependency policy
+        run: cargo deny check
+
+  nats-integration:
+    name: NATS JetStream integration
+    needs: qualification-sha
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal
+
+      - name: Select pinned Rust toolchain
+        run: rustup default 1.97.1
+
+      - name: Start ephemeral NATS JetStream
+        id: nats
+        shell: pwsh
+        run: |
+          $status = ./scripts/nats-docker.ps1 Start | ConvertFrom-Json
+          "run_id=$($status.run_id)" >> $env:GITHUB_OUTPUT
+          "client_url=$($status.client_url)" >> $env:GITHUB_OUTPUT
+
+      - name: Run real NATS adapter test
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: cargo test -p plenora-runtime-nats --test real_nats --locked -- --ignored --nocapture
+
+      - name: Run NATS to Apalis DLQ integration test
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: cargo test -p plenora-runtime-integration-tests --test nats_worker_dlq --locked -- --ignored --nocapture
+
+      - name: Run complete capability worker and crash recovery integration test
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: cargo test -p plenora-runtime-integration-tests --test nats_capability_e2e --locked -- --ignored --nocapture
+
+      - name: Collect NATS logs on failure
+        if: failure() && steps.nats.outputs.run_id != ''
+        shell: pwsh
+        run: ./scripts/nats-docker.ps1 Logs -RunId '${{ steps.nats.outputs.run_id }}' -LogTail 200
+
+      - name: Remove ephemeral NATS container
+        if: always() && steps.nats.outputs.run_id != ''
+        shell: pwsh
+        run: ./scripts/nats-docker.ps1 Cleanup -RunId '${{ steps.nats.outputs.run_id }}'
+
+  coverage:
+    name: Line coverage (minimum 90%)
+    needs: qualification-sha
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --component llvm-tools-preview
+
+      - name: Select pinned Rust toolchain
+        run: rustup default 1.97.1
+
+      - name: Install pinned coverage tool
+        run: cargo install --locked cargo-llvm-cov --version 0.8.7
+
+      - name: Start ephemeral NATS JetStream
+        id: nats
+        shell: pwsh
+        run: |
+          $status = ./scripts/nats-docker.ps1 Start | ConvertFrom-Json
+          "run_id=$($status.run_id)" >> $env:GITHUB_OUTPUT
+          "client_url=$($status.client_url)" >> $env:GITHUB_OUTPUT
+
+      - name: Collect normal workspace coverage
+        run: |
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov --workspace \
+            --exclude plenora-example-worker-basic \
+            --exclude plenora-example-worker-nats \
+            --exclude plenora-example-http-worker \
+            --exclude plenora-example-http-service \
+            --exclude plenora-runtime-example-scheduler-basic \
+            --exclude plenora-runtime-example-benchmark \
+            --exclude plenora-runtime-architecture-tests \
+            --exclude plenora-runtime-integration-tests \
+            --exclude plenora-runtime-memory-tests \
+            --locked --no-report
+
+      - name: Collect real NATS adapter coverage
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: cargo llvm-cov -p plenora-runtime-nats --test real_nats --locked --no-report -- --ignored --nocapture
+
+      - name: Collect NATS to Apalis integration coverage
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: cargo llvm-cov -p plenora-runtime-integration-tests --test nats_worker_dlq --locked --no-report -- --ignored --nocapture
+
+      - name: Collect capability worker and crash recovery coverage
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: cargo llvm-cov -p plenora-runtime-integration-tests --test nats_capability_e2e --locked --no-report -- --ignored --nocapture
+
+      - name: Enforce line coverage threshold
+        run: cargo llvm-cov report --summary-only --fail-under-lines 90
+
+      - name: Collect NATS logs on failure
+        if: failure() && steps.nats.outputs.run_id != ''
+        shell: pwsh
+        run: ./scripts/nats-docker.ps1 Logs -RunId '${{ steps.nats.outputs.run_id }}' -LogTail 200
+
+      - name: Remove ephemeral NATS container
+        if: always() && steps.nats.outputs.run_id != ''
+        shell: pwsh
+        run: ./scripts/nats-docker.ps1 Cleanup -RunId '${{ steps.nats.outputs.run_id }}'
+
+  fuzz-smoke:
+    name: Fuzz smoke suite
+    needs: qualification-sha
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal
+
+      - name: Select pinned Rust toolchain
+        run: rustup default 1.97.1
+
+      - name: Install pinned nightly fuzz toolchain
+        run: rustup toolchain install nightly-2026-08-01 --profile minimal
+
+      - name: Install pinned cargo-fuzz
+        run: cargo install --locked cargo-fuzz --version 0.13.2
+
+      - name: Run bounded fuzz smoke suite
+        run: |
+          for target in message_metadata capability_codec retry_policy nats_config propagation_carrier runtime_inputs; do
+            cargo +nightly-2026-08-01 fuzz run "$target" "fuzz/corpus/$target" -- \
+              -runs=2000 -timeout=5 -max_len=32768
+          done

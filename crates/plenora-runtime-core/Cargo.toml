@@ -1,0 +1,17 @@
+[package]
+name = "plenora-runtime-core"
+description = "Process lifecycle, shutdown, supervision, health, and shared runtime primitives."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+tokio = { workspace = true, features = ["rt", "sync", "time"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

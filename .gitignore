@@ -1,0 +1,8 @@
+/target/
+/fuzz/target/
+/fuzz/artifacts/
+.idea/
+.vscode/
+*.swp
+*.tmp
+*.profraw

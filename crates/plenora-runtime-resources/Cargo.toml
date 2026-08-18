@@ -1,0 +1,21 @@
+[package]
+name = "plenora-runtime-resources"
+description = "Generic process resource-pressure monitoring and bounded worker admission control."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+plenora-runtime-core = { path = "../plenora-runtime-core", version = "=0.1.0" }
+plenora-runtime-worker = { path = "../plenora-runtime-worker", version = "=0.1.0" }
+tokio = { workspace = true, features = ["time"] }
+
+[dev-dependencies]
+async-trait.workspace = true
+plenora-runtime-messaging = { path = "../plenora-runtime-messaging", version = "=0.1.0" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,23 @@
+[package]
+name = "plenora-example-worker-nats"
+description = "Worker backed by the NATS JetStream adapter."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+axum.workspace = true
+plenora-runtime-apalis = { version = "=0.1.0", path = "../../adapters/plenora-runtime-apalis" }
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../../crates/plenora-runtime-capabilities" }
+plenora-runtime-core = { version = "=0.1.0", path = "../../crates/plenora-runtime-core" }
+plenora-runtime-http = { version = "=0.1.0", path = "../../crates/plenora-runtime-http" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../../crates/plenora-runtime-messaging" }
+plenora-runtime-nats = { version = "=0.1.0", path = "../../adapters/plenora-runtime-nats" }
+plenora-runtime-worker = { version = "=0.1.0", path = "../../crates/plenora-runtime-worker" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "time"] }
+
+[lints]
+workspace = true

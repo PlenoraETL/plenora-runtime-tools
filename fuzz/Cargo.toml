@@ -1,0 +1,66 @@
+[package]
+name = "plenora-runtime-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+bytes = "=1.12.1"
+libfuzzer-sys = "=0.4.13"
+opentelemetry = { version = "=0.32.0", default-features = false, features = ["trace"] }
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../crates/plenora-runtime-capabilities" }
+plenora-runtime-control = { version = "=0.1.0", path = "../crates/plenora-runtime-control" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../crates/plenora-runtime-messaging" }
+plenora-runtime-nats = { version = "=0.1.0", path = "../adapters/plenora-runtime-nats" }
+plenora-runtime-observability = { version = "=0.1.0", path = "../crates/plenora-runtime-observability" }
+plenora-runtime-scheduler = { version = "=0.1.0", path = "../crates/plenora-runtime-scheduler" }
+plenora-runtime-subprocess = { version = "=0.1.0", path = "../crates/plenora-runtime-subprocess" }
+
+[workspace]
+members = ["."]
+resolver = "3"
+
+[[bin]]
+name = "message_metadata"
+path = "fuzz_targets/message_metadata.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "capability_codec"
+path = "fuzz_targets/capability_codec.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "retry_policy"
+path = "fuzz_targets/retry_policy.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "nats_config"
+path = "fuzz_targets/nats_config.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "propagation_carrier"
+path = "fuzz_targets/propagation_carrier.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "runtime_inputs"
+path = "fuzz_targets/runtime_inputs.rs"
+test = false
+doc = false
+bench = false

@@ -1,0 +1,14 @@
+[package]
+name = "plenora-runtime-architecture-tests"
+description = "Static architecture and production-source policy tests."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[lints]
+workspace = true

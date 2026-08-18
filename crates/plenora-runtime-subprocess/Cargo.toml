@@ -1,0 +1,17 @@
+[package]
+name = "plenora-runtime-subprocess"
+description = "Bounded child-process containment for Plenora runtime consumers."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+tokio = { workspace = true, features = ["fs", "io-util", "process", "rt", "sync", "time"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

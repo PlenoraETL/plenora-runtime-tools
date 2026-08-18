@@ -1,0 +1,19 @@
+[package]
+name = "plenora-example-capability-adapter"
+description = "Compile-tested template for integrating an application-owned Rust library."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../../crates/plenora-runtime-capabilities" }
+plenora-runtime-core = { version = "=0.1.0", path = "../../crates/plenora-runtime-core" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../../crates/plenora-runtime-messaging" }
+plenora-runtime-worker = { version = "=0.1.0", path = "../../crates/plenora-runtime-worker" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

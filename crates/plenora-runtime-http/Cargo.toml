@@ -1,0 +1,25 @@
+[package]
+name = "plenora-runtime-http"
+description = "HTTP runtime adapter contracts and bootstrap support."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+axum = { workspace = true, features = ["http1", "json", "tokio"] }
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "net", "time"] }
+tower.workspace = true
+tower-http = { workspace = true, features = ["limit", "sensitive-headers", "trace"] }
+tracing.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tokio = { workspace = true, features = ["io-util", "rt-multi-thread", "sync"] }
+
+[lints]
+workspace = true

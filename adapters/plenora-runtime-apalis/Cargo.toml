@@ -1,0 +1,26 @@
+[package]
+name = "plenora-runtime-apalis"
+description = "Apalis adapter for Plenora worker contracts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+apalis.workspace = true
+futures-util.workspace = true
+plenora-runtime-core = { version = "=0.1.0", path = "../../crates/plenora-runtime-core" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../../crates/plenora-runtime-messaging" }
+plenora-runtime-worker = { version = "=0.1.0", path = "../../crates/plenora-runtime-worker" }
+tower.workspace = true
+tokio = { workspace = true, features = ["macros", "time"] }
+
+[dev-dependencies]
+async-trait.workspace = true
+bytes.workspace = true
+plenora-runtime-testkit = { version = "=0.1.0", path = "../../crates/plenora-runtime-testkit" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "test-util", "time"] }
+
+[lints]
+workspace = true
