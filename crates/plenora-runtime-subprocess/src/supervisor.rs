@@ -556,12 +556,15 @@ mod tests {
     use super::isolated_process_group_target;
 
     #[test]
-    fn isolated_group_target_must_be_distinct_and_led_by_the_child() {
-        assert!(matches!(
-            isolated_process_group_target(42, 42, 7).as_deref(),
-            Ok("-42")
-        ));
-        assert!(isolated_process_group_target(42, 7, 7).is_err());
-        assert!(isolated_process_group_target(42, 42, 42).is_err());
+    fn isolated_group_target_must_be_distinct_and_led_by_the_child() -> std::io::Result<()> {
+        if isolated_process_group_target(42, 42, 7)? != "-42" {
+            return Err(std::io::Error::other("safe process group was rejected"));
+        }
+        if isolated_process_group_target(42, 7, 7).is_ok()
+            || isolated_process_group_target(42, 42, 42).is_ok()
+        {
+            return Err(std::io::Error::other("unsafe process group was accepted"));
+        }
+        Ok(())
     }
 }
