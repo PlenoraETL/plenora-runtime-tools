@@ -500,6 +500,8 @@ async fn resident_memory_bytes(pid: u32) -> io::Result<u64> {
 }
 
 #[cfg(not(target_os = "linux"))]
+// Keep every platform implementation compatible with the shared awaited call site.
+#[allow(clippy::unused_async)]
 async fn resident_memory_bytes(_pid: u32) -> io::Result<u64> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,

@@ -69,6 +69,9 @@ function Get-ContainerInspect {
         $ErrorActionPreference = $PreviousErrorActionPreference
     }
     if ($ExitCode -ne 0) {
+        # A missing container is an expected probe result; do not leak Docker's
+        # non-zero inspect status into the script process exit code.
+        $global:LASTEXITCODE = 0
         return $null
     }
 
