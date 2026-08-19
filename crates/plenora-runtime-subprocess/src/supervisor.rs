@@ -431,12 +431,18 @@ async fn terminate_and_reap(
 #[cfg(unix)]
 async fn signal_process(pid: u32, mode: ProcessTreeMode, force: bool) -> io::Result<()> {
     let target = if mode == ProcessTreeMode::IsolatedTree {
-        format!("-{pid}")
+        let child_group = process_group_id(pid).await?;
+        let supervisor_group = process_group_id(std::process::id()).await?;
+        isolated_process_group_target(pid, child_group, supervisor_group)?
     } else {
         pid.to_string()
     };
-    let status = Command::new("/bin/kill")
-        .arg(if force { "-KILL" } else { "-TERM" })
+    let mut command = Command::new("/bin/kill");
+    command.arg(if force { "-KILL" } else { "-TERM" });
+    if mode == ProcessTreeMode::IsolatedTree {
+        command.arg("--");
+    }
+    let status = command
         .arg(target)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -448,6 +454,42 @@ async fn signal_process(pid: u32, mode: ProcessTreeMode, force: bool) -> io::Res
     } else {
         Err(io::Error::other("process signal command failed"))
     }
+}
+
+#[cfg(unix)]
+async fn process_group_id(pid: u32) -> io::Result<u32> {
+    let output = Command::new("/bin/ps")
+        .arg("-o")
+        .arg("pgid=")
+        .arg("-p")
+        .arg(pid.to_string())
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .await?;
+    if !output.status.success() {
+        return Err(io::Error::other("process group lookup failed"));
+    }
+    let value = std::str::from_utf8(&output.stdout)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    value
+        .trim()
+        .parse()
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
+}
+
+#[cfg(unix)]
+fn isolated_process_group_target(
+    pid: u32,
+    child_group: u32,
+    supervisor_group: u32,
+) -> io::Result<String> {
+    if child_group != pid || child_group == supervisor_group {
+        return Err(io::Error::other(
+            "subprocess process group is not safely isolated",
+        ));
+    }
+    Ok(format!("-{child_group}"))
 }
 
 #[cfg(windows)]
@@ -500,9 +542,29 @@ async fn resident_memory_bytes(pid: u32) -> io::Result<u64> {
 }
 
 #[cfg(not(target_os = "linux"))]
+// Keep every platform implementation compatible with the shared awaited call site.
+#[allow(clippy::unused_async)]
 async fn resident_memory_bytes(_pid: u32) -> io::Result<u64> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "RSS sampling is unsupported on this platform",
     ))
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::isolated_process_group_target;
+
+    #[test]
+    fn isolated_group_target_must_be_distinct_and_led_by_the_child() -> std::io::Result<()> {
+        if isolated_process_group_target(42, 42, 7)? != "-42" {
+            return Err(std::io::Error::other("safe process group was rejected"));
+        }
+        if isolated_process_group_target(42, 7, 7).is_ok()
+            || isolated_process_group_target(42, 42, 42).is_ok()
+        {
+            return Err(std::io::Error::other("unsafe process group was accepted"));
+        }
+        Ok(())
+    }
 }
