@@ -14,7 +14,7 @@ use plenora_runtime_messaging::{
 use serde::Deserialize;
 use serde_json::Value;
 
-const CONTRACTS_REVISION: &str = "55659d2ff65c644e5f20b3c905654f144261e751";
+const CONTRACTS_REVISION: &str = "e0484e54c96c5441ea09f44a2419bcabbe7f7242";
 const SOURCE: &str = include_str!("../../../contracts/source.json");
 const REQUEST_VECTOR: &str =
     include_str!("../../../contracts/runtime-v1/database-read-request.json");

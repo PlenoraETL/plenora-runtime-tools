@@ -144,6 +144,71 @@ fn adapter_public_mapping_drives_retry_without_status_or_string_inference()
     Ok(())
 }
 
+#[test]
+fn public_error_accessors_and_identity_bounds_are_explicit() -> Result<(), Box<dyn Error>> {
+    let error = base_error()?;
+    assert_eq!(error.category(), PlenoraErrorCategory::Internal);
+    assert_eq!(error.phase(), PlenoraErrorPhase::Finalize);
+    assert_eq!(error.remote_effect(), PlenoraErrorRemoteEffect::None);
+    assert_eq!(error.retry(), PlenoraErrorRetry::Never);
+    assert_eq!(error.message(), "bounded error");
+
+    let invalid_message = PlenoraError::new(
+        PlenoraErrorCategory::Internal,
+        PlenoraErrorPhase::Finalize,
+        PlenoraErrorRemoteEffect::None,
+        PlenoraErrorRetry::Never,
+        "",
+    )
+    .err()
+    .ok_or("empty public message was accepted")?;
+    assert_eq!(
+        invalid_message.kind(),
+        PlenoraErrorValidationErrorKind::InvalidMessage
+    );
+
+    let invalid_code = base_error()?
+        .with_code("lowercase")
+        .err()
+        .ok_or("invalid public code was accepted")?;
+    assert_eq!(
+        invalid_code.kind(),
+        PlenoraErrorValidationErrorKind::InvalidCode
+    );
+    let invalid_provider = base_error()?
+        .with_provider("Invalid Provider")
+        .err()
+        .ok_or("invalid provider was accepted")?;
+    assert_eq!(
+        invalid_provider.kind(),
+        PlenoraErrorValidationErrorKind::InvalidProvider
+    );
+    let invalid_execution = base_error()?
+        .with_execution_id("")
+        .err()
+        .ok_or("empty execution identifier was accepted")?;
+    assert_eq!(
+        invalid_execution.kind(),
+        PlenoraErrorValidationErrorKind::InvalidExecutionId
+    );
+
+    let mut oversized_details = Map::new();
+    for index in 0..65 {
+        oversized_details.insert(format!("value_{index}"), Value::String("x".repeat(4_096)));
+    }
+    let too_large = base_error()?
+        .with_details(oversized_details)
+        .err()
+        .ok_or("oversized encoded details were accepted")?;
+    assert_eq!(
+        too_large.kind(),
+        PlenoraErrorValidationErrorKind::DetailsTooLarge
+    );
+    assert_eq!(too_large.to_string(), "public Plenora error is invalid");
+    assert!(too_large.source().is_none());
+    Ok(())
+}
+
 fn base_error() -> Result<PlenoraError, Box<dyn Error>> {
     Ok(PlenoraError::new(
         PlenoraErrorCategory::Internal,

@@ -15,8 +15,9 @@ use plenora_runtime_capabilities::{
     CapabilityFailure, CapabilityHandler, CapabilityId, CapabilityRegistryBuilder,
     CapabilityRegistryError, CapabilityRemoteEffect, CapabilityRequest, CapabilityRequestRejection,
     CapabilityResponse, CapabilityResponseRejection, CapabilityResult,
-    CapabilityResultPublishError, CapabilityResultSink, CapabilitySideEffect, ContractId,
-    EXECUTION_DEADLINE_METADATA_KEY, IDEMPOTENCY_KEY_METADATA_KEY, OPERATION_VERSION_METADATA_KEY,
+    CapabilityResultPublishError, CapabilityResultSink, CapabilitySideEffect, CapabilitySurface,
+    ContractId, EXECUTION_DEADLINE_METADATA_KEY, IDEMPOTENCY_KEY_METADATA_KEY,
+    MAX_DISCOVERED_INTERFACES, MAX_DISCOVERED_OPERATIONS, OPERATION_VERSION_METADATA_KEY,
     OUTPUT_CONTRACT_METADATA_KEY, OperationName, OperationVersion, PlenoraError,
     PlenoraErrorCategory, PlenoraErrorPhase, PlenoraErrorRemoteEffect, PlenoraErrorRetry,
     REST_ATTRIBUTES_CONTRACT, REST_DOWNLOAD_OPERATION, REST_EXECUTION_REQUEST_CONTRACT,
@@ -27,8 +28,8 @@ use plenora_runtime_capabilities::{
 };
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_messaging::{
-    ClassifyRetry, CorrelationId, MessageId, MessageMetadata, PublishOutcome, RetryErrorClass,
-    SerializedMessage,
+    ClassifyRetry, CorrelationId, MessageId, MessageMetadata, MessageProducer, PublishOutcome,
+    RetryErrorClass, SerializedMessage,
 };
 use plenora_runtime_worker::{
     TaskCancellationReason, TaskCancellationToken, WorkerContext, WorkerHandler,
@@ -67,6 +68,25 @@ struct FailingHandler {
 #[derive(Clone)]
 struct StaticResponseHandler {
     response: CapabilityResponse,
+}
+
+#[derive(Clone, Debug)]
+struct RecordingProducer {
+    messages: Arc<Mutex<Vec<SerializedMessage>>>,
+    fail: bool,
+}
+
+#[async_trait]
+impl MessageProducer for RecordingProducer {
+    type Error = std::io::Error;
+
+    async fn publish(&self, message: SerializedMessage) -> Result<PublishOutcome, Self::Error> {
+        if self.fail {
+            return Err(std::io::Error::other("private producer failure"));
+        }
+        lock(&self.messages).push(message);
+        Ok(PublishOutcome::Confirmed)
+    }
 }
 
 #[async_trait]
@@ -281,6 +301,96 @@ async fn discovered_rest_dispatches_all_five_operations_and_preserves_context()
         );
         assert_eq!(result.message().content_type.as_ref(), "application/json");
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn public_results_and_broker_neutral_sink_are_fully_observable() -> Result<(), Box<dyn Error>>
+{
+    let response = CapabilityResponse::new(
+        ContractId::new(REST_EXECUTION_RESULT_CONTRACT)?,
+        SerializedMessage::new("application/json", r#"{"ok":true}"#),
+    );
+    assert_eq!(
+        response.output_contract().map(ContractId::as_str),
+        Some(REST_EXECUTION_RESULT_CONTRACT)
+    );
+    assert_eq!(
+        response
+            .output()
+            .map(|message| message.content_type.as_ref()),
+        Some("application/json")
+    );
+    assert!(format!("{response:?}").contains("CapabilityResponse"));
+    let acknowledged = CapabilityResponse::acknowledged();
+    assert!(acknowledged.output_contract().is_none());
+    assert!(acknowledged.output().is_none());
+    assert!(format!("{acknowledged:?}").contains("CapabilityResponse"));
+
+    let results = Arc::new(Mutex::new(Vec::new()));
+    let mut builder = CapabilityRegistryBuilder::default();
+    builder.register_discovered(
+        CapabilityDiscovery::from_json(REST_DISCOVERY.as_bytes())?,
+        StaticResponseHandler { response },
+    )?;
+    let dispatcher = CapabilityDispatcher::with_result_sink(
+        builder.build(),
+        CapabilityDispatcherConfig::default(),
+        CapturingResultSink {
+            results: Arc::clone(&results),
+        },
+    )?;
+    let correlation_id: CorrelationId = "018f3d84-7b2c-7f00-8000-000000000098".parse()?;
+    dispatcher
+        .handle(
+            worker_context(correlation_id),
+            rest_request(
+                "rest.test",
+                1,
+                REST_EXECUTION_REQUEST_CONTRACT,
+                "application/json",
+            )?,
+        )
+        .await?;
+    let result = lock(&results)
+        .pop()
+        .ok_or("dispatcher did not publish a result")?;
+    assert_eq!(result.operation().as_str(), "rest.test");
+    assert_eq!(result.operation_version().get(), 1);
+    assert_eq!(
+        result.output_contract().as_str(),
+        REST_EXECUTION_RESULT_CONTRACT
+    );
+    assert_eq!(result.correlation_id(), correlation_id);
+    assert_eq!(result.message().content_type.as_ref(), "application/json");
+    assert!(format!("{result:?}").contains("CapabilityResult"));
+    let expected_message = result.clone().into_message();
+
+    let messages = Arc::new(Mutex::new(Vec::new()));
+    let producer = RecordingProducer {
+        messages: Arc::clone(&messages),
+        fail: false,
+    };
+    assert_eq!(
+        producer.publish_result(result.clone()).await?,
+        PublishOutcome::Confirmed
+    );
+    assert_eq!(lock(&messages).as_slice(), &[expected_message]);
+
+    let failing = RecordingProducer {
+        messages: Arc::new(Mutex::new(Vec::new())),
+        fail: true,
+    };
+    let error = failing
+        .publish_result(result)
+        .await
+        .err()
+        .ok_or("failing producer returned success")?;
+    assert_eq!(error.source_error().to_string(), "private producer failure");
+    assert!(error.source().is_some());
+    assert_eq!(error.to_string(), "capability result publication failed");
+    assert!(!format!("{error:?}").contains("private producer failure"));
+    assert_eq!(error.clone().to_string(), error.to_string());
     Ok(())
 }
 
@@ -705,6 +815,348 @@ fn discovery_enforces_document_and_attribute_bounds() -> Result<(), Box<dyn Erro
     Ok(())
 }
 
+#[test]
+fn discovery_rejects_invalid_document_and_interface_shapes() -> Result<(), Box<dyn Error>> {
+    let invalid_json = CapabilityDiscovery::from_json(b"{")
+        .err()
+        .ok_or("invalid JSON was accepted")?;
+    assert_eq!(
+        invalid_json.kind(),
+        CapabilityDiscoveryErrorKind::InvalidJson
+    );
+    assert!(invalid_json.to_string().contains("InvalidJson"));
+
+    assert_discovery_mutation(
+        CapabilityDiscoveryErrorKind::UnsupportedSchemaVersion,
+        |document| {
+            document["schema_version"] = serde_json::json!(1);
+            Ok(())
+        },
+    )?;
+    assert_discovery_mutation(CapabilityDiscoveryErrorKind::InvalidComponent, |document| {
+        document["component"] = serde_json::json!("invalid");
+        Ok(())
+    })?;
+    assert_discovery_mutation(
+        CapabilityDiscoveryErrorKind::InvalidComponentVersion,
+        |document| {
+            document["component_version"] = serde_json::json!("1.0");
+            Ok(())
+        },
+    )?;
+    assert_discovery_mutation(
+        CapabilityDiscoveryErrorKind::MissingInterfaces,
+        |document| {
+            document["interfaces"] = serde_json::json!([]);
+            Ok(())
+        },
+    )?;
+    assert_discovery_mutation(
+        CapabilityDiscoveryErrorKind::TooManyInterfaces,
+        |document| {
+            let interface = document["interfaces"][0].clone();
+            document["interfaces"] = Value::Array(vec![interface; MAX_DISCOVERED_INTERFACES + 1]);
+            Ok(())
+        },
+    )?;
+    assert_discovery_mutation(CapabilityDiscoveryErrorKind::InvalidInterface, |document| {
+        document["interfaces"][0]["version"] = serde_json::json!(0);
+        Ok(())
+    })?;
+    assert_discovery_mutation(
+        CapabilityDiscoveryErrorKind::DuplicateInterface,
+        |document| {
+            let interface = document["interfaces"][0].clone();
+            document["interfaces"]
+                .as_array_mut()
+                .ok_or("interfaces array is missing")?
+                .push(interface);
+            Ok(())
+        },
+    )?;
+    assert_discovery_mutation(
+        CapabilityDiscoveryErrorKind::TooManyOperations,
+        |document| {
+            let operation = document["operations"][0].clone();
+            document["operations"] = Value::Array(vec![operation; MAX_DISCOVERED_OPERATIONS + 1]);
+            Ok(())
+        },
+    )?;
+    assert_discovery_mutation(
+        CapabilityDiscoveryErrorKind::DuplicateOperation,
+        |document| {
+            let operation = document["operations"][0].clone();
+            document["operations"]
+                .as_array_mut()
+                .ok_or("operations array is missing")?
+                .push(operation);
+            Ok(())
+        },
+    )?;
+    Ok(())
+}
+
+#[test]
+fn discovery_rejects_invalid_operation_payload_and_attribute_shapes() -> Result<(), Box<dyn Error>>
+{
+    for (field, value) in [
+        ("id", serde_json::json!("invalid")),
+        ("version", serde_json::json!(0)),
+        ("surfaces", serde_json::json!([])),
+        ("surfaces", serde_json::json!(["runtime", "runtime"])),
+        ("status", serde_json::json!("unavailable")),
+    ] {
+        assert_discovery_mutation(CapabilityDiscoveryErrorKind::InvalidOperation, |document| {
+            operation_mut(document, "rest.test")?.insert(String::from(field), value);
+            Ok(())
+        })?;
+    }
+    for (field, value) in [
+        ("contract", serde_json::json!("not a contract")),
+        ("content_types", serde_json::json!([])),
+        (
+            "content_types",
+            serde_json::json!(["application/json", "application/json"]),
+        ),
+        ("content_types", serde_json::json!(["invalid"])),
+    ] {
+        assert_discovery_mutation(CapabilityDiscoveryErrorKind::InvalidOperation, |document| {
+            operation_mut(document, "rest.test")?
+                .get_mut("input")
+                .and_then(Value::as_object_mut)
+                .ok_or("input payload is missing")?
+                .insert(String::from(field), value);
+            Ok(())
+        })?;
+    }
+    for attributes in [
+        serde_json::json!({"items": vec![Value::Null; 65]}),
+        serde_json::json!({"value": "x".repeat(513)}),
+        serde_json::json!({"x".repeat(65): true}),
+    ] {
+        assert_discovery_mutation(
+            CapabilityDiscoveryErrorKind::InvalidAttributes,
+            |document| {
+                operation_mut(document, "rest.test")?
+                    .insert(String::from("attributes"), attributes);
+                Ok(())
+            },
+        )?;
+    }
+    Ok(())
+}
+
+#[test]
+fn runtime_identity_resolution_rejects_every_incompatible_interface() -> Result<(), Box<dyn Error>>
+{
+    assert_runtime_identity_mutation(
+        CapabilityDiscoveryErrorKind::MissingRuntimeInterface,
+        |document| {
+            document["interfaces"]
+                .as_array_mut()
+                .ok_or("interfaces array is missing")?
+                .retain(|interface| interface["kind"] != "runtime");
+            Ok(())
+        },
+    )?;
+    assert_runtime_identity_mutation(
+        CapabilityDiscoveryErrorKind::DuplicateRuntimeInterface,
+        |document| {
+            let mut runtime = document["interfaces"][2].clone();
+            runtime["artifact"] = serde_json::json!("plenora.other-tools");
+            document["interfaces"]
+                .as_array_mut()
+                .ok_or("interfaces array is missing")?
+                .push(runtime);
+            Ok(())
+        },
+    )?;
+    assert_runtime_identity_mutation(
+        CapabilityDiscoveryErrorKind::UnsupportedRuntimeBinding,
+        |document| {
+            document["interfaces"][2]["contract"] = serde_json::json!("plenora-other-runtime-v1");
+            Ok(())
+        },
+    )?;
+    assert_runtime_identity_mutation(
+        CapabilityDiscoveryErrorKind::MissingRuntimeArtifact,
+        |document| {
+            document["interfaces"][2]
+                .as_object_mut()
+                .ok_or("runtime interface is missing")?
+                .remove("artifact");
+            Ok(())
+        },
+    )?;
+    assert_runtime_identity_mutation(
+        CapabilityDiscoveryErrorKind::InvalidRuntimeCapability,
+        |document| {
+            document["interfaces"][2]["artifact"] = serde_json::json!("invalid");
+            Ok(())
+        },
+    )?;
+    Ok(())
+}
+
+#[test]
+fn discovery_accessors_and_request_controls_are_complete() -> Result<(), Box<dyn Error>> {
+    let discovery = CapabilityDiscovery::from_json(REST_DISCOVERY.as_bytes())?;
+    let rust = discovery
+        .interfaces()
+        .first()
+        .ok_or("Rust interface is missing")?;
+    assert_eq!(rust.kind(), CapabilitySurface::Rust);
+    assert_eq!(rust.contract().as_str(), "plenora-rust-public-v1");
+    assert_eq!(rust.version(), 1);
+    assert_eq!(rust.artifact(), Some("plenora-rest-core"));
+
+    let operation = discovery
+        .operation_named("rest.test")
+        .ok_or("rest.test is missing")?;
+    assert_eq!(operation.attributes().len(), 1);
+    assert!(!operation.attributes().is_empty());
+    assert_eq!(operation.reason(), None);
+
+    let mut no_attributes: Value = serde_json::from_str(REST_DISCOVERY)?;
+    operation_mut(&mut no_attributes, "rest.test")?.remove("attributes");
+    let no_attributes = CapabilityDiscovery::from_json(&serde_json::to_vec(&no_attributes)?)?;
+    assert!(
+        no_attributes
+            .operation_named("rest.test")
+            .ok_or("rest.test is missing")?
+            .attributes()
+            .is_empty()
+    );
+
+    let unavailable = mutated_discovery(|document| {
+        let operation = operation_mut(document, "rest.test")?;
+        operation.insert(String::from("status"), serde_json::json!("unavailable"));
+        operation.insert(String::from("reason"), serde_json::json!("maintenance"));
+        Ok(())
+    })?;
+    let unavailable_operation = unavailable
+        .operation_named("rest.test")
+        .ok_or("rest.test is missing")?;
+    assert_eq!(unavailable_operation.reason(), Some("maintenance"));
+    assert_eq!(
+        unavailable.validate_request(&rest_request(
+            "rest.test",
+            1,
+            REST_EXECUTION_REQUEST_CONTRACT,
+            "application/json",
+        )?),
+        Err(CapabilityRequestRejection::OperationUnavailable)
+    );
+
+    let no_runtime = mutated_discovery(|document| {
+        operation_mut(document, "rest.test")?.insert(
+            String::from("surfaces"),
+            serde_json::json!(["rust", "python_sdk"]),
+        );
+        Ok(())
+    })?;
+    assert_eq!(
+        no_runtime.validate_request(&rest_request(
+            "rest.test",
+            1,
+            REST_EXECUTION_REQUEST_CONTRACT,
+            "application/json",
+        )?),
+        Err(CapabilityRequestRejection::RuntimeSurfaceUnsupported)
+    );
+
+    let no_deadline = mutated_discovery(|document| {
+        operation_mut(document, "rest.test")?["controls"]["deadline"] = serde_json::json!(false);
+        Ok(())
+    })?;
+    let mut metadata = MessageMetadata::new();
+    metadata.insert_text(EXECUTION_DEADLINE_METADATA_KEY, "2030-01-01T00:00:00Z")?;
+    assert_eq!(
+        no_deadline.validate_request(&rest_request_with_metadata(
+            "rest.test",
+            REST_EXECUTION_REQUEST_CONTRACT,
+            metadata,
+        )?),
+        Err(CapabilityRequestRejection::DeadlineUnsupported)
+    );
+    Ok(())
+}
+
+#[test]
+fn rest_profile_reports_every_uncovered_public_drift() -> Result<(), Box<dyn Error>> {
+    assert_profile_mutation(RestProfileErrorKind::ComponentMismatch, None, |document| {
+        document["component"] = serde_json::json!("plenora-other-tools");
+        Ok(())
+    })?;
+    assert_profile_mutation(
+        RestProfileErrorKind::RuntimeBindingMismatch,
+        None,
+        |document| {
+            document["interfaces"][2]["artifact"] = serde_json::json!("plenora.other-tools");
+            Ok(())
+        },
+    )?;
+    assert_profile_mutation(
+        RestProfileErrorKind::RequiredOperationMissing,
+        Some("rest.test"),
+        |document| {
+            document["operations"]
+                .as_array_mut()
+                .ok_or("operations array is missing")?
+                .retain(|operation| operation["id"] != "rest.test");
+            Ok(())
+        },
+    )?;
+    assert_profile_mutation(
+        RestProfileErrorKind::OperationVersionMismatch,
+        Some("rest.test"),
+        |document| {
+            operation_mut(document, "rest.test")?["version"] = serde_json::json!(2);
+            Ok(())
+        },
+    )?;
+    assert_profile_mutation(
+        RestProfileErrorKind::OperationUnavailable,
+        Some("rest.test"),
+        |document| {
+            let operation = operation_mut(document, "rest.test")?;
+            operation.insert(String::from("status"), serde_json::json!("unavailable"));
+            operation.insert(String::from("reason"), serde_json::json!("maintenance"));
+            Ok(())
+        },
+    )?;
+    assert_profile_mutation(
+        RestProfileErrorKind::RuntimeSurfaceMissing,
+        Some("rest.test"),
+        |document| {
+            operation_mut(document, "rest.test")?.insert(
+                String::from("surfaces"),
+                serde_json::json!(["rust", "python_sdk"]),
+            );
+            Ok(())
+        },
+    )?;
+    assert_profile_mutation(
+        RestProfileErrorKind::ControlsMismatch,
+        Some("rest.test"),
+        |document| {
+            operation_mut(document, "rest.test")?["controls"]["cancellation"] =
+                serde_json::json!(false);
+            Ok(())
+        },
+    )?;
+    assert_profile_mutation(
+        RestProfileErrorKind::TransferAttributesMismatch,
+        Some(REST_DOWNLOAD_OPERATION),
+        |document| {
+            operation_mut(document, REST_DOWNLOAD_OPERATION)?["attributes"]["direction"] =
+                serde_json::json!("upload");
+            Ok(())
+        },
+    )?;
+    Ok(())
+}
+
 fn rest_request(
     operation: &str,
     version: u16,
@@ -780,6 +1232,61 @@ fn changed_operation(
     };
     target.insert(String::from(field), replacement);
     Ok(serde_json::to_vec(&document)?)
+}
+
+fn mutated_discovery(
+    mutate: impl FnOnce(&mut Value) -> Result<(), Box<dyn Error>>,
+) -> Result<CapabilityDiscovery, Box<dyn Error>> {
+    let mut document: Value = serde_json::from_str(REST_DISCOVERY)?;
+    mutate(&mut document)?;
+    Ok(CapabilityDiscovery::from_json(&serde_json::to_vec(
+        &document,
+    )?)?)
+}
+
+fn assert_discovery_mutation(
+    expected: CapabilityDiscoveryErrorKind,
+    mutate: impl FnOnce(&mut Value) -> Result<(), Box<dyn Error>>,
+) -> Result<(), Box<dyn Error>> {
+    let mut document: Value = serde_json::from_str(REST_DISCOVERY)?;
+    mutate(&mut document)?;
+    let error = CapabilityDiscovery::from_json(&serde_json::to_vec(&document)?)
+        .err()
+        .ok_or("invalid discovery mutation was accepted")?;
+    assert_eq!(error.kind(), expected);
+    assert!(error.to_string().contains(&format!("{expected:?}")));
+    Ok(())
+}
+
+fn assert_runtime_identity_mutation(
+    expected: CapabilityDiscoveryErrorKind,
+    mutate: impl FnOnce(&mut Value) -> Result<(), Box<dyn Error>>,
+) -> Result<(), Box<dyn Error>> {
+    let discovery = mutated_discovery(mutate)?;
+    let error = discovery
+        .runtime_capability()
+        .err()
+        .ok_or("invalid runtime identity was accepted")?;
+    assert_eq!(error.kind(), expected);
+    Ok(())
+}
+
+fn assert_profile_mutation(
+    expected: RestProfileErrorKind,
+    operation: Option<&str>,
+    mutate: impl FnOnce(&mut Value) -> Result<(), Box<dyn Error>>,
+) -> Result<(), Box<dyn Error>> {
+    let discovery = mutated_discovery(mutate)?;
+    let error = RestCapabilityProfile::validate(&discovery)
+        .err()
+        .ok_or("incompatible REST profile was accepted")?;
+    assert_eq!(error.kind(), expected);
+    assert_eq!(error.operation(), operation);
+    assert_eq!(
+        error.to_string(),
+        "REST capability discovery is incompatible with the required profile"
+    );
+    Ok(())
 }
 
 fn operation_mut<'a>(

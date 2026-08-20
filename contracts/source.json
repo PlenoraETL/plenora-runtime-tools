@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/PlenoraETL/plenora-contracts.git",
-  "revision": "55659d2ff65c644e5f20b3c905654f144261e751",
+  "revision": "e0484e54c96c5441ea09f44a2419bcabbe7f7242",
   "contracts": [
     "plenora-runtime-binding-v1",
     "plenora-runtime-vector-v1",
