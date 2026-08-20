@@ -1098,9 +1098,12 @@ name = "plenora-runtime-capabilities"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "plenora-runtime-core",
  "plenora-runtime-messaging",
  "plenora-runtime-worker",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 

@@ -9,8 +9,12 @@ publish = false
 
 [dependencies]
 async-trait.workspace = true
+chrono.workspace = true
 plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
 plenora-runtime-worker = { version = "=0.1.0", path = "../plenora-runtime-worker" }
+serde = { workspace = true, features = ["rc"] }
+serde_json.workspace = true
+tokio = { workspace = true, features = ["time"] }
 
 [dev-dependencies]
 plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }

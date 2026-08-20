@@ -1,0 +1,67 @@
+{
+  "schema_version": 2,
+  "component": "plenora-rest-tools",
+  "component_version": "1.0.0",
+  "interfaces": [
+    {"kind": "rust", "contract": "plenora-rust-public-v1", "version": 1, "artifact": "plenora-rest-core"},
+    {"kind": "python_sdk", "contract": "plenora-python-sdk-v1", "version": 1, "artifact": "plenora-rest"},
+    {"kind": "runtime", "contract": "plenora-runtime-binding-v1", "version": 1, "artifact": "plenora.rest-tools"}
+  ],
+  "operations": [
+    {
+      "id": "rest.test",
+      "version": 1,
+      "status": "available",
+      "surfaces": ["rust", "python_sdk", "runtime"],
+      "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"]},
+      "output": {"contract": "plenora-rest-execution-result-v1", "content_types": ["application/json"]},
+      "side_effect": "remote",
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1"}
+    },
+    {
+      "id": "rest.generate",
+      "version": 1,
+      "status": "available",
+      "surfaces": ["rust", "python_sdk", "runtime"],
+      "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"]},
+      "output": {"contract": "plenora-rest-execution-result-v1", "content_types": ["application/json"]},
+      "side_effect": "remote",
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1"}
+    },
+    {
+      "id": "rest.enrich",
+      "version": 1,
+      "status": "available",
+      "surfaces": ["rust", "python_sdk", "runtime"],
+      "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"]},
+      "output": {"contract": "plenora-rest-execution-result-v1", "content_types": ["application/json"]},
+      "side_effect": "remote",
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1"}
+    },
+    {
+      "id": "rest.download",
+      "version": 1,
+      "status": "available",
+      "surfaces": ["rust", "python_sdk", "runtime"],
+      "input": {"contract": "plenora-rest-file-transfer-input-v1", "content_types": ["application/json"]},
+      "output": {"contract": "plenora-rest-file-transfer-result-v1", "content_types": ["application/json"]},
+      "side_effect": "remote",
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1", "direction": "download", "integrity": "sha256"}
+    },
+    {
+      "id": "rest.upload",
+      "version": 1,
+      "status": "available",
+      "surfaces": ["rust", "python_sdk", "runtime"],
+      "input": {"contract": "plenora-rest-file-transfer-input-v1", "content_types": ["application/json"]},
+      "output": {"contract": "plenora-rest-file-transfer-result-v1", "content_types": ["application/json"]},
+      "side_effect": "remote",
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "attributes": {"contract": "plenora-rest-capability-attributes-v1", "direction": "upload", "integrity": "sha256"}
+    }
+  ]
+}

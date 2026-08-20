@@ -24,6 +24,7 @@ Passing local tests does not by itself qualify a commit or prove that a Plenora 
 | Generic operational control | Complete locally | Frozen bounded registry, worker/task/scheduler/resource snapshots and mutations are tested; HTTP is always application-authorized and mutation routes are opt-in. |
 | Lifecycle persistence handoff | Complete as a boundary | The bounded dispatcher exposes drops, health projection, and metric primitives; no database persistence is claimed. |
 | Documentation and examples | Complete for the generic skeleton | The process-shaped NATS consumer composes versioned capability routing, worker, HTTP health/readiness, heartbeats, and coordinated drain; a separate compile-tested template defines the future concrete-library adapter contract. |
+| Common Runtime Binding 1.0 | Request/discovery/success path implemented | Pinned vectors verify routing and REST discovery. Confirmed results preserve operation version, output contract, content type and correlation. Typed terminal-error publication after retry settlement remains an open release gate. |
 | Dependency audit and policy | Complete locally | Pinned `cargo-audit 0.22.2` and `cargo-deny 0.20.2` pass; permitted duplicate-version warnings remain reviewable. |
 | Security review | Technically complete, release approval pending | See [`security-review.md`](security-review.md). Organizational approval must reference the exact commit. |
 | CI on Windows, Linux, and macOS | Pending commit | The workflow exists, but no local working tree can claim CI status before a commit is pushed and qualified. |
@@ -51,6 +52,8 @@ The public API remains pre-1.0. These gates from the implementation specificatio
 4. cancellation bridges into `data-tools`, `database-tools`, and `IO-tools`;
 5. durable schedule definitions/cursors and lifecycle observations through `database-tools`;
 6. same-SHA CI and security approval for the release candidate.
+7. Runtime Binding 1.0 terminal-error publication coordinated with retry exhaustion and
+   settlement.
 
 None of these open gates should be hidden by marking the generic skeleton complete.
 

@@ -28,19 +28,23 @@ Before implementation, freeze these items for every operation:
 | Contract | Required decision |
 |---|---|
 | Identity | Namespaced capability name and positive wire version. |
-| Operation | Stable lowercase operation name; never infer routing from payload contents. |
-| Input | Content type, schema/version, byte limit, and validation performed before invocation. |
-| Output | Repository, result publisher, object store, or explicit no-result semantics. |
+| Operation | Complete namespaced lowercase identifier such as `io.read` and positive public contract version; never infer routing from payload contents. |
+| Input | Immutable `plenora-...-vN` contract identifier, content type, byte limit, and validation performed before invocation. |
+| Output | Immutable output contract, advertised content type, byte bound, and confirmed `CapabilityResultSink`; acknowledgement-only is valid only for an explicit empty-output contract. |
 | Cancellation | Which concrete calls are cooperative and what happens when a future is dropped. |
 | Progress | Numeric units and optional total; no paths, rows, credentials, or arbitrary text. |
-| Retry | Concrete error variants mapped to `Retryable`, `Permanent`, `DeadLetter`, or `OutcomeUnknown`. |
-| Effect | Proof that an error happened before any effect, or `Unknown` when proof is impossible. |
+| Retry | Concrete error variants mapped explicitly to `PlenoraErrorRetry`; `CapabilityFailure::with_public_error` derives the worker retry class without parsing strings or statuses. |
+| Effect | Exact `PlenoraErrorRemoteEffect`; use `Unknown` when proof is impossible. |
 | Idempotency | Stable key, conflict behavior, transaction boundary, and stored-result behavior. |
 | Secrets | Which fields must never enter `Debug`, errors, lifecycle events, labels, or DLQ reasons. |
 
-If any result side effect is required, the adapter owns it explicitly. A successful library return
-must not be silently discarded. If a database write and message publication must be atomic, use a
+The adapter returns `CapabilityResponse`; the dispatcher owns canonical result metadata and invokes
+the configured result sink. If a database write and message publication must be atomic, use a
 database-backed outbox rather than publishing from the handler transaction.
+
+For artifact-bearing operations, wait for the component-owned immutable payload schema and decode
+that schema exactly. Do not infer local paths, secret fields, artifact references or provider
+configuration by scanning arbitrary JSON.
 
 ## Cancellation bridge
 
@@ -54,7 +58,7 @@ result as `OutcomeUnknown`; do not claim `NotStarted`.
 
 Each real adapter must add deterministic tests for:
 
-1. every supported operation and content type;
+1. every supported operation version, input contract, and content type;
 2. unknown operation, malformed input, and oversize rejection before library invocation;
 3. every concrete error variant and its retry/effect mapping;
 4. cancellation before start and during a long-running call;

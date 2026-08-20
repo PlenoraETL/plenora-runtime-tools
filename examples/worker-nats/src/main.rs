@@ -17,7 +17,7 @@ use plenora_runtime_apalis::{ApalisAdapterConfig, BrokerWorkerRunner};
 use plenora_runtime_capabilities::{
     CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityFailure, CapabilityHandler,
     CapabilityId, CapabilityMessageCodec, CapabilityRegistryBuilder, CapabilityRegistryConfig,
-    CapabilityRemoteEffect, CapabilityRequest,
+    CapabilityRemoteEffect, CapabilityRequest, CapabilityResponse,
 };
 use plenora_runtime_core::{RuntimeConfig, RuntimeHandle, ServiceMetadata, SystemClock};
 use plenora_runtime_http::{HttpBootstrap, HttpServerConfig};
@@ -153,7 +153,7 @@ impl CapabilityHandler for ExampleCapabilityHandler {
         &self,
         context: WorkerContext,
         request: CapabilityRequest,
-    ) -> Result<(), CapabilityFailure> {
+    ) -> Result<CapabilityResponse, CapabilityFailure> {
         if request.operation().as_str() != "execute" {
             return Err(CapabilityFailure::new(
                 RetryErrorClass::DeadLetter,
@@ -169,7 +169,7 @@ impl CapabilityHandler for ExampleCapabilityHandler {
             context.attempt,
             request.input().len(),
         );
-        Ok(())
+        Ok(CapabilityResponse::acknowledged())
     }
 }
 

@@ -6,7 +6,9 @@ use plenora_runtime_capabilities::{
     CAPABILITY_NAME_METADATA_KEY, CAPABILITY_OPERATION_METADATA_KEY,
     CAPABILITY_VERSION_METADATA_KEY, CapabilityId, CapabilityIdentifierErrorKind,
     CapabilityIdentifierField, CapabilityMessageCodec, CapabilityMessageCodecError,
-    CapabilityRequest, MAX_CAPABILITY_NAME_BYTES, MAX_OPERATION_NAME_BYTES, OperationName,
+    CapabilityRequest, ContractId, ContractIdentifierErrorKind, INPUT_CONTRACT_METADATA_KEY,
+    MAX_CAPABILITY_NAME_BYTES, MAX_CONTRACT_ID_BYTES, MAX_OPERATION_NAME_BYTES,
+    OPERATION_VERSION_METADATA_KEY, OperationName, OperationVersion,
 };
 use plenora_runtime_messaging::{MessageCodec, MessageMetadata, SerializedMessage};
 
@@ -47,6 +49,8 @@ fn message_codec_round_trips_routing_without_exposing_payload() -> Result<(), Bo
     let request = CapabilityRequest::new(
         CapabilityId::new("plenora.data-tools", 2)?,
         OperationName::new("dataset.convert")?,
+        OperationVersion::new(3)?,
+        ContractId::new("plenora-data-convert-input-v3")?,
         SerializedMessage::new("application/octet-stream", "sensitive-payload"),
     );
     let codec = CapabilityMessageCodec;
@@ -64,6 +68,14 @@ fn message_codec_round_trips_routing_without_exposing_payload() -> Result<(), Bo
             .headers
             .get_text(CAPABILITY_OPERATION_METADATA_KEY)?,
         Some("dataset.convert")
+    );
+    assert_eq!(
+        encoded.headers.get_text(OPERATION_VERSION_METADATA_KEY)?,
+        Some("3")
+    );
+    assert_eq!(
+        encoded.headers.get_text(INPUT_CONTRACT_METADATA_KEY)?,
+        Some("plenora-data-convert-input-v3")
     );
     assert_eq!(codec.decode(&encoded)?, request);
     assert!(!format!("{request:?}").contains("sensitive-payload"));
@@ -134,6 +146,7 @@ fn every_identifier_rejection_is_field_specific_and_redaction_safe() -> Result<(
 
     for value in [
         String::new(),
+        String::from("run"),
         String::from("-run"),
         String::from("run!"),
         "x".repeat(MAX_OPERATION_NAME_BYTES + 1),
@@ -141,6 +154,79 @@ fn every_identifier_rejection_is_field_specific_and_redaction_safe() -> Result<(
         let error = OperationName::new(value).err();
         assert!(error.is_some_and(|error| error.field() == CapabilityIdentifierField::Operation));
     }
+
+    for (value, expected_kind) in [
+        (String::new(), ContractIdentifierErrorKind::Empty),
+        (
+            "x".repeat(MAX_CONTRACT_ID_BYTES + 1),
+            ContractIdentifierErrorKind::TooLong,
+        ),
+        (
+            String::from("data-convert-input-v1"),
+            ContractIdentifierErrorKind::InvalidPrefix,
+        ),
+        (
+            String::from("plenora-data_CONVERT-v1"),
+            ContractIdentifierErrorKind::InvalidCharacter,
+        ),
+        (
+            String::from("plenora-data-convert"),
+            ContractIdentifierErrorKind::MissingVersion,
+        ),
+        (
+            String::from("plenora-data-convert-v0"),
+            ContractIdentifierErrorKind::InvalidVersion,
+        ),
+    ] {
+        let error = ContractId::new(value)
+            .err()
+            .ok_or("invalid contract identifier unexpectedly accepted")?;
+        assert_eq!(error.kind(), expected_kind);
+        assert_eq!(error.to_string(), "public contract identifier is invalid");
+    }
+    assert!(OperationVersion::new(0).is_err());
+    Ok(())
+}
+
+#[test]
+fn codec_requires_operation_version_and_input_contract() -> Result<(), Box<dyn Error>> {
+    let codec = CapabilityMessageCodec;
+    let base = SerializedMessage::new("application/json", "{}");
+    let mut routing = MessageMetadata::new();
+    routing.insert_text(CAPABILITY_NAME_METADATA_KEY, "plenora.data-tools")?;
+    routing.insert_text(CAPABILITY_VERSION_METADATA_KEY, "1")?;
+    routing.insert_text(CAPABILITY_OPERATION_METADATA_KEY, "data.run")?;
+
+    assert!(matches!(
+        codec.decode(&base.clone().with_headers(routing.clone())),
+        Err(CapabilityMessageCodecError::Missing(
+            OPERATION_VERSION_METADATA_KEY
+        ))
+    ));
+
+    routing.insert_text(OPERATION_VERSION_METADATA_KEY, "0")?;
+    assert!(matches!(
+        codec.decode(&base.clone().with_headers(routing.clone())),
+        Err(CapabilityMessageCodecError::InvalidVersion(
+            OPERATION_VERSION_METADATA_KEY
+        ))
+    ));
+
+    routing.insert_text(OPERATION_VERSION_METADATA_KEY, "1")?;
+    assert!(matches!(
+        codec.decode(&base.clone().with_headers(routing.clone())),
+        Err(CapabilityMessageCodecError::Missing(
+            INPUT_CONTRACT_METADATA_KEY
+        ))
+    ));
+
+    routing.insert_text(INPUT_CONTRACT_METADATA_KEY, "not-versioned")?;
+    let error = codec
+        .decode(&base.with_headers(routing))
+        .err()
+        .ok_or("invalid input contract unexpectedly decoded")?;
+    assert_eq!(error.field(), INPUT_CONTRACT_METADATA_KEY);
+    assert!(error.source().is_some());
     Ok(())
 }
 
@@ -189,6 +275,8 @@ fn codec_reports_every_routing_field_and_preserves_metadata_sources() -> Result<
         metadata.insert_text(CAPABILITY_NAME_METADATA_KEY, name)?;
         metadata.insert_text(CAPABILITY_VERSION_METADATA_KEY, version)?;
         metadata.insert_text(CAPABILITY_OPERATION_METADATA_KEY, operation)?;
+        metadata.insert_text(OPERATION_VERSION_METADATA_KEY, "1")?;
+        metadata.insert_text(INPUT_CONTRACT_METADATA_KEY, "plenora-test-input-v1")?;
         let error = codec
             .decode(&base.clone().with_headers(metadata))
             .err()
@@ -204,11 +292,18 @@ fn codec_reports_every_routing_field_and_preserves_metadata_sources() -> Result<
 
     let request = CapabilityRequest::new(
         CapabilityId::new("plenora.data-tools", 1)?,
-        OperationName::new("run")?,
+        OperationName::new("data.run")?,
+        OperationVersion::new(1)?,
+        ContractId::new("plenora-data-run-input-v1")?,
         base,
     );
     assert_eq!(request.capability().name(), "plenora.data-tools");
-    assert_eq!(request.operation().as_str(), "run");
+    assert_eq!(request.operation().as_str(), "data.run");
+    assert_eq!(request.operation_version().get(), 1);
+    assert_eq!(
+        request.input_contract().as_str(),
+        "plenora-data-run-input-v1"
+    );
     assert_eq!(request.input().len(), "payload".len());
     assert_eq!(request.clone().into_input().len(), "payload".len());
     Ok(())

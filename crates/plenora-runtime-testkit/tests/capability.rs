@@ -4,7 +4,8 @@ use std::{error::Error, sync::Arc};
 
 use plenora_runtime_capabilities::{
     CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityId, CapabilityRegistryBuilder,
-    CapabilityRegistryConfig, CapabilityRemoteEffect, CapabilityRequest, OperationName,
+    CapabilityRegistryConfig, CapabilityRemoteEffect, CapabilityRequest, ContractId, OperationName,
+    OperationVersion,
 };
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_messaging::{
@@ -208,7 +209,9 @@ fn assert_fake_error(error: FakeCapabilityError, kind: FakeCapabilityErrorKind, 
 fn request(payload: &str) -> Result<CapabilityRequest, Box<dyn Error>> {
     Ok(CapabilityRequest::new(
         CapabilityId::new("plenora.data-tools", 1)?,
-        OperationName::new("convert")?,
+        OperationName::new("data.convert")?,
+        OperationVersion::new(1)?,
+        ContractId::new("plenora-data-convert-input-v1")?,
         SerializedMessage::new("application/octet-stream", payload.to_owned()),
     ))
 }
@@ -216,7 +219,9 @@ fn request(payload: &str) -> Result<CapabilityRequest, Box<dyn Error>> {
 fn io_request(payload: &str) -> Result<CapabilityRequest, Box<dyn Error>> {
     Ok(CapabilityRequest::new(
         CapabilityId::new("plenora.io-tools", 1)?,
-        OperationName::new("write")?,
+        OperationName::new("io.write")?,
+        OperationVersion::new(1)?,
+        ContractId::new("plenora-io-write-input-v1")?,
         SerializedMessage::new("application/octet-stream", payload.to_owned()),
     ))
 }

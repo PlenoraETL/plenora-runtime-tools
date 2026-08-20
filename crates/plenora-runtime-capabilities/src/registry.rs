@@ -5,7 +5,10 @@ use std::{
     sync::Arc,
 };
 
-use crate::{CapabilityHandler, CapabilityId};
+use crate::{
+    CapabilityDiscovery, CapabilityDiscoveryError, CapabilityHandler, CapabilityId, REST_COMPONENT,
+    REST_RUNTIME_CAPABILITY, RestCapabilityProfile, RestProfileError,
+};
 
 /// Hard upper bound for one process capability registry.
 pub const MAX_REGISTERED_CAPABILITIES: usize = 4_096;
@@ -49,7 +52,7 @@ impl Default for CapabilityRegistryConfig {
 #[derive(Default)]
 pub struct CapabilityRegistryBuilder {
     config: CapabilityRegistryConfig,
-    handlers: BTreeMap<CapabilityId, Arc<dyn CapabilityHandler>>,
+    registrations: BTreeMap<CapabilityId, CapabilityRegistration>,
 }
 
 impl CapabilityRegistryBuilder {
@@ -62,7 +65,7 @@ impl CapabilityRegistryBuilder {
         let config = CapabilityRegistryConfig::new(config.max_capabilities)?;
         Ok(Self {
             config,
-            handlers: BTreeMap::new(),
+            registrations: BTreeMap::new(),
         })
     }
 
@@ -92,15 +95,71 @@ impl CapabilityRegistryBuilder {
         capability: CapabilityId,
         handler: Arc<dyn CapabilityHandler>,
     ) -> Result<(), CapabilityRegistryError> {
-        if self.handlers.contains_key(&capability) {
+        if capability.name() == REST_RUNTIME_CAPABILITY {
+            return Err(CapabilityRegistryError::DiscoveryRequired(capability));
+        }
+        self.insert(capability, CapabilityRegistration::new(handler, None))
+    }
+
+    /// Registers an adapter together with its validated Capability Discovery 2.0 document.
+    ///
+    /// The runtime capability identity is resolved exclusively from the document's runtime
+    /// interface. The required REST profile is enforced automatically for `plenora-rest-tools`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an incompatible discovery document, duplicate identity, or exhausted
+    /// registry capacity.
+    pub fn register_discovered<H>(
+        &mut self,
+        discovery: CapabilityDiscovery,
+        handler: H,
+    ) -> Result<CapabilityId, CapabilityRegistryError>
+    where
+        H: CapabilityHandler + 'static,
+    {
+        self.register_discovered_shared(discovery, Arc::new(handler))
+    }
+
+    /// Registers a shared adapter with an immutable Capability Discovery 2.0 document.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an incompatible discovery document, duplicate identity, or exhausted
+    /// registry capacity.
+    pub fn register_discovered_shared(
+        &mut self,
+        discovery: CapabilityDiscovery,
+        handler: Arc<dyn CapabilityHandler>,
+    ) -> Result<CapabilityId, CapabilityRegistryError> {
+        let capability = discovery
+            .runtime_capability()
+            .map_err(CapabilityRegistryError::Discovery)?;
+        if discovery.component() == REST_COMPONENT || capability.name() == REST_RUNTIME_CAPABILITY {
+            RestCapabilityProfile::validate(&discovery)
+                .map_err(CapabilityRegistryError::RestProfile)?;
+        }
+        self.insert(
+            capability.clone(),
+            CapabilityRegistration::new(handler, Some(discovery)),
+        )?;
+        Ok(capability)
+    }
+
+    fn insert(
+        &mut self,
+        capability: CapabilityId,
+        registration: CapabilityRegistration,
+    ) -> Result<(), CapabilityRegistryError> {
+        if self.registrations.contains_key(&capability) {
             return Err(CapabilityRegistryError::Duplicate(capability));
         }
-        if self.handlers.len() >= self.config.max_capabilities {
+        if self.registrations.len() >= self.config.max_capabilities {
             return Err(CapabilityRegistryError::CapacityReached {
                 limit: self.config.max_capabilities,
             });
         }
-        self.handlers.insert(capability, handler);
+        self.registrations.insert(capability, registration);
         Ok(())
     }
 
@@ -108,7 +167,7 @@ impl CapabilityRegistryBuilder {
     #[must_use]
     pub fn build(self) -> CapabilityRegistry {
         CapabilityRegistry {
-            handlers: Arc::new(self.handlers),
+            registrations: Arc::new(self.registrations),
         }
     }
 }
@@ -118,7 +177,7 @@ impl Debug for CapabilityRegistryBuilder {
         formatter
             .debug_struct("CapabilityRegistryBuilder")
             .field("config", &self.config)
-            .field("registered", &self.handlers.len())
+            .field("registered", &self.registrations.len())
             .field("handlers", &"<type-erased>")
             .finish()
     }
@@ -127,30 +186,41 @@ impl Debug for CapabilityRegistryBuilder {
 /// Immutable capability table shared by all dynamically admitted worker tasks.
 #[derive(Clone)]
 pub struct CapabilityRegistry {
-    handlers: Arc<BTreeMap<CapabilityId, Arc<dyn CapabilityHandler>>>,
+    registrations: Arc<BTreeMap<CapabilityId, CapabilityRegistration>>,
 }
 
 impl CapabilityRegistry {
     /// Returns the number of registered versioned capabilities.
     #[must_use]
     pub fn len(&self) -> usize {
-        self.handlers.len()
+        self.registrations.len()
     }
 
     /// Returns whether no capability is registered.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.handlers.is_empty()
+        self.registrations.is_empty()
     }
 
     /// Returns a bounded, sorted snapshot of registered identities without exposing handlers.
     #[must_use]
     pub fn capabilities(&self) -> Vec<CapabilityId> {
-        self.handlers.keys().cloned().collect()
+        self.registrations.keys().cloned().collect()
     }
 
-    pub(crate) fn handler(&self, capability: &CapabilityId) -> Option<&dyn CapabilityHandler> {
-        self.handlers.get(capability).map(Arc::as_ref)
+    /// Returns the immutable discovery document registered for a capability, when present.
+    #[must_use]
+    pub fn discovery(&self, capability: &CapabilityId) -> Option<&CapabilityDiscovery> {
+        self.registrations
+            .get(capability)
+            .and_then(CapabilityRegistration::discovery)
+    }
+
+    pub(crate) fn registration(
+        &self,
+        capability: &CapabilityId,
+    ) -> Option<&CapabilityRegistration> {
+        self.registrations.get(capability)
     }
 }
 
@@ -178,6 +248,12 @@ pub enum CapabilityRegistryError {
     },
     /// The versioned identity is already registered.
     Duplicate(CapabilityId),
+    /// The REST black box cannot be registered without discovery metadata.
+    DiscoveryRequired(CapabilityId),
+    /// Capability Discovery 2.0 metadata is incompatible with the runtime binding.
+    Discovery(CapabilityDiscoveryError),
+    /// The REST component does not implement its complete required public profile.
+    RestProfile(RestProfileError),
     /// The configured registry bound has been reached.
     CapacityReached {
         /// Configured maximum number of capabilities.
@@ -195,6 +271,14 @@ impl Display for CapabilityRegistryError {
                 formatter.write_str("capability registry capacity exceeds the hard maximum")
             }
             Self::Duplicate(_) => formatter.write_str("capability identity is already registered"),
+            Self::DiscoveryRequired(_) => {
+                formatter.write_str("capability discovery is required for this public profile")
+            }
+            Self::Discovery(_) => {
+                formatter.write_str("capability discovery is incompatible with the runtime")
+            }
+            Self::RestProfile(_) => formatter
+                .write_str("REST capability discovery does not satisfy the required profile"),
             Self::CapacityReached { .. } => {
                 formatter.write_str("capability registry capacity has been reached")
             }
@@ -203,3 +287,22 @@ impl Display for CapabilityRegistryError {
 }
 
 impl Error for CapabilityRegistryError {}
+
+pub(crate) struct CapabilityRegistration {
+    handler: Arc<dyn CapabilityHandler>,
+    discovery: Option<CapabilityDiscovery>,
+}
+
+impl CapabilityRegistration {
+    fn new(handler: Arc<dyn CapabilityHandler>, discovery: Option<CapabilityDiscovery>) -> Self {
+        Self { handler, discovery }
+    }
+
+    pub(crate) fn handler(&self) -> &dyn CapabilityHandler {
+        self.handler.as_ref()
+    }
+
+    pub(crate) const fn discovery(&self) -> Option<&CapabilityDiscovery> {
+        self.discovery.as_ref()
+    }
+}

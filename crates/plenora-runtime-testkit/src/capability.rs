@@ -8,7 +8,7 @@ use std::{
 use async_trait::async_trait;
 use plenora_runtime_capabilities::{
     CapabilityFailure, CapabilityHandler, CapabilityId, CapabilityRemoteEffect, CapabilityRequest,
-    OperationName,
+    CapabilityResponse, OperationName,
 };
 use plenora_runtime_messaging::{CorrelationId, MessageId, RetryErrorClass};
 use plenora_runtime_worker::WorkerContext;
@@ -200,7 +200,7 @@ impl CapabilityHandler for FakeCapabilityHandler {
         &self,
         context: WorkerContext,
         request: CapabilityRequest,
-    ) -> Result<(), CapabilityFailure> {
+    ) -> Result<CapabilityResponse, CapabilityFailure> {
         let outcome = {
             let mut state = self.lock();
             if state.invocations.len() >= self.inner.config.invocation_capacity {
@@ -225,7 +225,7 @@ impl CapabilityHandler for FakeCapabilityHandler {
         };
 
         match outcome {
-            FakeCapabilityOutcome::Success => Ok(()),
+            FakeCapabilityOutcome::Success => Ok(CapabilityResponse::acknowledged()),
             FakeCapabilityOutcome::Failure {
                 retry_class,
                 remote_effect,

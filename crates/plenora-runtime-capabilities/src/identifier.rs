@@ -62,23 +62,24 @@ impl Display for CapabilityId {
     }
 }
 
-/// Validated operation name within a capability.
+/// Validated complete public operation identifier.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct OperationName(Arc<str>);
 
 impl OperationName {
-    /// Creates a portable operation name such as `convert` or `dataset.export`.
+    /// Creates a portable namespaced operation identifier such as `data.run` or
+    /// `database.read`.
     ///
     /// # Errors
     ///
-    /// Returns an error for an empty, oversized, or non-portable name.
+    /// Returns an error for an empty, oversized, non-namespaced, or non-portable name.
     pub fn new(value: impl Into<Arc<str>>) -> Result<Self, CapabilityIdentifierError> {
         let value = value.into();
         validate_name(
             &value,
             CapabilityIdentifierField::Operation,
             MAX_OPERATION_NAME_BYTES,
-            false,
+            true,
         )?;
         Ok(Self(value))
     }
@@ -114,7 +115,7 @@ pub enum CapabilityIdentifierErrorKind {
     Empty,
     /// Text exceeds its explicit byte bound.
     TooLong,
-    /// A capability name does not contain at least two namespace segments.
+    /// A capability or operation name does not contain at least two namespace segments.
     MissingNamespace,
     /// A namespace segment is empty.
     EmptySegment,

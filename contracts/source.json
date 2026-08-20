@@ -1,0 +1,19 @@
+{
+  "repository": "https://github.com/PlenoraETL/plenora-contracts.git",
+  "revision": "55659d2ff65c644e5f20b3c905654f144261e751",
+  "contracts": [
+    "plenora-runtime-binding-v1",
+    "plenora-runtime-vector-v1",
+    "plenora-rest-execution-request-v1",
+    "plenora-rest-execution-result-v1",
+    "plenora-rest-file-transfer-input-v1",
+    "plenora-rest-file-transfer-result-v1",
+    "plenora-rest-capability-attributes-v1"
+  ],
+  "vectors": [
+    "capabilities-v2/rest-tools-v1.json",
+    "runtime-v1/database-read-request.json",
+    "runtime-v1/data-run-success.json",
+    "runtime-v1/database-write-error.json"
+  ]
+}

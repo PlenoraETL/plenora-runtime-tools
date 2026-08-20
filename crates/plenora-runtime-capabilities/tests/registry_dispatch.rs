@@ -11,7 +11,9 @@ use plenora_runtime_capabilities::{
     CapabilityDispatchErrorCategory, CapabilityDispatcher, CapabilityDispatcherConfig,
     CapabilityFailure, CapabilityHandler, CapabilityId, CapabilityRegistryBuilder,
     CapabilityRegistryConfig, CapabilityRegistryError, CapabilityRemoteEffect, CapabilityRequest,
-    MAX_CAPABILITY_PAYLOAD_BYTES, MAX_REGISTERED_CAPABILITIES, OperationName,
+    CapabilityResponse, ContractId, MAX_CAPABILITY_PAYLOAD_BYTES, MAX_REGISTERED_CAPABILITIES,
+    OperationName, OperationVersion, PlenoraErrorCategory, PlenoraErrorPhase,
+    PlenoraErrorRemoteEffect, PlenoraErrorRetry,
 };
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_messaging::{
@@ -44,7 +46,7 @@ impl CapabilityHandler for RecordingHandler {
         &self,
         context: WorkerContext,
         request: CapabilityRequest,
-    ) -> Result<(), CapabilityFailure> {
+    ) -> Result<CapabilityResponse, CapabilityFailure> {
         lock(&self.records).push(InvocationRecord {
             adapter: self.adapter,
             capability: request.capability().clone(),
@@ -54,7 +56,7 @@ impl CapabilityHandler for RecordingHandler {
             payload_bytes: request.input().len(),
             cancellation: context.cancellation.reason(),
         });
-        Ok(())
+        Ok(CapabilityResponse::acknowledged())
     }
 }
 
@@ -78,7 +80,7 @@ impl CapabilityHandler for FailingHandler {
         &self,
         _context: WorkerContext,
         _request: CapabilityRequest,
-    ) -> Result<(), CapabilityFailure> {
+    ) -> Result<CapabilityResponse, CapabilityFailure> {
         Err(CapabilityFailure::new(
             RetryErrorClass::OutcomeUnknown,
             CapabilityRemoteEffect::Unknown,
@@ -120,7 +122,7 @@ async fn a_fourth_library_registers_and_dispatches_without_runtime_changes()
     dispatcher
         .handle(
             context,
-            request("plenora.future-tools", "analyze", "opaque-input")?,
+            request("plenora.future-tools", "future.analyze", "opaque-input")?,
         )
         .await?;
 
@@ -129,7 +131,7 @@ async fn a_fourth_library_registers_and_dispatches_without_runtime_changes()
         &[InvocationRecord {
             adapter: "future",
             capability: CapabilityId::new("plenora.future-tools", 1)?,
-            operation: OperationName::new("analyze")?,
+            operation: OperationName::new("future.analyze")?,
             message_id: expected_message_id,
             attempt: 3,
             payload_bytes: "opaque-input".len(),
@@ -180,7 +182,7 @@ async fn dispatch_rejects_unknown_and_oversized_requests_before_invocation()
     let unknown = dispatcher
         .handle(
             worker_context(1),
-            request("plenora.unknown-tools", "run", "ok")?,
+            request("plenora.unknown-tools", "unknown.run", "ok")?,
         )
         .await;
     let unknown = unknown.err().ok_or("unknown capability was accepted")?;
@@ -191,7 +193,7 @@ async fn dispatch_rejects_unknown_and_oversized_requests_before_invocation()
     assert_eq!(unknown.retry_class(), RetryErrorClass::DeadLetter);
     assert_eq!(unknown.remote_effect(), CapabilityRemoteEffect::NotStarted);
     assert_eq!(unknown.capability().name(), "plenora.unknown-tools");
-    assert_eq!(unknown.operation().as_str(), "run");
+    assert_eq!(unknown.operation().as_str(), "unknown.run");
     assert!(unknown.handler_failure().is_none());
     assert!(unknown.source().is_none());
     assert_eq!(
@@ -203,7 +205,7 @@ async fn dispatch_rejects_unknown_and_oversized_requests_before_invocation()
     let oversized = dispatcher
         .handle(
             worker_context(1),
-            request("plenora.data-tools", "run", "12345")?,
+            request("plenora.data-tools", "data.run", "12345")?,
         )
         .await;
     let oversized = oversized.err().ok_or("oversized payload was accepted")?;
@@ -236,7 +238,7 @@ async fn handler_failure_preserves_semantics_and_redacts_source() -> Result<(), 
     let result = dispatcher
         .handle(
             worker_context(1),
-            request("plenora.io-tools", "write", "payload")?,
+            request("plenora.io-tools", "io.write", "payload")?,
         )
         .await;
     let error = result.err().ok_or("failing handler returned success")?;
@@ -246,8 +248,13 @@ async fn handler_failure_preserves_semantics_and_redacts_source() -> Result<(), 
     assert!(error.source().is_some());
     assert!(error.handler_failure().is_some());
     assert_eq!(error.capability().name(), "plenora.io-tools");
-    assert_eq!(error.operation().as_str(), "write");
+    assert_eq!(error.operation().as_str(), "io.write");
     assert_eq!(error.to_string(), "capability adapter failed");
+    let public = error.public_error()?;
+    assert_eq!(public.category(), PlenoraErrorCategory::Internal);
+    assert_eq!(public.phase(), PlenoraErrorPhase::Finalize);
+    assert_eq!(public.remote_effect(), PlenoraErrorRemoteEffect::Unknown);
+    assert_eq!(public.retry(), PlenoraErrorRetry::RequiresRecovery);
     assert!(!format!("{error:?}").contains("sensitive concrete adapter detail"));
     assert!(
         !error
@@ -365,6 +372,8 @@ fn request(
     Ok(CapabilityRequest::new(
         CapabilityId::new(capability, 1)?,
         OperationName::new(operation)?,
+        OperationVersion::new(1)?,
+        ContractId::new("plenora-test-input-v1")?,
         SerializedMessage::new("application/octet-stream", payload.to_owned()),
     ))
 }

@@ -8,7 +8,10 @@ use async_trait::async_trait;
 use plenora_runtime_messaging::{ClassifyRetry, RetryErrorClass};
 use plenora_runtime_worker::WorkerContext;
 
-use crate::CapabilityRequest;
+use crate::{
+    CapabilityRequest, CapabilityResponse, PlenoraError, PlenoraErrorRemoteEffect,
+    PlenoraErrorRetry,
+};
 
 /// Certainty about external effects when a capability adapter fails.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,6 +27,7 @@ pub enum CapabilityRemoteEffect {
 pub struct CapabilityFailure {
     retry_class: RetryErrorClass,
     remote_effect: CapabilityRemoteEffect,
+    public_error: Option<PlenoraError>,
     source: Arc<dyn Error + Send + Sync>,
 }
 
@@ -46,6 +50,36 @@ impl CapabilityFailure {
         Self {
             retry_class,
             remote_effect,
+            public_error: None,
+            source: Arc::new(source),
+        }
+    }
+
+    /// Wraps an adapter failure with an explicit bounded `plenora-error-v1` mapping.
+    #[must_use]
+    pub fn with_public_error<E>(public_error: PlenoraError, source: E) -> Self
+    where
+        E: Error + Send + Sync + 'static,
+    {
+        let retry_class = match public_error.retry() {
+            PlenoraErrorRetry::Never => RetryErrorClass::Permanent,
+            PlenoraErrorRetry::Quarantine => RetryErrorClass::DeadLetter,
+            PlenoraErrorRetry::Safe
+            | PlenoraErrorRetry::RequiresIdempotencyKey
+            | PlenoraErrorRetry::After { .. } => RetryErrorClass::Retryable,
+            PlenoraErrorRetry::RequiresRecovery => RetryErrorClass::OutcomeUnknown,
+        };
+        let remote_effect = match public_error.remote_effect() {
+            PlenoraErrorRemoteEffect::None => CapabilityRemoteEffect::NotStarted,
+            PlenoraErrorRemoteEffect::RolledBack
+            | PlenoraErrorRemoteEffect::Partial
+            | PlenoraErrorRemoteEffect::Committed
+            | PlenoraErrorRemoteEffect::Unknown => CapabilityRemoteEffect::Unknown,
+        };
+        Self {
+            retry_class,
+            remote_effect,
+            public_error: Some(public_error),
             source: Arc::new(source),
         }
     }
@@ -60,6 +94,12 @@ impl CapabilityFailure {
     #[must_use]
     pub const fn remote_effect(&self) -> CapabilityRemoteEffect {
         self.remote_effect
+    }
+
+    /// Returns the explicit public error mapping, when supplied by the adapter.
+    #[must_use]
+    pub const fn public_error(&self) -> Option<&PlenoraError> {
+        self.public_error.as_ref()
     }
 
     /// Returns the preserved concrete adapter error.
@@ -87,6 +127,7 @@ impl Debug for CapabilityFailure {
             .debug_struct("CapabilityFailure")
             .field("retry_class", &self.retry_class)
             .field("remote_effect", &self.remote_effect)
+            .field("has_public_error", &self.public_error.is_some())
             .field("source", &"<preserved; redacted>")
             .finish()
     }
@@ -115,5 +156,5 @@ pub trait CapabilityHandler: Send + Sync {
         &self,
         context: WorkerContext,
         request: CapabilityRequest,
-    ) -> Result<(), CapabilityFailure>;
+    ) -> Result<CapabilityResponse, CapabilityFailure>;
 }

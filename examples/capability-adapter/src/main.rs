@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use plenora_runtime_capabilities::{
     CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityFailure, CapabilityHandler,
     CapabilityId, CapabilityRegistryBuilder, CapabilityRegistryConfig, CapabilityRemoteEffect,
-    CapabilityRequest, OperationName,
+    CapabilityRequest, CapabilityResponse, ContractId, OperationName, OperationVersion,
 };
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_messaging::{
@@ -31,7 +31,8 @@ use plenora_runtime_worker::{
 
 const CAPABILITY_NAME: &str = "plenora.example-library";
 const CAPABILITY_VERSION: u16 = 1;
-const PROCESS_OPERATION: &str = "process";
+const PROCESS_OPERATION: &str = "example.process";
+const PROCESS_INPUT_CONTRACT: &str = "plenora-example-process-input-v1";
 const CONTENT_TYPE: &str = "application/octet-stream";
 
 /// Simulates an unfinished external Rust library owned by another repository.
@@ -158,7 +159,7 @@ impl CapabilityHandler for ExampleLibraryAdapter {
         &self,
         context: WorkerContext,
         request: CapabilityRequest,
-    ) -> Result<(), CapabilityFailure> {
+    ) -> Result<CapabilityResponse, CapabilityFailure> {
         if request.operation().as_str() != PROCESS_OPERATION {
             return Err(Self::reject_not_started(
                 AdapterError::UnsupportedOperation,
@@ -209,7 +210,7 @@ impl CapabilityHandler for ExampleLibraryAdapter {
                     )
                 })?;
                 let _reported = context.report_progress(completed_progress);
-                Ok(())
+                Ok(CapabilityResponse::acknowledged())
             }
         }
     }
@@ -267,6 +268,8 @@ fn request(
     Ok(CapabilityRequest::new(
         CapabilityId::new(CAPABILITY_NAME, CAPABILITY_VERSION)?,
         OperationName::new(operation)?,
+        OperationVersion::new(1)?,
+        ContractId::new(PROCESS_INPUT_CONTRACT)?,
         SerializedMessage::new(content_type, bytes),
     ))
 }
@@ -315,7 +318,7 @@ mod tests {
         let failure = dispatcher
             .handle(
                 worker_context(&runtime),
-                request("unsupported", CONTENT_TYPE, b"valid")?,
+                request("example.unsupported", CONTENT_TYPE, b"valid")?,
             )
             .await
             .err()

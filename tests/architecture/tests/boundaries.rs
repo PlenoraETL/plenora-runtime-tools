@@ -88,6 +88,12 @@ fn runtime_capabilities_has_no_concrete_library_or_adapter_dependency() -> Resul
             "database_tools",
             "io-tools",
             "io_tools",
+            "reqwest",
+            "hyper",
+            "ureq",
+            "oauth2",
+            "openmeteo",
+            "sister",
         ],
     )
 }
@@ -862,7 +868,7 @@ fn runtime_capacity_concurrency_payload_and_security_defaults_are_explicit()
         "crates/plenora-runtime-capabilities/src/registry.rs",
         &[
             "ifmax_capabilities==0",
-            "ifself.handlers.len()>=self.config.max_capabilities",
+            "ifself.registrations.len()>=self.config.max_capabilities",
         ],
         &mut violations,
     )?;

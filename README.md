@@ -34,6 +34,10 @@ capacity sizing, startup, runtime signals, and shutdown operations are covered b
 Current qualification gates and residual security risks are tracked in
 [`docs/qualification.md`](docs/qualification.md) and
 [`docs/security-review.md`](docs/security-review.md).
+The immutable common-contract pin, implemented request boundary, and remaining
+Runtime Binding 1.0 gaps are tracked in
+[`docs/contract-alignment.md`](docs/contract-alignment.md) and
+[`contracts/source.json`](contracts/source.json).
 Bounded load, cancellation, lifecycle, and real JetStream soak coverage is described in
 [`docs/stability.md`](docs/stability.md). Coverage and fuzz qualification, including the enforced
 90% line gate and six fuzz targets, is documented in

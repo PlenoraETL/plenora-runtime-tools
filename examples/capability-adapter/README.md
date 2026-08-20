@@ -6,7 +6,8 @@ This compile-tested example is the template for connecting `data-tools`, `databa
 The simulated `ExampleLibrary` stands in for the concrete library. The application-owned
 `ExampleLibraryAdapter`:
 
-- exposes a versioned `CapabilityId` and validates the operation and content type;
+- exposes a versioned `CapabilityId`, positive operation version, immutable input contract, and
+  validates the operation and content type;
 - passes opaque input to the concrete API only after validation;
 - bridges task cancellation and reports bounded numeric progress;
 - maps concrete failures to an explicit retry class and remote-effect certainty;

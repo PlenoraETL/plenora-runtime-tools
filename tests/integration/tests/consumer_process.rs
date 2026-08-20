@@ -12,7 +12,7 @@ use plenora_runtime_apalis::{ApalisAdapterConfig, BrokerWorkerRunner};
 use plenora_runtime_capabilities::{
     CapabilityDispatchError, CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityId,
     CapabilityMessageCodec, CapabilityRegistryBuilder, CapabilityRegistryConfig, CapabilityRequest,
-    OperationName,
+    ContractId, OperationName, OperationVersion,
 };
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_http::{HttpBootstrap, HttpServeOutcome, HttpServerConfig};
@@ -126,7 +126,9 @@ async fn consumer_process_serves_readiness_processes_work_and_stops_together()
 fn worker_message(payload: &str) -> Result<SerializedMessage, Box<dyn Error>> {
     let request = CapabilityRequest::new(
         CapabilityId::new("plenora.example-tools", 1)?,
-        OperationName::new("execute")?,
+        OperationName::new("example.execute")?,
+        OperationVersion::new(1)?,
+        ContractId::new("plenora-example-execute-input-v1")?,
         SerializedMessage::new("application/octet-stream", payload.to_owned()),
     );
     let mut message = CapabilityMessageCodec.encode(&request)?;

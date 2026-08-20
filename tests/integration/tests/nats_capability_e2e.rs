@@ -16,7 +16,8 @@ use plenora_runtime_apalis::{ApalisAdapterConfig, BrokerWorkerRunner};
 use plenora_runtime_capabilities::{
     CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityFailure, CapabilityHandler,
     CapabilityId, CapabilityMessageCodec, CapabilityRegistryBuilder, CapabilityRegistryConfig,
-    CapabilityRemoteEffect, CapabilityRequest, OperationName,
+    CapabilityRemoteEffect, CapabilityRequest, CapabilityResponse, ContractId, OperationName,
+    OperationVersion,
 };
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata, SystemClock};
 use plenora_runtime_messaging::{
@@ -100,8 +101,11 @@ impl CapabilityHandler for FakeCapabilityHandler {
         &self,
         context: WorkerContext,
         request: CapabilityRequest,
-    ) -> Result<(), CapabilityFailure> {
-        let operation = request.operation().as_str();
+    ) -> Result<CapabilityResponse, CapabilityFailure> {
+        let public_operation = request.operation().as_str();
+        let operation = public_operation
+            .strip_prefix("fake.")
+            .unwrap_or(public_operation);
         self.state.record(operation, context.attempt);
         match operation {
             "retry-once" if context.attempt == 1 => Err(failure(
@@ -110,12 +114,12 @@ impl CapabilityHandler for FakeCapabilityHandler {
             )),
             "succeed" | "retry-once" => {
                 self.state.record_effect_once(operation, context.message_id);
-                Ok(())
+                Ok(CapabilityResponse::acknowledged())
             }
             "heartbeat" => {
                 tokio::time::sleep(Duration::from_millis(2_500)).await;
                 self.state.record_effect_once(operation, context.message_id);
-                Ok(())
+                Ok(CapabilityResponse::acknowledged())
             }
             "cancel" => {
                 let _reason = context.cancelled().await;
@@ -190,8 +194,11 @@ impl CapabilityHandler for MultiWorkerHandler {
         &self,
         context: WorkerContext,
         request: CapabilityRequest,
-    ) -> Result<(), CapabilityFailure> {
-        let operation = request.operation().as_str();
+    ) -> Result<CapabilityResponse, CapabilityFailure> {
+        let public_operation = request.operation().as_str();
+        let operation = public_operation
+            .strip_prefix("fake.")
+            .unwrap_or(public_operation);
         self.state.record(MultiWorkerEvent {
             worker: self.worker,
             operation: operation.to_owned(),
@@ -199,13 +206,13 @@ impl CapabilityHandler for MultiWorkerHandler {
             attempt: context.attempt,
         });
         if self.block_crash && operation == "crash" {
-            return future::pending::<Result<(), CapabilityFailure>>().await;
+            return future::pending::<Result<CapabilityResponse, CapabilityFailure>>().await;
         }
         if operation == "saturate" {
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
         self.state.record_effect_once(operation, context.message_id);
-        Ok(())
+        Ok(CapabilityResponse::acknowledged())
     }
 }
 
@@ -560,7 +567,7 @@ async fn full_chain_scenario() -> Result<(), Box<dyn Error>> {
         Some("handler_failed")
     );
     let decoded = CapabilityMessageCodec.decode(&dead_letter.message)?;
-    assert_eq!(decoded.operation().as_str(), "dead-letter");
+    assert_eq!(decoded.operation().as_str(), "fake.dead-letter");
     dead_letter.ack().await?;
 
     let retry_attempts = state.attempts("retry-once");
@@ -587,9 +594,12 @@ async fn publish_operation(
     operation: &str,
 ) -> Result<MessageId, Box<dyn Error>> {
     let message_id = MessageId::random();
+    let public_operation = format!("fake.{operation}");
     let request = CapabilityRequest::new(
         CapabilityId::new(CAPABILITY_NAME, 1)?,
-        OperationName::new(operation)?,
+        OperationName::new(public_operation)?,
+        OperationVersion::new(1)?,
+        ContractId::new("plenora-fake-operation-input-v1")?,
         SerializedMessage::new("application/octet-stream", operation.to_owned()),
     );
     let mut message = CapabilityMessageCodec.encode(&request)?;
