@@ -237,6 +237,7 @@ fn durable_restore_rejects_mismatch_and_inconsistent_cursor() -> Result<(), Box<
             id: other,
             status: ScheduleStatus::Active,
             next_due_at: Some(SystemTime::UNIX_EPOCH),
+            skip_backlog_through: None,
         }),
         Err(ScheduleRestoreError::IdentityMismatch)
     ));
@@ -245,6 +246,7 @@ fn durable_restore_rejects_mismatch_and_inconsistent_cursor() -> Result<(), Box<
             id,
             status: ScheduleStatus::Completed,
             next_due_at: Some(SystemTime::UNIX_EPOCH),
+            skip_backlog_through: None,
         }),
         Err(ScheduleRestoreError::InconsistentCursor)
     ));

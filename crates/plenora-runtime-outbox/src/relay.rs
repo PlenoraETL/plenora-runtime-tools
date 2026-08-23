@@ -5,7 +5,7 @@ use std::{
 
 use plenora_runtime_messaging::{MessageProducer, PublishOutcome};
 
-use crate::{FailureDisposition, OutboxId, OutboxStore, PublishFailure};
+use crate::{FailureDisposition, OutboxEntry, OutboxId, OutboxStore, PublishFailure};
 
 /// Store operation during which a relay run failed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -133,6 +133,11 @@ pub struct RelayBatchReport {
     pub awaiting_reconciliation: usize,
     /// Entries marked as permanently failed.
     pub terminal_failures: usize,
+    /// Claimed entries this run could neither publish nor release.
+    ///
+    /// A nonzero value means those entries stay claimed until the store's own lease or crash
+    /// recovery reclaims them.
+    pub unreleased_claims: usize,
 }
 
 impl RelayBatchReport {
@@ -316,6 +321,11 @@ where
     /// their concrete source. An unknown remote effect is a reportable outcome, not an
     /// error, and is never retried unless the configured policy explicitly selects Retry.
     ///
+    /// A run that *returns* early releases every claim it never attempted, so a failure in the
+    /// middle of a batch cannot leave later entries claimed until a store-specific lease expires.
+    /// Release is not cancellation-safe: dropping this future cannot run the release, so a
+    /// cancelled run still depends on the store's claim lease or crash recovery.
+    ///
     /// # Errors
     ///
     /// Returns a source-preserving error when publication or persistence fails.
@@ -335,29 +345,34 @@ where
             ..RelayBatchReport::default()
         };
 
-        for entry in entries {
+        for (index, entry) in entries.iter().enumerate() {
+            let unattempted = entries.get(index.saturating_add(1)..).unwrap_or(&[]);
             match self.producer.publish(entry.message.clone()).await {
                 Ok(PublishOutcome::Confirmed) => {
-                    self.store
-                        .mark_published(entry.id)
-                        .await
-                        .map_err(|source| RelayError::Store {
+                    if let Err(source) = self.store.mark_published(entry.id).await {
+                        self.release_claims(unattempted, &mut report).await;
+                        return Err(RelayError::Store {
                             operation: RelayStoreOperation::MarkPublished,
                             report,
                             source,
-                        })?;
+                        });
+                    }
                     report.published += 1;
                 }
                 Ok(PublishOutcome::OutcomeUnknown) => {
                     let disposition = self.config.policy().outcome_unknown();
-                    self.store
+                    if let Err(source) = self
+                        .store
                         .mark_failed(entry.id, PublishFailure::outcome_unknown(disposition))
                         .await
-                        .map_err(|source| RelayError::Store {
+                    {
+                        self.release_claims(unattempted, &mut report).await;
+                        return Err(RelayError::Store {
                             operation: RelayStoreOperation::MarkFailed,
                             report,
                             source,
-                        })?;
+                        });
+                    }
                     report.record_disposition(disposition);
                 }
                 Err(source) => {
@@ -369,6 +384,7 @@ where
                     {
                         Ok(()) => {
                             report.record_disposition(disposition);
+                            self.release_claims(unattempted, &mut report).await;
                             return Err(RelayError::Publish {
                                 outbox_id: entry.id,
                                 report,
@@ -376,6 +392,7 @@ where
                             });
                         }
                         Err(store_source) => {
+                            self.release_claims(unattempted, &mut report).await;
                             return Err(RelayError::PublishAndStore {
                                 outbox_id: entry.id,
                                 report,
@@ -389,5 +406,28 @@ where
         }
 
         Ok(report)
+    }
+
+    /// Returns every claim this run will not attempt to the pending state.
+    ///
+    /// A release that fails cannot be escalated without abandoning the remaining entries, so every
+    /// such entry is counted in `unreleased_claims` and stays the responsibility of the store's own
+    /// lease or crash-recovery model.
+    async fn release_claims(&self, unattempted: &[OutboxEntry], report: &mut RelayBatchReport) {
+        for entry in unattempted {
+            if self
+                .store
+                .mark_failed(
+                    entry.id,
+                    PublishFailure::not_attempted(FailureDisposition::Retry),
+                )
+                .await
+                .is_ok()
+            {
+                report.record_disposition(FailureDisposition::Retry);
+            } else {
+                report.unreleased_claims = report.unreleased_claims.saturating_add(1);
+            }
+        }
     }
 }

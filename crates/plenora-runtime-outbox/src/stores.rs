@@ -26,6 +26,8 @@ pub enum PublishFailureKind {
     ProducerError,
     /// The producer could not determine the remote effect.
     OutcomeUnknown,
+    /// The entry was claimed but the relay run ended before publication was attempted.
+    NotAttempted,
 }
 
 /// Persistence disposition requested after a publication failure.
@@ -61,6 +63,15 @@ impl PublishFailure {
     pub const fn outcome_unknown(disposition: FailureDisposition) -> Self {
         Self {
             kind: PublishFailureKind::OutcomeUnknown,
+            disposition,
+        }
+    }
+
+    /// Describes a claimed entry that a failed relay run released without publishing.
+    #[must_use]
+    pub const fn not_attempted(disposition: FailureDisposition) -> Self {
+        Self {
+            kind: PublishFailureKind::NotAttempted,
             disposition,
         }
     }

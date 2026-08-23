@@ -256,3 +256,38 @@ async fn producer_and_consumer_contracts_require_no_concrete_broker() -> Result<
     assert!(consumer.receive().await?.is_none());
     Ok(())
 }
+
+struct SecretBearingSource;
+
+impl fmt::Debug for SecretBearingSource {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SecretBearingSource { url: \"nats://user:hunter2@broker\" }")
+    }
+}
+
+impl Display for SecretBearingSource {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str("connection to nats://user:hunter2@broker failed")
+    }
+}
+
+impl Error for SecretBearingSource {}
+
+#[test]
+fn ack_error_debug_preserves_the_source_without_rendering_it() {
+    let error = AckError::with_source(
+        AckOperation::Ack,
+        "JetStream positive acknowledgement failed",
+        SecretBearingSource,
+    );
+
+    let rendered = format!("{error:?}");
+
+    assert!(!rendered.contains("hunter2"));
+    assert!(!rendered.contains("SecretBearingSource"));
+    assert!(rendered.contains("Ack"));
+    assert!(rendered.contains("JetStream positive acknowledgement failed"));
+    assert!(rendered.contains("<preserved; redacted>"));
+    assert!(error.source_error().is_some());
+    assert!(Error::source(&error).is_some());
+}

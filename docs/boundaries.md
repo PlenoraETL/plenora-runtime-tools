@@ -6,7 +6,7 @@ The following constraints are normative:
   business-domain crates.
 - `plenora-runtime-messaging` must remain broker-agnostic.
 - `plenora-runtime-worker` must not expose Apalis types.
-- `plenora-runtime-capabilities` may depend on worker and messaging but must not depend on a
+- `plenora-runtime-capabilities` may depend on core, worker, and messaging but must not depend on a
   concrete Rust foundation library, broker, worker engine, HTTP framework, database driver, or
   telemetry backend.
 - `plenora-runtime-outbox` must not depend on PostgreSQL or another concrete store.

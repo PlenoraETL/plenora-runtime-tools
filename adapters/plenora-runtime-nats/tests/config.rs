@@ -328,3 +328,21 @@ fn replay_config() -> Result<ReplayConsumerConfig, Box<dyn Error>> {
         infrastructure: InfrastructureMode::BindExisting,
     })
 }
+
+#[test]
+fn connection_requires_a_finite_positive_reconnect_bound() {
+    // Both `None` and zero are converted into an unlimited reconnect loop by the client library,
+    // so validation must reject them to keep the documented finite reconnect bound honest.
+    let unbounded = NatsConfig {
+        max_reconnects: None,
+        ..NatsConfig::default()
+    };
+    let zero = NatsConfig {
+        max_reconnects: Some(0),
+        ..NatsConfig::default()
+    };
+
+    assert!(unbounded.validate().is_err());
+    assert!(zero.validate().is_err());
+    assert!(NatsConfig::default().validate().is_ok());
+}

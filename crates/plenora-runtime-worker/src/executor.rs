@@ -659,11 +659,16 @@ impl<H, P> WorkerExecutor<H, P> {
                     return Err(WorkerExecutionError::cancelled(reason));
                 }
                 timeout = &mut deadline => {
-                    let _started = cancellation.cancel(TaskCancellationReason::Timeout);
+                    let observed = deadline_cancellation_reason(cancellation);
                     wait_for_cleanup(
                         handler.as_mut(),
                         self.config.task_cancellation_grace_period,
                     ).await;
+                    if observed != TaskCancellationReason::Timeout {
+                        lifecycle.transition(TaskState::Cancelled(observed));
+                        execution_guard.complete();
+                        return Err(WorkerExecutionError::cancelled(observed));
+                    }
                     lifecycle.transition(TaskState::TimedOut);
                     execution_guard.complete();
                     return Err(WorkerExecutionError::timed_out(
@@ -759,6 +764,18 @@ fn finish_admission(
     lifecycle.transition(TaskState::Cancelled(cancellation));
 }
 
+/// Records the deadline on a first-writer-wins token and returns the reason that actually won.
+///
+/// The token keeps the first reason, so a concurrent owner that won the race must also classify the
+/// result instead of being contradicted by a timeout classification.
+fn deadline_cancellation_reason(token: &TaskCancellationToken) -> TaskCancellationReason {
+    if token.cancel(TaskCancellationReason::Timeout) {
+        TaskCancellationReason::Timeout
+    } else {
+        token.reason().unwrap_or(TaskCancellationReason::Timeout)
+    }
+}
+
 async fn wait_optional(duration: Option<Duration>) -> Duration {
     match duration {
         Some(duration) => {
@@ -804,5 +821,36 @@ where
 
     fn admission_state(&self) -> WorkerAdmissionState {
         Self::admission_state(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TaskCancellationReason, TaskCancellationToken, deadline_cancellation_reason};
+
+    #[test]
+    fn an_expired_deadline_records_timeout_on_an_uncancelled_token() {
+        let token = TaskCancellationToken::new();
+
+        let observed = deadline_cancellation_reason(&token);
+
+        assert_eq!(observed, TaskCancellationReason::Timeout);
+        assert_eq!(token.reason(), Some(TaskCancellationReason::Timeout));
+    }
+
+    #[test]
+    fn an_expired_deadline_reports_the_reason_that_won_the_first_writer_race() {
+        for winner in [
+            TaskCancellationReason::Requested,
+            TaskCancellationReason::LeaseLost,
+        ] {
+            let token = TaskCancellationToken::new();
+            assert!(token.cancel(winner));
+
+            let observed = deadline_cancellation_reason(&token);
+
+            assert_eq!(observed, winner);
+            assert_eq!(token.reason(), Some(winner));
+        }
     }
 }

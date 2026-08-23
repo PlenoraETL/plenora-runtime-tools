@@ -26,9 +26,26 @@ pub struct JetStreamConsumer {
     shutdown_nak_delay: Duration,
     max_payload_bytes: usize,
     heartbeat: Option<DeliveryHeartbeatConfig>,
+    rejected_deliveries: u64,
+    last_rejection: Option<NatsAdapterError>,
 }
 
 impl JetStreamConsumer {
+    /// Returns how many malformed deliveries were terminated without stopping consumption.
+    ///
+    /// A protocol-level rejection settles one delivery and never ends the consumer stream, so a
+    /// single poisoned message cannot stop a worker.
+    #[must_use]
+    pub const fn rejected_deliveries(&self) -> u64 {
+        self.rejected_deliveries
+    }
+
+    /// Returns the most recent redaction-safe rejection reason, when one was observed.
+    #[must_use]
+    pub const fn last_rejection(&self) -> Option<&NatsAdapterError> {
+        self.last_rejection.as_ref()
+    }
+
     pub(crate) async fn operational(
         context: &jetstream::Context,
         config: JetStreamConsumerConfig,
@@ -84,25 +101,33 @@ impl MessageConsumer for JetStreamConsumer {
     type Error = NatsAdapterError;
 
     async fn receive(&mut self) -> Result<Option<Delivery>, Self::Error> {
-        let Some(received) = self.messages.next().await else {
-            return Ok(None);
-        };
-        let message = received.map_err(|error| {
-            NatsAdapterError::with_source(
-                NatsErrorCategory::Connection,
-                NatsOperation::Receive,
-                "JetStream delivery polling failed",
-                error,
+        loop {
+            let Some(received) = self.messages.next().await else {
+                return Ok(None);
+            };
+            let message = received.map_err(|error| {
+                NatsAdapterError::with_source(
+                    NatsErrorCategory::Connection,
+                    NatsOperation::Receive,
+                    "JetStream delivery polling failed",
+                    error,
+                )
+            })?;
+            match convert_delivery(
+                message,
+                self.shutdown_nak_delay,
+                self.max_payload_bytes,
+                self.heartbeat,
             )
-        })?;
-        convert_delivery(
-            message,
-            self.shutdown_nak_delay,
-            self.max_payload_bytes,
-            self.heartbeat,
-        )
-        .await
-        .map(Some)
+            .await?
+            {
+                ConvertedDelivery::Accepted(delivery) => return Ok(Some(*delivery)),
+                ConvertedDelivery::Rejected(rejection) => {
+                    self.rejected_deliveries = self.rejected_deliveries.saturating_add(1);
+                    self.last_rejection = Some(rejection);
+                }
+            }
+        }
     }
 }
 
@@ -176,6 +201,8 @@ async fn open(
         shutdown_nak_delay: settings.shutdown_nak_delay,
         max_payload_bytes: settings.max_payload_bytes,
         heartbeat: settings.heartbeat,
+        rejected_deliveries: 0,
+        last_rejection: None,
     })
 }
 
@@ -229,12 +256,25 @@ fn validate_bound_consumer(
     Ok(())
 }
 
-async fn convert_delivery(
-    message: jetstream::Message,
-    shutdown_nak_delay: Duration,
-    max_payload_bytes: usize,
-    heartbeat: Option<DeliveryHeartbeatConfig>,
-) -> Result<Delivery, NatsAdapterError> {
+/// Outcome of converting one raw `JetStream` delivery.
+enum ConvertedDelivery {
+    /// A well-formed delivery ready for handler execution.
+    Accepted(Box<Delivery>),
+    /// A malformed delivery that was TERM-settled; consumption continues.
+    Rejected(NatsAdapterError),
+}
+
+/// Owned `JetStream` delivery facts copied before the message is split.
+struct DeliveryFacts {
+    attempt: u32,
+    stream: String,
+    consumer: String,
+    stream_sequence: u64,
+    consumer_sequence: u64,
+    pending: u64,
+}
+
+fn delivery_facts(message: &jetstream::Message) -> Result<DeliveryFacts, NatsAdapterError> {
     let info = message.info().map_err(|error| {
         NatsAdapterError::with_source(
             NatsErrorCategory::Protocol,
@@ -251,58 +291,100 @@ async fn convert_delivery(
             error,
         )
     })?;
-    let stream = info.stream.to_owned();
-    let consumer = info.consumer.to_owned();
-    let stream_sequence = info.stream_sequence;
-    let consumer_sequence = info.consumer_sequence;
-    let pending = info.pending;
-    let (message, acker) = message.split();
-    if message.payload.len() > max_payload_bytes {
-        acker.ack_with(AckKind::Term).await.map_err(|error| {
-            NatsAdapterError::with_source(
-                NatsErrorCategory::Broker,
-                NatsOperation::Receive,
-                "oversized JetStream delivery could not be terminated",
-                BoxedAckSource(error),
-            )
-        })?;
-        return Err(NatsAdapterError::new(
-            NatsErrorCategory::Protocol,
-            NatsOperation::Receive,
-            "JetStream delivery exceeds the configured payload limit",
-        ));
-    }
-    let (content_type, headers) = metadata::decode(message.headers.as_ref())?;
-    let mut broker_metadata = MessageMetadata::new();
+    Ok(DeliveryFacts {
+        attempt,
+        stream: info.stream.to_owned(),
+        consumer: info.consumer.to_owned(),
+        stream_sequence: info.stream_sequence,
+        consumer_sequence: info.consumer_sequence,
+        pending: info.pending,
+    })
+}
+
+fn broker_metadata(
+    subject: &impl ToString,
+    facts: &DeliveryFacts,
+) -> Result<MessageMetadata, NatsAdapterError> {
+    let mut metadata = MessageMetadata::new();
+    insert_text(&mut metadata, "plenora.nats.subject", subject)?;
+    insert_text(&mut metadata, "plenora.nats.stream", &facts.stream)?;
+    insert_text(&mut metadata, "plenora.nats.consumer", &facts.consumer)?;
     insert_text(
-        &mut broker_metadata,
-        "plenora.nats.subject",
-        &message.subject,
-    )?;
-    insert_text(&mut broker_metadata, "plenora.nats.stream", &stream)?;
-    insert_text(&mut broker_metadata, "plenora.nats.consumer", &consumer)?;
-    insert_text(
-        &mut broker_metadata,
+        &mut metadata,
         "plenora.nats.stream_sequence",
-        &stream_sequence,
+        &facts.stream_sequence,
     )?;
     insert_text(
-        &mut broker_metadata,
+        &mut metadata,
         "plenora.nats.consumer_sequence",
-        &consumer_sequence,
+        &facts.consumer_sequence,
     )?;
-    insert_text(&mut broker_metadata, "plenora.nats.pending", &pending)?;
+    insert_text(&mut metadata, "plenora.nats.pending", &facts.pending)?;
+    Ok(metadata)
+}
+
+/// Settles one malformed delivery so a poisoned message can never stop the consumer.
+///
+/// Only a failed settlement is escalated, because an unsettled malformed delivery would be
+/// redelivered and could poison the worker again after a restart.
+async fn reject_delivery(
+    acker: jetstream::message::Acker,
+    rejection: NatsAdapterError,
+) -> Result<ConvertedDelivery, NatsAdapterError> {
+    acker.ack_with(AckKind::Term).await.map_err(|error| {
+        NatsAdapterError::with_source(
+            NatsErrorCategory::Broker,
+            NatsOperation::Receive,
+            "malformed JetStream delivery could not be terminated",
+            BoxedAckSource(error),
+        )
+    })?;
+    Ok(ConvertedDelivery::Rejected(rejection))
+}
+
+async fn convert_delivery(
+    message: jetstream::Message,
+    shutdown_nak_delay: Duration,
+    max_payload_bytes: usize,
+    heartbeat: Option<DeliveryHeartbeatConfig>,
+) -> Result<ConvertedDelivery, NatsAdapterError> {
+    let facts = delivery_facts(&message);
+    let (message, acker) = message.split();
+    let facts = match facts {
+        Ok(facts) => facts,
+        Err(rejection) => return reject_delivery(acker, rejection).await,
+    };
+    if message.payload.len() > max_payload_bytes {
+        return reject_delivery(
+            acker,
+            NatsAdapterError::new(
+                NatsErrorCategory::Protocol,
+                NatsOperation::Receive,
+                "JetStream delivery exceeds the configured payload limit",
+            ),
+        )
+        .await;
+    }
+    let (content_type, headers) = match metadata::decode(message.headers.as_ref()) {
+        Ok(decoded) => decoded,
+        Err(rejection) => return reject_delivery(acker, rejection).await,
+    };
+    let broker_metadata = match broker_metadata(&message.subject, &facts) {
+        Ok(metadata) => metadata,
+        Err(rejection) => return reject_delivery(acker, rejection).await,
+    };
+    let attempt = facts.attempt;
     let message = SerializedMessage::new(content_type, message.payload).with_headers(headers);
     let acknowledger = NatsAcknowledger {
         acker,
         shutdown_nak_delay,
     };
-    Ok(match heartbeat {
+    Ok(ConvertedDelivery::Accepted(Box::new(match heartbeat {
         Some(config) => {
             Delivery::new_with_heartbeat(message, attempt, broker_metadata, config, acknowledger)
         }
         None => Delivery::new(message, attempt, broker_metadata, acknowledger),
-    })
+    })))
 }
 
 fn insert_text(

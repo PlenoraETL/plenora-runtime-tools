@@ -4,6 +4,7 @@ use std::{
     error::Error,
     fmt::{self, Display, Formatter},
     sync::{Arc, Mutex, MutexGuard},
+    time::{Duration, SystemTime},
 };
 
 use async_trait::async_trait;
@@ -11,11 +12,11 @@ use plenora_runtime_capabilities::{
     CapabilityDispatchErrorCategory, CapabilityDispatcher, CapabilityDispatcherConfig,
     CapabilityFailure, CapabilityHandler, CapabilityId, CapabilityRegistryBuilder,
     CapabilityRegistryConfig, CapabilityRegistryError, CapabilityRemoteEffect, CapabilityRequest,
-    CapabilityResponse, ContractId, MAX_CAPABILITY_PAYLOAD_BYTES, MAX_REGISTERED_CAPABILITIES,
-    OperationName, OperationVersion, PlenoraErrorCategory, PlenoraErrorPhase,
-    PlenoraErrorRemoteEffect, PlenoraErrorRetry,
+    CapabilityResponse, ContractId, EXECUTION_DEADLINE_METADATA_KEY, MAX_CAPABILITY_PAYLOAD_BYTES,
+    MAX_REGISTERED_CAPABILITIES, OperationName, OperationVersion, PlenoraErrorCategory,
+    PlenoraErrorPhase, PlenoraErrorRemoteEffect, PlenoraErrorRetry,
 };
-use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
+use plenora_runtime_core::{Clock, RuntimeHandle, ServiceMetadata};
 use plenora_runtime_messaging::{
     ClassifyRetry, CorrelationId, MessageId, MessageMetadata, RetryErrorClass, SerializedMessage,
 };
@@ -362,6 +363,65 @@ fn shared_registration_path_freezes_sorted_capabilities() -> Result<(), Box<dyn 
         ]
     );
     Ok(())
+}
+
+/// Deterministic wall clock used to make deadline boundaries reproducible.
+#[derive(Clone, Copy, Debug)]
+struct FixedClock(SystemTime);
+
+impl Clock for FixedClock {
+    fn now(&self) -> SystemTime {
+        self.0
+    }
+}
+
+#[tokio::test]
+async fn absolute_deadlines_are_evaluated_with_the_injected_clock() -> Result<(), Box<dyn Error>> {
+    let records = Arc::new(Mutex::new(Vec::new()));
+    let mut builder = CapabilityRegistryBuilder::new(CapabilityRegistryConfig::new(1)?)?;
+    builder.register(
+        CapabilityId::new("plenora.data-tools", 1)?,
+        RecordingHandler {
+            adapter: "data",
+            records: Arc::clone(&records),
+        },
+    )?;
+    let registry = builder.build();
+
+    let live = CapabilityDispatcher::new(registry.clone(), CapabilityDispatcherConfig::new(32)?)?;
+    live.handle(worker_context(1), deadline_request()?).await?;
+    assert_eq!(lock(&records).len(), 1);
+
+    // A clock positioned after the absolute deadline rejects the request before invocation,
+    // without depending on real elapsed time.
+    let expired = CapabilityDispatcher::new(registry, CapabilityDispatcherConfig::new(32)?)?
+        .with_clock(Arc::new(FixedClock(
+            SystemTime::UNIX_EPOCH + Duration::from_secs(4_000_000_000),
+        )));
+    let error = expired
+        .handle(worker_context(1), deadline_request()?)
+        .await
+        .err()
+        .ok_or("expired absolute deadline was accepted")?;
+
+    assert_eq!(
+        error.category(),
+        CapabilityDispatchErrorCategory::DeadlineExceeded
+    );
+    assert_eq!(lock(&records).len(), 1);
+    Ok(())
+}
+
+fn deadline_request() -> Result<CapabilityRequest, Box<dyn Error>> {
+    let mut headers = MessageMetadata::new();
+    let _replaced = headers.insert_text(EXECUTION_DEADLINE_METADATA_KEY, "2030-01-01T00:00:00Z")?;
+    Ok(CapabilityRequest::new(
+        CapabilityId::new("plenora.data-tools", 1)?,
+        OperationName::new("data.run")?,
+        OperationVersion::new(1)?,
+        ContractId::new("plenora-test-input-v1")?,
+        SerializedMessage::new("application/octet-stream", "ok".to_owned()).with_headers(headers),
+    ))
 }
 
 fn request(

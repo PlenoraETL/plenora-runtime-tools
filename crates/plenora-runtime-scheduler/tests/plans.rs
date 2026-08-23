@@ -109,3 +109,30 @@ fn utc(
         .map(SystemTime::from)
         .ok_or_else(|| io::Error::other("invalid UTC test instant"))
 }
+
+#[test]
+fn jitter_degrades_deterministically_when_the_first_occurrence_is_unrepresentable()
+-> Result<(), Box<dyn Error>> {
+    let boundary = maximum_representable_instant();
+    let inner = FixedIntervalPlan::new(boundary, Duration::from_secs(10))?;
+    let plan = JitteredPlan::new(inner, Duration::from_hours(1), 42);
+
+    // Applying jitter to the first occurrence would overflow, so the whole plan stays unjittered
+    // instead of transforming later occurrences differently from the first one.
+    assert_eq!(plan.delay(), Duration::ZERO);
+    assert_eq!(plan.first_due_at(), boundary);
+    assert_eq!(plan.next_after(plan.first_due_at()), None);
+    Ok(())
+}
+
+fn maximum_representable_instant() -> SystemTime {
+    let mut instant = SystemTime::UNIX_EPOCH;
+    let mut step = Duration::from_secs(1_u64 << 62);
+    while !step.is_zero() {
+        if let Some(next) = instant.checked_add(step) {
+            instant = next;
+        }
+        step /= 2;
+    }
+    instant
+}

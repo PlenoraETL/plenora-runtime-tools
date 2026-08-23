@@ -153,7 +153,10 @@ pub struct NatsConfig {
     pub connect_timeout: Duration,
     /// Request timeout.
     pub request_timeout: Duration,
-    /// Maximum reconnect attempts; None means unbounded.
+    /// Finite maximum reconnect attempts.
+    ///
+    /// `None` is retained for source compatibility but is rejected by validation, and so is
+    /// `Some(0)`: the client library treats both as an unlimited reconnect loop.
     pub max_reconnects: Option<usize>,
     /// Retry the initial connection.
     pub retry_on_initial_connect: bool,
@@ -216,6 +219,13 @@ impl NatsConfig {
         if self.servers.iter().any(|server| server.trim().is_empty()) {
             return Err(NatsConfigError::new("servers", "contains an empty URL"));
         }
+        let Some(max_reconnects) = self.max_reconnects else {
+            return Err(NatsConfigError::new(
+                "max_reconnects",
+                "must be a finite positive attempt count",
+            ));
+        };
+        nonzero("max_reconnects", max_reconnects)?;
         Ok(())
     }
 }

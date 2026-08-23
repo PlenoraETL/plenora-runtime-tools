@@ -32,8 +32,11 @@ $WorkspacePath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $WorkspaceMount = "type=bind,source=$WorkspacePath,target=/workspace"
 $RegistryVolume = "runtime-tools-cargo-registry"
 $TargetVolume = "runtime-tools-target-rust-1-97-1-bookworm"
-$BuildImage = "rust:1.97.1-bookworm"
-$RunImage = "debian:bookworm-slim"
+# Images are content-pinned by multi-architecture index digest, matching nats-docker.ps1, so the
+# same commit always qualifies against the same base files. The build layer still installs
+# build-essential from mutable Debian repositories; that remains a known reproducibility gap.
+$BuildImage = "rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97"
+$RunImage = "debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241"
 $ProbeBinary = "/workspace/target/release/plenora-memory-probe"
 
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
