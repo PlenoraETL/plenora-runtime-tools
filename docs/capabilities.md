@@ -88,7 +88,9 @@ Discovery registration is mandatory for `plenora.rest-tools@v1`. Its profile req
 `rest.test`, `rest.generate`, `rest.enrich`, `rest.download` and `rest.upload`, all on the runtime
 surface. Requests are rejected before invocation when operation status/version, input contract,
 JSON envelope or advertised controls differ. Absolute UTC deadlines cancel the invocation token;
-a timeout after invocation may have begun remains an unknown remote outcome.
+a timeout after invocation may have begun remains an unknown remote outcome. Deadlines are compared
+against an injectable `Clock` that defaults to the operating-system clock, so boundary behavior is
+reproducible without depending on real elapsed time.
 
 The request-vector evidence and immutable contracts revision are documented in
 [`contract-alignment.md`](contract-alignment.md). Confirmed success-result transport is implemented.

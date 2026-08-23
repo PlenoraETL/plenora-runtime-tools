@@ -47,9 +47,14 @@ delivery only after confirmed DLQ publication. Missing configuration, publicatio
 after confirmed publication is reported separately.
 
 Operational and replay consumers require finite nonzero `max_deliver`, `max_ack_pending`, and local
-payload-byte limits. Binding checks the existing durable's acknowledgement timeout, delivery and
-pending-ack bounds, filter, ACK policy, and delivery policy before consumption starts. Oversized
-incoming messages are terminated without exposing their bytes to a handler.
+payload-byte limits. Connection configuration additionally requires a finite, positive reconnect
+attempt bound, because the client library treats both an absent and a zero bound as an unlimited
+reconnect loop. Binding checks the existing durable's acknowledgement timeout, delivery and
+pending-ack bounds, filter, ACK policy, and delivery policy before consumption starts. Oversized or
+otherwise malformed incoming messages are TERM-settled without exposing their bytes to a handler and
+consumption continues, so one poisoned delivery cannot stop a worker; the consumer counts these
+rejections and retains the last redaction-safe reason. Only a failed settlement or an actual stream
+failure ends the consumer.
 
 Binary metadata is encoded reversibly into reserved NATS headers. Replay configuration names both
 the operational and replay durable and rejects equality, so replay cannot move or overwrite the

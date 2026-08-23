@@ -22,7 +22,8 @@ Every admitted worker task now also carries a first-writer-wins `TaskCancellatio
 can await `WorkerContext::cancelled` to distinguish runtime shutdown from task-local timeout,
 lease-loss, explicit request, or execution drop. An execution deadline signals the task token,
 allows the configured bounded cleanup grace, then returns a typed timeout with an explicit retry
-disposition. Dropping an execution future signals `ExecutionDropped` synchronously, allowing
+disposition. If another owner won the first-writer race at that exact moment, the deadline path
+reports the reason that actually won instead of contradicting the token. Dropping an execution future signals `ExecutionDropped` synchronously, allowing
 cooperative child operations that retained the token to stop even though their parent future no
 longer exists. JetStream heartbeat exhaustion sets `LeaseLost` before dropping the handler future.
 

@@ -267,11 +267,19 @@ where
     P: SchedulePlan,
 {
     /// Creates a deterministic jitter wrapper from a maximum delay and stable seed.
+    ///
+    /// When the first occurrence cannot represent the sampled delay, the plan degrades to a
+    /// deterministic zero delay instead of silently applying jitter to some occurrences only.
     #[must_use]
     pub fn new(inner: P, maximum_delay: Duration, seed: u64) -> Self {
         let maximum_nanos = maximum_delay.as_nanos();
         let sampled = u128::from(mix(seed)) % maximum_nanos.saturating_add(1);
-        let delay = duration_from_nanos(sampled);
+        let sampled_delay = duration_from_nanos(sampled);
+        let delay = if inner.first_due_at().checked_add(sampled_delay).is_some() {
+            sampled_delay
+        } else {
+            Duration::ZERO
+        };
         Self { inner, delay }
     }
 

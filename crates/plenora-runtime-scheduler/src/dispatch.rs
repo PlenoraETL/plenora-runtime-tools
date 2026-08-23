@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use crate::ScheduleOccurrenceId;
 
 /// One immutable scheduled invocation passed to an application-owned dispatcher.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ScheduledOccurrence<T> {
     /// Deterministic idempotency identity.
     pub id: ScheduleOccurrenceId,
@@ -17,6 +17,17 @@ pub struct ScheduledOccurrence<T> {
     pub due_at: SystemTime,
     /// Application-owned command or payload.
     pub payload: T,
+}
+
+impl<T> Debug for ScheduledOccurrence<T> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ScheduledOccurrence")
+            .field("id", &self.id)
+            .field("due_at", &self.due_at)
+            .field("payload", &"<redacted>")
+            .finish()
+    }
 }
 
 /// Certainty about the external effect of a failed dispatch attempt.
@@ -99,6 +110,11 @@ pub trait ScheduleDispatcher<T>: Send + Sync {
     /// Dispatches one occurrence.
     ///
     /// The occurrence id must be used as an idempotency key by side-effecting implementations.
+    ///
+    /// Implementations must not be reentrant: the scheduler holds its registry lock across this
+    /// call, so a dispatcher that calls back into `snapshots`, `pause_schedule`, `resume_schedule`,
+    /// `add_schedule`, `remove_schedule`, `trigger_schedule` or `resolve_reconciliation` blocks
+    /// until this dispatch has already timed out and been recorded as an unknown outcome.
     ///
     /// # Errors
     ///

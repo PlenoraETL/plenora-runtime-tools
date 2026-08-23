@@ -139,7 +139,7 @@ impl Display for DeliveryHeartbeatConfigError {
 impl Error for DeliveryHeartbeatConfigError {}
 
 /// Broker-neutral acknowledgement failure.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct AckError {
     operation: AckOperation,
     message: Arc<str>,
@@ -186,6 +186,20 @@ impl AckError {
     #[must_use]
     pub fn source_error(&self) -> Option<&(dyn Error + Send + Sync + 'static)> {
         self.source.as_deref()
+    }
+}
+
+impl Debug for AckError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AckError")
+            .field("operation", &self.operation)
+            .field("message", &self.message)
+            .field(
+                "source",
+                &self.source.as_ref().map(|_| "<preserved; redacted>"),
+            )
+            .finish()
     }
 }
 

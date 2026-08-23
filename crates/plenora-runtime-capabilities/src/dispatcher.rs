@@ -7,6 +7,7 @@ use std::{
 
 use async_trait::async_trait;
 use chrono::DateTime;
+use plenora_runtime_core::{Clock, SystemClock};
 use plenora_runtime_messaging::{ClassifyRetry, CorrelationId, PublishOutcome, RetryErrorClass};
 use plenora_runtime_worker::{WorkerContext, WorkerHandler};
 
@@ -93,6 +94,7 @@ pub struct CapabilityDispatcher {
     registry: CapabilityRegistry,
     config: CapabilityDispatcherConfig,
     result_sink: Option<Arc<dyn CapabilityResultSink>>,
+    clock: Arc<dyn Clock>,
 }
 
 impl CapabilityDispatcher {
@@ -110,6 +112,7 @@ impl CapabilityDispatcher {
             registry,
             config,
             result_sink: None,
+            clock: Arc::new(SystemClock),
         })
     }
 
@@ -144,7 +147,21 @@ impl CapabilityDispatcher {
             registry,
             config,
             result_sink: Some(result_sink),
+            clock: Arc::new(SystemClock),
         })
+    }
+
+    /// Replaces the wall clock used to evaluate absolute request deadlines.
+    ///
+    /// The default is the operating-system clock. Injecting a deterministic clock makes
+    /// deadline-boundary behavior reproducible without depending on real elapsed time.
+    #[must_use]
+    pub fn with_clock<C>(mut self, clock: Arc<C>) -> Self
+    where
+        C: Clock + 'static,
+    {
+        self.clock = clock;
+        self
     }
 
     /// Returns the frozen registry shared by worker clones.
@@ -247,6 +264,7 @@ impl Debug for CapabilityDispatcher {
                 "result_sink",
                 &self.result_sink.as_ref().map(|_| "<configured>"),
             )
+            .field("clock", &"<configured>")
             .finish()
     }
 }
@@ -300,7 +318,7 @@ impl WorkerHandler<CapabilityRequest> for CapabilityDispatcher {
             }
         })?;
         let remaining = match deadline {
-            Some(deadline) => Some(deadline.duration_since(SystemTime::now()).map_err(
+            Some(deadline) => Some(deadline.duration_since(self.clock.now()).map_err(
                 |_elapsed| CapabilityDispatchError::DeadlineExceeded {
                     capability: capability.clone(),
                     operation: operation.clone(),

@@ -60,6 +60,7 @@ impl SubprocessSnapshotSource for FixedSubprocess {
             cancellations: 2,
             timeouts: 3,
             memory_terminations: 4,
+            tree_termination_failures: 1,
         }
     }
 }

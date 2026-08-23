@@ -7,7 +7,11 @@ must likewise be atomic before acknowledgement.
 OutboxRelay claims one bounded batch and publishes through MessageProducer. Confirmed publication
 is marked published. A producer error is recorded according to policy and returned with its source.
 OutcomeUnknown is retained for reconciliation by default; retrying it requires an explicit opt-in
-because the remote effect may already have happened.
+because the remote effect may already have happened. A run that returns early releases every claim
+it never attempted as `NotAttempted`/Retry, so a mid-batch failure cannot park later entries until a
+store-specific lease expires; release itself is best effort, an entry whose release also fails is
+counted in `unreleased_claims`, and a run cancelled by dropping its future releases nothing. Those
+entries remain the store's claim-lease or crash-recovery responsibility.
 
 The first store trait intentionally does not prescribe a lease model. Concrete adapters must define
 claim expiry and crash recovery. InboxDeduplicator is a convenience helper, not an atomicity

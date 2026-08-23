@@ -13,8 +13,8 @@ use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_scheduler::{
     FixedIntervalPlan, MisfirePolicy, OneShotPlan, ReconciliationResolution, Schedule,
     ScheduleDispatchEffect, ScheduleDispatchError, ScheduleDispatcher, ScheduleId, ScheduleIdError,
-    ScheduleOccurrenceId, ScheduleRegistrationError, ScheduleStatus, ScheduledOccurrence,
-    SchedulerBuilder, SchedulerConfig, SchedulerConfigError,
+    ScheduleOccurrenceId, ScheduleRegistrationError, ScheduleRestoreError, ScheduleSnapshot,
+    ScheduleStatus, ScheduledOccurrence, SchedulerBuilder, SchedulerConfig, SchedulerConfigError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -62,6 +62,25 @@ impl ScheduleDispatcher<&'static str> for ScriptedDispatcher {
                 ScheduleDispatchEffect::OutcomeUnknown,
             )),
         }
+    }
+}
+
+/// Requests runtime shutdown from inside the first dispatch of a tick.
+#[derive(Debug)]
+struct ShutdownRequestingDispatcher {
+    runtime: RuntimeHandle,
+    attempts: Mutex<Vec<ScheduleOccurrenceId>>,
+}
+
+#[async_trait]
+impl ScheduleDispatcher<&'static str> for ShutdownRequestingDispatcher {
+    async fn dispatch(
+        &self,
+        occurrence: ScheduledOccurrence<&'static str>,
+    ) -> Result<(), ScheduleDispatchError> {
+        lock(&self.attempts).push(occurrence.id);
+        let _requested = self.runtime.request_shutdown();
+        Ok(())
     }
 }
 
@@ -347,6 +366,325 @@ async fn scheduler_loop_stops_on_shutdown() -> Result<(), Box<dyn Error>> {
 
     assert!(report.ticks >= 1);
     assert_eq!(report.dispatched, 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn fire_once_abandons_a_backlog_larger_than_the_catch_up_bound() -> Result<(), Box<dyn Error>>
+{
+    let dispatcher = Arc::new(ScriptedDispatcher::new([]));
+    let mut builder = SchedulerBuilder::new(config(1, 8, 4)?);
+    builder.register(
+        interval("backlog", UNIX_EPOCH, 1)?.with_misfire_policy(MisfirePolicy::FireOnce),
+    )?;
+    let scheduler = builder.build(Arc::clone(&dispatcher));
+    let now = at(100);
+    let mut ticks = 0_usize;
+
+    loop {
+        ticks = ticks.saturating_add(1);
+        if !scheduler.tick(now).await.saturated {
+            break;
+        }
+        if ticks > 200 {
+            return Err(std::io::Error::other("fire-once backlog did not converge").into());
+        }
+    }
+
+    let attempts = dispatcher.attempts();
+    assert!(ticks > 1);
+    // Exactly one occurrence out of the overdue backlog is dispatched; the rest is abandoned.
+    let backlog: Vec<_> = attempts
+        .iter()
+        .filter(|attempt| attempt.due_at < now)
+        .collect();
+    assert_eq!(backlog.len(), 1);
+    assert_eq!(backlog[0].due_at, UNIX_EPOCH);
+    // The occurrence due exactly at the tick is on time, so it is dispatched rather than swept
+    // away with the backlog.
+    assert!(attempts.iter().any(|attempt| attempt.due_at == now));
+
+    let later = scheduler.tick(at(200)).await;
+    assert_eq!(later.dispatched, 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_restart_inside_an_abandoned_fire_once_backlog_does_not_dispatch_again()
+-> Result<(), Box<dyn Error>> {
+    let first_dispatcher = Arc::new(ScriptedDispatcher::new([]));
+    let mut first_builder = SchedulerBuilder::new(config(1, 8, 4)?);
+    first_builder.register(
+        interval("backlog", UNIX_EPOCH, 1)?.with_misfire_policy(MisfirePolicy::FireOnce),
+    )?;
+    let first = first_builder.build(Arc::clone(&first_dispatcher));
+    let now = at(100);
+
+    // One tick dispatches the single overdue occurrence and abandons part of the backlog.
+    assert_eq!(first.tick(now).await.dispatched, 1);
+    let snapshot = first
+        .snapshots()
+        .await
+        .into_iter()
+        .next()
+        .ok_or_else(|| std::io::Error::other("missing schedule snapshot"))?;
+    assert!(snapshot.skip_backlog_through.is_some());
+
+    let second_dispatcher = Arc::new(ScriptedDispatcher::new([]));
+    let mut second_builder = SchedulerBuilder::new(config(1, 8, 4)?);
+    second_builder.register(
+        interval("backlog", UNIX_EPOCH, 1)?
+            .with_misfire_policy(MisfirePolicy::FireOnce)
+            .restore_from(&snapshot)?,
+    )?;
+    let second = second_builder.build(Arc::clone(&second_dispatcher));
+
+    let mut ticks = 0_usize;
+    loop {
+        ticks = ticks.saturating_add(1);
+        if !second.tick(now).await.saturated {
+            break;
+        }
+        if ticks > 200 {
+            return Err(std::io::Error::other("restored backlog did not converge").into());
+        }
+    }
+
+    // The restored boundary must abandon the rest of the backlog; only the occurrence that is
+    // on time at this tick may still dispatch.
+    assert!(
+        second_dispatcher
+            .attempts()
+            .iter()
+            .all(|attempt| attempt.due_at >= now)
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_restored_boundary_never_suppresses_another_misfire_policy() -> Result<(), Box<dyn Error>>
+{
+    let dispatcher = Arc::new(ScriptedDispatcher::new([]));
+    let mut builder = SchedulerBuilder::new(config(1, 8, 4)?);
+    // The boundary belongs to FireOnce; a CatchUp definition restored from the same durable
+    // record must still dispatch its overdue occurrences.
+    builder.register(
+        interval("backlog", UNIX_EPOCH, 1)?
+            .with_misfire_policy(MisfirePolicy::CatchUp)
+            .restore_from(&ScheduleSnapshot {
+                id: ScheduleId::new("backlog")?,
+                status: ScheduleStatus::Active,
+                next_due_at: Some(UNIX_EPOCH),
+                skip_backlog_through: Some(at(100)),
+            })?,
+    )?;
+    let scheduler = builder.build(Arc::clone(&dispatcher));
+
+    assert_eq!(scheduler.tick(at(100)).await.dispatched, 4);
+    assert_eq!(dispatcher.attempts().len(), 4);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_boundary_ahead_of_the_current_tick_is_discarded_as_corrupt() -> Result<(), Box<dyn Error>>
+{
+    let dispatcher = Arc::new(ScriptedDispatcher::new([]));
+    let mut builder = SchedulerBuilder::new(config(1, 8, 4)?);
+    // The scheduler only ever records a boundary it has already ticked past, so a far-future
+    // value is corrupt durable state and must not silence the schedule.
+    builder.register(
+        interval("current", at(100), 1)?
+            .with_misfire_policy(MisfirePolicy::FireOnce)
+            .restore_from(&ScheduleSnapshot {
+                id: ScheduleId::new("current")?,
+                status: ScheduleStatus::Active,
+                next_due_at: Some(at(100)),
+                skip_backlog_through: Some(at(10_000)),
+            })?,
+    )?;
+    let scheduler = builder.build(Arc::clone(&dispatcher));
+
+    let report = scheduler.tick(at(110)).await;
+
+    assert_eq!(report.dispatched, 1);
+    assert_eq!(dispatcher.attempts()[0].due_at, at(100));
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_confirmed_reconciliation_keeps_the_fire_once_backlog_abandoned()
+-> Result<(), Box<dyn Error>> {
+    let dispatcher = Arc::new(ScriptedDispatcher::new([ScriptedOutcome::Unknown]));
+    let mut builder = SchedulerBuilder::new(config(1, 8, 4)?);
+    builder.register(
+        interval("unknown", UNIX_EPOCH, 1)?.with_misfire_policy(MisfirePolicy::FireOnce),
+    )?;
+    let scheduler = builder.build(Arc::clone(&dispatcher));
+    let now = at(100);
+
+    assert_eq!(scheduler.tick(now).await.reconciliation_required, 1);
+    let id = ScheduleId::new("unknown")?;
+    scheduler
+        .resolve_reconciliation(&id, ReconciliationResolution::Confirmed)
+        .await?;
+
+    let mut ticks = 0_usize;
+    loop {
+        ticks = ticks.saturating_add(1);
+        if !scheduler.tick(now).await.saturated {
+            break;
+        }
+        if ticks > 200 {
+            return Err(std::io::Error::other("backlog did not converge").into());
+        }
+    }
+
+    // The single uncertain occurrence is the one dispatch FireOnce allows out of this backlog;
+    // confirming it must not release the rest.
+    let attempts = dispatcher.attempts();
+    let backlog: Vec<_> = attempts
+        .iter()
+        .filter(|attempt| attempt.due_at < now)
+        .collect();
+    assert_eq!(backlog.len(), 1);
+    assert_eq!(backlog[0].due_at, UNIX_EPOCH);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_retried_reconciliation_releases_the_boundary_for_the_same_occurrence()
+-> Result<(), Box<dyn Error>> {
+    let dispatcher = Arc::new(ScriptedDispatcher::new([ScriptedOutcome::Unknown]));
+    let mut builder = SchedulerBuilder::new(config(1, 8, 4)?);
+    builder
+        .register(interval("retry", UNIX_EPOCH, 1)?.with_misfire_policy(MisfirePolicy::FireOnce))?;
+    let scheduler = builder.build(Arc::clone(&dispatcher));
+    let now = at(100);
+
+    assert_eq!(scheduler.tick(now).await.reconciliation_required, 1);
+    let id = ScheduleId::new("retry")?;
+    scheduler
+        .resolve_reconciliation(&id, ReconciliationResolution::Retry)
+        .await?;
+
+    assert_eq!(scheduler.tick(now).await.dispatched, 1);
+    let attempts = dispatcher.attempts();
+    assert_eq!(attempts.len(), 2);
+    // The retry must reuse the same deterministic identity instead of being skipped.
+    assert_eq!(attempts[0], attempts[1]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_aborted_tick_leaves_an_in_flight_dispatch_awaiting_reconciliation()
+-> Result<(), Box<dyn Error>> {
+    let mut builder = SchedulerBuilder::new(config(1, 1, 1)?);
+    builder.register(once("aborted", UNIX_EPOCH)?)?;
+    let scheduler = Arc::new(builder.build(Arc::new(HangingDispatcher)));
+    let task_scheduler = Arc::clone(&scheduler);
+    let tick = tokio::spawn(async move { task_scheduler.tick(at(100)).await });
+
+    // Abort the tick while the dispatcher is still pending: the external effect may already have
+    // begun, so the cursor must not silently invite another dispatch.
+    tokio::task::yield_now().await;
+    tick.abort();
+    let _aborted = tick.await;
+
+    let snapshot = scheduler
+        .snapshots()
+        .await
+        .into_iter()
+        .next()
+        .ok_or_else(|| std::io::Error::other("missing schedule snapshot"))?;
+
+    assert_eq!(snapshot.status, ScheduleStatus::ReconciliationRequired);
+    assert_eq!(snapshot.next_due_at, Some(UNIX_EPOCH));
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_completed_schedule_never_snapshots_an_orphaned_boundary() -> Result<(), Box<dyn Error>> {
+    let dispatcher = Arc::new(ScriptedDispatcher::new([]));
+    let mut builder = SchedulerBuilder::new(config(1, 8, 4)?);
+    builder.register(once("final", UNIX_EPOCH)?.with_misfire_policy(MisfirePolicy::FireOnce))?;
+    let scheduler = builder.build(Arc::clone(&dispatcher));
+
+    assert_eq!(scheduler.tick(at(100)).await.dispatched, 1);
+    let snapshot = scheduler
+        .snapshots()
+        .await
+        .into_iter()
+        .next()
+        .ok_or_else(|| std::io::Error::other("missing schedule snapshot"))?;
+
+    assert_eq!(snapshot.status, ScheduleStatus::Completed);
+    assert_eq!(snapshot.next_due_at, None);
+    assert_eq!(snapshot.skip_backlog_through, None);
+    // Every snapshot the scheduler emits must round-trip through restoration.
+    let _restored = once("final", UNIX_EPOCH)?.restore_from(&snapshot)?;
+    Ok(())
+}
+
+#[test]
+fn a_durable_boundary_without_a_cursor_is_rejected() -> Result<(), Box<dyn Error>> {
+    let restored = once("orphan", UNIX_EPOCH)?.restore_from(&ScheduleSnapshot {
+        id: ScheduleId::new("orphan")?,
+        status: ScheduleStatus::Completed,
+        next_due_at: None,
+        skip_backlog_through: Some(UNIX_EPOCH),
+    });
+
+    assert_eq!(
+        restored.err(),
+        Some(ScheduleRestoreError::InconsistentCursor)
+    );
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn shutdown_stops_starting_further_occurrences_inside_a_tick() -> Result<(), Box<dyn Error>> {
+    let runtime = RuntimeHandle::new(ServiceMetadata::new("scheduler-test", "0.1.0", "one"));
+    let dispatcher = Arc::new(ShutdownRequestingDispatcher {
+        runtime: runtime.clone(),
+        attempts: Mutex::new(Vec::new()),
+    });
+    let mut builder = SchedulerBuilder::new(config(4, 8, 1)?);
+    builder.register(once("first", UNIX_EPOCH)?)?;
+    builder.register(once("second", UNIX_EPOCH)?)?;
+    builder.register(once("third", UNIX_EPOCH)?)?;
+    builder.register(once("fourth", UNIX_EPOCH)?)?;
+    let scheduler = Arc::new(builder.build(Arc::clone(&dispatcher)));
+    let shutdown = runtime.shutdown_signal();
+    let task = tokio::spawn({
+        let scheduler = Arc::clone(&scheduler);
+        async move { scheduler.run(shutdown).await }
+    });
+
+    tokio::task::yield_now().await;
+    tokio::time::advance(Duration::from_secs(2)).await;
+    let report = task.await?;
+
+    assert_eq!(report.dispatched, 1);
+    assert_eq!(lock(&dispatcher.attempts).len(), 1);
+    Ok(())
+}
+
+#[test]
+fn scheduled_occurrence_debug_redacts_the_application_payload() -> Result<(), Box<dyn Error>> {
+    let occurrence = ScheduledOccurrence {
+        id: ScheduleOccurrenceId {
+            schedule_id: ScheduleId::new("redaction")?,
+            due_at: UNIX_EPOCH,
+        },
+        due_at: UNIX_EPOCH,
+        payload: "super-secret-command",
+    };
+
+    let rendered = format!("{occurrence:?}");
+
+    assert!(!rendered.contains("super-secret-command"));
+    assert!(rendered.contains("<redacted>"));
+    assert!(rendered.contains("redaction"));
     Ok(())
 }
 

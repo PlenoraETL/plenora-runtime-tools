@@ -387,3 +387,76 @@ async fn recorded_publish_error_exposes_partial_report_without_sensitive_source(
     assert!(!format!("{error:?}").contains("scripted producer failure"));
     Ok(())
 }
+
+#[tokio::test]
+async fn an_early_failure_releases_every_claim_it_never_attempted() -> Result<(), Box<dyn Error>> {
+    let store = InMemoryOutboxStore::new();
+    store.insert(entry(1)?)?;
+    store.insert(entry(2)?)?;
+    store.insert(entry(3)?)?;
+    let producer = ScriptedProducer::new([Err(ScriptedProducerError::Injected)]);
+    let relay = OutboxRelay::new(
+        store.clone(),
+        producer.clone(),
+        RelayConfig::new(
+            3,
+            RelayPolicy::new(FailureDisposition::Retry, FailureDisposition::Reconcile),
+        )?,
+    );
+
+    let error = relay
+        .run_once()
+        .await
+        .err()
+        .ok_or_else(|| io::Error::other("relay run unexpectedly succeeded"))?;
+
+    assert!(matches!(error, RelayError::Publish { .. }));
+    assert_eq!(producer.published_count()?, 1);
+    // The failed entry plus the two entries the run never attempted are all publishable again.
+    assert_eq!(store.count_in_state(OutboxEntryState::Pending)?, 3);
+    assert_eq!(store.count_in_state(OutboxEntryState::Claimed)?, 0);
+    assert_eq!(error.report().retry_scheduled, 3);
+
+    let recovered = OutboxRelay::new(
+        store.clone(),
+        ScriptedProducer::new([
+            Ok(PublishOutcome::Confirmed),
+            Ok(PublishOutcome::Confirmed),
+            Ok(PublishOutcome::Confirmed),
+        ]),
+        RelayConfig::default(),
+    )
+    .run_once()
+    .await?;
+
+    assert_eq!(recovered.published, 3);
+    Ok(())
+}
+
+#[tokio::test]
+async fn claims_that_cannot_be_released_are_counted_instead_of_being_hidden()
+-> Result<(), Box<dyn Error>> {
+    let store = InMemoryOutboxStore::new();
+    store.insert(entry(1)?)?;
+    store.insert(entry(2)?)?;
+    store.insert(entry(3)?)?;
+    // The first mark_failed records the producer error; the next two are the release attempts.
+    store.inject_failure(MemoryStoreOperation::OutboxMarkFailed, 3)?;
+    let relay = OutboxRelay::new(
+        store.clone(),
+        ScriptedProducer::new([Err(ScriptedProducerError::Injected)]),
+        RelayConfig::new(3, RelayPolicy::default())?,
+    );
+
+    let error = relay
+        .run_once()
+        .await
+        .err()
+        .ok_or_else(|| io::Error::other("relay run unexpectedly succeeded"))?;
+
+    assert!(matches!(error, RelayError::PublishAndStore { .. }));
+    assert_eq!(error.report().unreleased_claims, 2);
+    assert_eq!(error.report().retry_scheduled, 0);
+    assert_eq!(store.count_in_state(OutboxEntryState::Claimed)?, 3);
+    Ok(())
+}

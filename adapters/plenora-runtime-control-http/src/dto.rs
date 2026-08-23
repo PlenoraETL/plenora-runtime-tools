@@ -135,6 +135,7 @@ pub(crate) struct SubprocessDto {
     pub cancellations: u64,
     pub timeouts: u64,
     pub memory_terminations: u64,
+    pub tree_termination_failures: u64,
 }
 
 impl From<SubprocessSnapshot> for SubprocessDto {
@@ -149,6 +150,7 @@ impl From<SubprocessSnapshot> for SubprocessDto {
             cancellations: snapshot.cancellations,
             timeouts: snapshot.timeouts,
             memory_terminations: snapshot.memory_terminations,
+            tree_termination_failures: snapshot.tree_termination_failures,
         }
     }
 }

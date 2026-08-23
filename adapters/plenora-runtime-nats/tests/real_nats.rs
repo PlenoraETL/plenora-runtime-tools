@@ -734,3 +734,153 @@ fn assert_health_closed(registry: &HealthRegistry, component_name: &str) {
             && component.status == ReadinessStatus::NotReady
     }));
 }
+
+#[tokio::test]
+#[ignore = "requires PLENORA_NATS_URL pointing to an ephemeral loopback JetStream server"]
+async fn real_jetstream_poisoned_delivery_is_terminated_without_stopping_the_consumer()
+-> Result<(), Box<dyn Error>> {
+    let server_url = configured_loopback_url()?;
+    let suffix = unique_resource_suffix()?;
+    let stream: Arc<str> = Arc::from(format!("PLENORA_POISON_{suffix}"));
+    let subject: Arc<str> = Arc::from(format!("plenora.poison.{suffix}"));
+    let durable: Arc<str> = Arc::from(format!("poison_{suffix}"));
+    let health_component: Arc<str> = Arc::from(format!("nats.poison.{suffix}"));
+
+    let connection = connect(
+        server_url,
+        HealthRegistry::new(),
+        Arc::clone(&health_component),
+    )
+    .await?;
+    let mut consumer = connection
+        .consumer(JetStreamConsumerConfig {
+            stream: Arc::clone(&stream),
+            durable_name: Arc::clone(&durable),
+            filter_subject: Arc::clone(&subject),
+            ack_wait: Duration::from_secs(1),
+            heartbeat: None,
+            max_deliver: Some(5),
+            max_ack_pending: Some(16),
+            max_payload_bytes: 64,
+            shutdown_nak_delay: Duration::from_millis(100),
+            infrastructure: InfrastructureMode::CreateIfMissing {
+                stream_subjects: vec![Arc::clone(&subject)],
+            },
+        })
+        .await?;
+    let producer = connection.producer(JetStreamProducerConfig {
+        subject: Arc::clone(&subject),
+        max_payload_bytes: 64 * 1024,
+        message_id_metadata_key: None,
+    })?;
+
+    assert_eq!(
+        producer.publish(poison_message(vec![7_u8; 4096])?).await?,
+        PublishOutcome::Confirmed
+    );
+    let accepted = poison_message(b"small-payload".to_vec())?;
+    assert_eq!(
+        producer.publish(accepted.clone()).await?,
+        PublishOutcome::Confirmed
+    );
+
+    // The oversized delivery must be TERM-settled and skipped instead of ending the stream, so
+    // one poisoned message cannot deny service to the whole worker.
+    let delivery = receive_bounded(&mut consumer).await?;
+    assert_eq!(delivery.message.bytes, accepted.bytes);
+    assert_eq!(consumer.rejected_deliveries(), 1);
+    assert!(
+        consumer
+            .last_rejection()
+            .is_some_and(|rejection| rejection.category() == NatsErrorCategory::Protocol)
+    );
+    delivery.ack().await?;
+
+    // TERM is durable: waiting past the acknowledgement timeout must not bring the poisoned
+    // delivery back, otherwise a restart would keep re-poisoning the worker.
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let redelivered = tokio::time::timeout(Duration::from_secs(2), consumer.receive()).await;
+    assert!(redelivered.is_err() || matches!(redelivered, Ok(Ok(None))));
+    assert_eq!(consumer.rejected_deliveries(), 1);
+    Ok(())
+}
+
+fn poison_message(bytes: Vec<u8>) -> Result<SerializedMessage, Box<dyn Error>> {
+    let mut headers = MessageMetadata::new();
+    let _replaced =
+        headers.insert_text(MESSAGE_ID_METADATA_KEY, MessageId::random().to_string())?;
+    Ok(SerializedMessage::new("application/octet-stream", bytes).with_headers(headers))
+}
+
+#[tokio::test]
+#[ignore = "requires PLENORA_NATS_URL pointing to an ephemeral loopback JetStream server"]
+async fn real_jetstream_malformed_reserved_metadata_is_terminated_and_skipped()
+-> Result<(), Box<dyn Error>> {
+    let server_url = configured_loopback_url()?;
+    let suffix = unique_resource_suffix()?;
+    let stream: Arc<str> = Arc::from(format!("PLENORA_MALFORMED_{suffix}"));
+    let subject: Arc<str> = Arc::from(format!("plenora.malformed.{suffix}"));
+    let durable: Arc<str> = Arc::from(format!("malformed_{suffix}"));
+    let health_component: Arc<str> = Arc::from(format!("nats.malformed.{suffix}"));
+
+    let connection = connect(
+        server_url.clone(),
+        HealthRegistry::new(),
+        Arc::clone(&health_component),
+    )
+    .await?;
+    let mut consumer = connection
+        .consumer(JetStreamConsumerConfig {
+            stream: Arc::clone(&stream),
+            durable_name: Arc::clone(&durable),
+            filter_subject: Arc::clone(&subject),
+            ack_wait: Duration::from_secs(1),
+            heartbeat: None,
+            max_deliver: Some(5),
+            max_ack_pending: Some(16),
+            max_payload_bytes: 64 * 1024,
+            shutdown_nak_delay: Duration::from_millis(100),
+            infrastructure: InfrastructureMode::CreateIfMissing {
+                stream_subjects: vec![Arc::clone(&subject)],
+            },
+        })
+        .await?;
+
+    // A foreign publisher can write reserved headers the adapter would never emit, so consumer
+    // input must stay untrusted.
+    let raw = async_nats::connect(server_url).await?;
+    let raw_context = async_nats::jetstream::new(raw);
+    let mut poisoned = async_nats::HeaderMap::new();
+    poisoned.insert("Plenora-Content-Type-B64", "not!valid!base64");
+    raw_context
+        .publish_with_headers(subject.to_string(), poisoned, "poison".into())
+        .await?
+        .await?;
+
+    let producer = connection.producer(JetStreamProducerConfig {
+        subject: Arc::clone(&subject),
+        max_payload_bytes: 64 * 1024,
+        message_id_metadata_key: None,
+    })?;
+    let accepted = poison_message(b"well-formed".to_vec())?;
+    assert_eq!(
+        producer.publish(accepted.clone()).await?,
+        PublishOutcome::Confirmed
+    );
+
+    let delivery = receive_bounded(&mut consumer).await?;
+    assert_eq!(delivery.message.bytes, accepted.bytes);
+    assert_eq!(consumer.rejected_deliveries(), 1);
+    assert!(
+        consumer
+            .last_rejection()
+            .is_some_and(|rejection| rejection.category() == NatsErrorCategory::Protocol)
+    );
+    delivery.ack().await?;
+
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let redelivered = tokio::time::timeout(Duration::from_secs(2), consumer.receive()).await;
+    assert!(redelivered.is_err() || matches!(redelivered, Ok(Ok(None))));
+    assert_eq!(consumer.rejected_deliveries(), 1);
+    Ok(())
+}

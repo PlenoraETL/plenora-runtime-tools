@@ -3,7 +3,7 @@ use std::{
     error::Error,
     fmt::{self, Display, Formatter},
     sync::Arc,
-    time::SystemTime,
+    time::{Duration, SystemTime},
 };
 
 use plenora_runtime_core::{Clock, ShutdownSignal, SystemClock};
@@ -20,7 +20,10 @@ use crate::{
 /// Behavior when an occurrence is older than the configured misfire grace.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MisfirePolicy {
-    /// Drop every overdue occurrence and advance to the first future instant.
+    /// Drop every occurrence older than the misfire grace without dispatching it.
+    ///
+    /// An occurrence that is due but still inside the grace is not overdue, so it is dispatched
+    /// normally rather than skipped.
     Skip,
     /// Dispatch one overdue occurrence and skip the remaining backlog after confirmation.
     FireOnce,
@@ -58,6 +61,7 @@ pub struct Schedule<T> {
     misfire_policy: MisfirePolicy,
     next_due_at: Option<SystemTime>,
     status: ScheduleStatus,
+    skip_backlog_through: Option<SystemTime>,
 }
 
 impl<T> Schedule<T> {
@@ -75,6 +79,7 @@ impl<T> Schedule<T> {
             misfire_policy: MisfirePolicy::FireOnce,
             next_due_at,
             status: ScheduleStatus::Active,
+            skip_backlog_through: None,
         }
     }
 
@@ -86,9 +91,13 @@ impl<T> Schedule<T> {
     }
 
     /// Restores the next due cursor from application-owned persistence.
+    ///
+    /// Replacing the cursor also discards any abandonment boundary, because that boundary belongs
+    /// to the cursor it was recorded against.
     #[must_use]
     pub const fn with_next_due_at(mut self, next_due_at: Option<SystemTime>) -> Self {
         self.next_due_at = next_due_at;
+        self.skip_backlog_through = None;
         self.status = if next_due_at.is_some() {
             ScheduleStatus::Active
         } else {
@@ -118,8 +127,14 @@ impl<T> Schedule<T> {
         if !cursor_is_valid {
             return Err(ScheduleRestoreError::InconsistentCursor);
         }
+        // A suppression boundary without a cursor to suppress is durable state that cannot be
+        // reproduced by the scheduler, so it is rejected rather than silently ignored.
+        if snapshot.next_due_at.is_none() && snapshot.skip_backlog_through.is_some() {
+            return Err(ScheduleRestoreError::InconsistentCursor);
+        }
         self.status = snapshot.status;
         self.next_due_at = snapshot.next_due_at;
+        self.skip_backlog_through = snapshot.skip_backlog_through;
         Ok(self)
     }
 
@@ -137,6 +152,11 @@ struct ScheduleEntry<T> {
     misfire_policy: MisfirePolicy,
     next_due_at: Option<SystemTime>,
     status: ScheduleStatus,
+    /// Newest instant whose overdue backlog `FireOnce` already decided to abandon.
+    ///
+    /// The suppression survives across ticks so a backlog larger than the per-schedule catch-up
+    /// bound cannot be dispatched again on a later tick.
+    skip_backlog_through: Option<SystemTime>,
 }
 
 /// Immutable schedule state suitable for application-owned persistence.
@@ -148,6 +168,14 @@ pub struct ScheduleSnapshot {
     pub status: ScheduleStatus,
     /// Next logical occurrence, including a blocked unknown occurrence.
     pub next_due_at: Option<SystemTime>,
+    /// Newest instant whose overdue backlog a `FireOnce` dispatch already decided to abandon.
+    ///
+    /// Persisting this boundary with the cursor prevents a restart in the middle of a large
+    /// abandoned backlog from dispatching a second overdue occurrence. It is honoured only by a
+    /// `FireOnce` schedule, so it can never cross into a definition rebuilt under another misfire
+    /// policy, and a boundary ahead of the current tick is discarded as corrupt rather than
+    /// allowed to silence the schedule.
+    pub skip_backlog_through: Option<SystemTime>,
 }
 
 /// One bounded scheduler tick report.
@@ -346,21 +374,38 @@ where
             id: entry.id,
             status: entry.status,
             next_due_at: entry.next_due_at,
+            skip_backlog_through: entry.skip_backlog_through,
         })
     }
 
     /// Executes one deterministic wall-clock tick.
     pub async fn tick(&self, now: SystemTime) -> SchedulerTickReport {
+        self.tick_observing(now, None).await
+    }
+
+    /// Executes one tick that starts no further occurrence once it observes shutdown.
+    ///
+    /// Admission is a check before each dispatch, not an atomic handshake: an occurrence whose
+    /// dispatch had already begun when shutdown was requested still runs to its configured
+    /// timeout.
+    async fn tick_observing(
+        &self,
+        now: SystemTime,
+        shutdown: Option<&ShutdownSignal>,
+    ) -> SchedulerTickReport {
         let mut entries = self.entries.lock().await;
         let mut report = SchedulerTickReport::default();
         let mut remaining_global = self.config.max_dispatches_per_tick();
 
         for entry in &mut *entries {
+            if shutdown.is_some_and(ShutdownSignal::is_cancelled) {
+                break;
+            }
             if entry.status != ScheduleStatus::Active {
                 continue;
             }
             report.schedules_examined = report.schedules_examined.saturating_add(1);
-            self.process_entry(entry, now, &mut remaining_global, &mut report)
+            self.process_entry(entry, now, shutdown, &mut remaining_global, &mut report)
                 .await;
             if remaining_global == 0 {
                 report.saturated |= entries_have_due(&entries, now);
@@ -386,7 +431,7 @@ where
                 biased;
                 () = shutdown.cancelled() => return run,
                 _instant = ticker.tick() => {
-                    let report = self.tick(self.clock.now()).await;
+                    let report = self.tick_observing(self.clock.now(), Some(&shutdown)).await;
                     run.ticks = run.ticks.saturating_add(1);
                     run.dispatched = run.dispatched.saturating_add(report.dispatched as u64);
                     run.not_started_failures = run.not_started_failures
@@ -408,6 +453,7 @@ where
                 id: entry.id.clone(),
                 status: entry.status,
                 next_due_at: entry.next_due_at,
+                skip_backlog_through: entry.skip_backlog_through,
             })
             .collect()
     }
@@ -461,6 +507,22 @@ where
     /// unbounded number of requests. An unknown or timed-out result must be reconciled by the
     /// application using the deterministic occurrence identity.
     ///
+    /// Admission is decided once, atomically with reserving the bounded slot. An automatic
+    /// occurrence that enters reconciliation afterwards does not retroactively withdraw a manual
+    /// dispatch that was already admitted, so a caller that needs the two to be mutually exclusive
+    /// must serialize them itself.
+    ///
+    /// The occurrence identity is exactly the schedule id paired with `triggered_at`, and it is
+    /// not made unique per call. Repeating an instant deliberately reuses the identity, so an
+    /// idempotent dispatcher treats the second invocation as the same occurrence and produces no
+    /// second effect; the same holds when `triggered_at` matches an automatic due instant. A
+    /// caller that wants a distinct effect must pass a distinct instant, and a caller that
+    /// reconciles by identity must keep manual instants unique for that reason.
+    ///
+    /// Dropping this future forfeits the outcome: the external effect may already have begun, and
+    /// the scheduler records nothing for a manual occurrence, so an abandoned call must be treated
+    /// by the caller as an unknown effect for that occurrence identity.
+    ///
     /// # Errors
     ///
     /// Returns an error when the schedule identity is unknown.
@@ -469,16 +531,19 @@ where
         id: &ScheduleId,
         triggered_at: SystemTime,
     ) -> Result<ManualTriggerOutcome, ScheduleBuildError> {
-        let (payload, status) = {
+        // Status and slot are decided under one lock so a concurrent tick cannot slip a
+        // reconciliation transition between the two. The payload is only cloned once the
+        // invocation is actually admitted.
+        let (payload, _permit) = {
             let mut entries = self.entries.lock().await;
             let entry = find_entry(&mut entries, id)?;
-            (entry.payload.clone(), entry.status)
-        };
-        if status == ScheduleStatus::ReconciliationRequired {
-            return Ok(ManualTriggerOutcome::ReconciliationRequired);
-        }
-        let Ok(_permit) = Arc::clone(&self.manual_permits).try_acquire_owned() else {
-            return Ok(ManualTriggerOutcome::Saturated);
+            if entry.status == ScheduleStatus::ReconciliationRequired {
+                return Ok(ManualTriggerOutcome::ReconciliationRequired);
+            }
+            match Arc::clone(&self.manual_permits).try_acquire_owned() {
+                Ok(permit) => (entry.payload.clone(), permit),
+                Err(_saturated) => return Ok(ManualTriggerOutcome::Saturated),
+            }
         };
         let occurrence = ScheduledOccurrence {
             id: ScheduleOccurrenceId {
@@ -525,6 +590,9 @@ where
         if resolution == ReconciliationResolution::Confirmed {
             advance_once(entry);
         } else {
+            // The owner asked for the same occurrence to run again, so any abandonment boundary
+            // recorded for it must not suppress the retry.
+            entry.skip_backlog_through = None;
             entry.status = ScheduleStatus::Active;
         }
         Ok(())
@@ -534,9 +602,26 @@ where
         &self,
         entry: &mut ScheduleEntry<T>,
         now: SystemTime,
+        shutdown: Option<&ShutdownSignal>,
         remaining_global: &mut usize,
         report: &mut SchedulerTickReport,
     ) {
+        // The scheduler only ever records a boundary at an instant it has already ticked, so a
+        // boundary ahead of this tick is corrupt durable state. Discarding it keeps a bad record
+        // from silencing the schedule indefinitely.
+        //
+        // A wall-clock rollback can make a legitimate boundary look corrupt. Discarding it then
+        // loses suppression for the whole abandoned interval, so as the clock advances through
+        // that interval again `FireOnce` can dispatch one occurrence per tick out of it. That is
+        // the accepted side of the trade-off, taken against an unbounded silent schedule if a
+        // corrupt future boundary were honoured; deployments that cannot tolerate the replay must
+        // keep the scheduler on a clock that does not step backwards.
+        if entry
+            .skip_backlog_through
+            .is_some_and(|through| through > now)
+        {
+            entry.skip_backlog_through = None;
+        }
         let mut attempted = 0_usize;
         while entry.status == ScheduleStatus::Active
             && entry.next_due_at.is_some_and(|due| due <= now)
@@ -546,14 +631,30 @@ where
             let Some(due_at) = entry.next_due_at else {
                 return;
             };
-            let misfired = now
-                .duration_since(due_at)
-                .is_ok_and(|late| late > self.config.misfire_grace());
+            // The boundary abandons only work the owning policy itself decided to abandon, so it
+            // can never cross into a definition rebuilt under another misfire policy. It is also
+            // measured against the tick that recorded it, so an occurrence that was still inside
+            // the misfire grace back then is dispatched instead of being swept away.
+            if entry.misfire_policy == MisfirePolicy::FireOnce
+                && entry.skip_backlog_through.is_some_and(|through| {
+                    due_at <= through && is_overdue(through, due_at, self.config.misfire_grace())
+                })
+            {
+                report.skipped_misfires = report.skipped_misfires.saturating_add(1);
+                attempted = attempted.saturating_add(1);
+                advance_once(entry);
+                continue;
+            }
+            entry.skip_backlog_through = None;
+            let misfired = is_overdue(now, due_at, self.config.misfire_grace());
             attempted = attempted.saturating_add(1);
             if misfired && entry.misfire_policy == MisfirePolicy::Skip {
                 report.skipped_misfires = report.skipped_misfires.saturating_add(1);
                 advance_once(entry);
                 continue;
+            }
+            if shutdown.is_some_and(ShutdownSignal::is_cancelled) {
+                return;
             }
 
             *remaining_global = remaining_global.saturating_sub(1);
@@ -565,6 +666,13 @@ where
                 due_at,
                 payload: entry.payload.clone(),
             };
+            // The dispatcher await is a cancellation point. Marking the occurrence uncertain
+            // before it starts means an aborted tick leaves an explicit reconciliation instead of
+            // a cursor that silently invites a blind retry of a possibly completed effect.
+            entry.status = ScheduleStatus::ReconciliationRequired;
+            if misfired && entry.misfire_policy == MisfirePolicy::FireOnce {
+                entry.skip_backlog_through = Some(now);
+            }
             match timeout(
                 self.config.dispatch_timeout(),
                 self.dispatcher.dispatch(occurrence),
@@ -573,30 +681,55 @@ where
             {
                 Ok(Ok(())) => {
                     report.dispatched = report.dispatched.saturating_add(1);
+                    // `advance_once` sets the status from the new cursor, so the entry is only
+                    // released from reconciliation once the application-supplied plan has actually
+                    // produced that cursor. A plan that panics leaves the conservative state.
                     advance_once(entry);
                     if misfired && entry.misfire_policy == MisfirePolicy::FireOnce {
+                        // A schedule the dispatch just completed has no cursor left to suppress,
+                        // and a boundary without a cursor is state restoration rejects.
+                        if entry.next_due_at.is_some() {
+                            entry.skip_backlog_through = Some(now);
+                        }
                         let remaining = self
                             .config
                             .max_catch_up_per_schedule()
                             .saturating_sub(attempted);
-                        attempted = attempted
-                            .saturating_add(skip_through_now(entry, now, remaining, report));
-                        break;
+                        attempted = attempted.saturating_add(skip_through_now(
+                            entry,
+                            now,
+                            self.config.misfire_grace(),
+                            remaining,
+                            report,
+                        ));
+                        // The sweep stops either on the per-schedule bound, which the loop
+                        // condition then honours and reports as saturation, or on an occurrence
+                        // that is still on time. The loop continues so that on-time occurrence is
+                        // dispatched in this tick instead of being deferred into a later misfire.
                     }
                 }
                 Ok(Err(error)) if error.effect() == ScheduleDispatchEffect::NotStarted => {
+                    // Nothing began, so the same occurrence stays due and must not be suppressed.
+                    entry.status = ScheduleStatus::Active;
+                    entry.skip_backlog_through = None;
                     report.not_started_failures = report.not_started_failures.saturating_add(1);
                     break;
                 }
                 Ok(Err(_)) | Err(_) => {
-                    entry.status = ScheduleStatus::ReconciliationRequired;
+                    // The entry is already reconciliation-required and, under FireOnce, already
+                    // carries the boundary recorded before the dispatch started, so a later
+                    // `Confirmed` resolution cannot release the rest of the backlog.
                     report.reconciliation_required =
                         report.reconciliation_required.saturating_add(1);
                     break;
                 }
             }
         }
-        if attempted >= self.config.max_catch_up_per_schedule()
+        // Saturation means the per-schedule bound left due cursor work behind, which includes work
+        // this tick would only have skipped. An entry stopped by reconciliation or completion has
+        // no due cursor to carry forward, so it must not raise the flag.
+        if entry.status == ScheduleStatus::Active
+            && attempted >= self.config.max_catch_up_per_schedule()
             && entry.next_due_at.is_some_and(|due| due <= now)
         {
             report.saturated = true;
@@ -612,6 +745,7 @@ fn schedule_entry<T>(schedule: Schedule<T>) -> ScheduleEntry<T> {
         misfire_policy: schedule.misfire_policy,
         next_due_at: schedule.next_due_at,
         status: schedule.status,
+        skip_backlog_through: schedule.skip_backlog_through,
     }
 }
 
@@ -627,16 +761,35 @@ fn advance_once<T>(entry: &mut ScheduleEntry<T>) {
     } else {
         ScheduleStatus::Completed
     };
+    if entry.next_due_at.is_none() {
+        // A boundary without a cursor is state the scheduler refuses to restore, so a completed
+        // schedule must never be snapshotted holding one.
+        entry.skip_backlog_through = None;
+    }
+}
+
+/// Returns whether an occurrence is older than the misfire grace at a reference instant.
+fn is_overdue(reference: SystemTime, due_at: SystemTime, grace: Duration) -> bool {
+    reference
+        .duration_since(due_at)
+        .is_ok_and(|late| late > grace)
 }
 
 fn skip_through_now<T>(
     entry: &mut ScheduleEntry<T>,
     now: SystemTime,
+    grace: Duration,
     limit: usize,
     report: &mut SchedulerTickReport,
 ) -> usize {
     let mut skipped = 0_usize;
-    while skipped < limit && entry.next_due_at.is_some_and(|due| due <= now) {
+    // Only genuinely overdue work is abandoned: the sweep stops at the first occurrence still
+    // inside the grace so an on-time occurrence is dispatched rather than dropped with the backlog.
+    while skipped < limit
+        && entry
+            .next_due_at
+            .is_some_and(|due| due <= now && is_overdue(now, due, grace))
+    {
         report.skipped_misfires = report.skipped_misfires.saturating_add(1);
         skipped = skipped.saturating_add(1);
         advance_once(entry);
@@ -715,7 +868,10 @@ fn find_entry<'a, T>(
 pub enum ScheduleRestoreError {
     /// The durable snapshot belongs to another schedule.
     IdentityMismatch,
-    /// Active/reconciliation state lacked a cursor or completed state retained one.
+    /// The durable fields cannot describe one schedule state.
+    ///
+    /// Active, paused and reconciliation-required states require a cursor, a completed state must
+    /// not carry one, and a suppression boundary is meaningless without a cursor to suppress.
     InconsistentCursor,
 }
 

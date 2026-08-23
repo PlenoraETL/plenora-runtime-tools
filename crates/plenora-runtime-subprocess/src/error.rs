@@ -23,6 +23,7 @@ pub struct SubprocessError {
     kind: SubprocessErrorKind,
     message: &'static str,
     source: Arc<io::Error>,
+    containment_failed: bool,
 }
 
 impl SubprocessError {
@@ -31,13 +32,28 @@ impl SubprocessError {
             kind,
             message,
             source: Arc::new(source),
+            containment_failed: false,
         }
+    }
+
+    pub(crate) const fn with_containment_failure(mut self) -> Self {
+        self.containment_failed = true;
+        self
     }
 
     /// Returns the stable failure phase.
     #[must_use]
     pub const fn kind(&self) -> SubprocessErrorKind {
         self.kind
+    }
+
+    /// Returns whether bounded termination and reaping could not be completed.
+    ///
+    /// A true value means the operating system may still hold the child or its descendants, so the
+    /// caller must treat process containment for this invocation as unproven.
+    #[must_use]
+    pub const fn containment_failed(&self) -> bool {
+        self.containment_failed
     }
 }
 
@@ -53,6 +69,7 @@ impl Debug for SubprocessError {
             .debug_struct("SubprocessError")
             .field("kind", &self.kind)
             .field("message", &self.message)
+            .field("containment_failed", &self.containment_failed)
             .field("source", &"<preserved; redacted>")
             .finish()
     }

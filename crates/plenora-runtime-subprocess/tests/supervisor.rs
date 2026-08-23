@@ -1,6 +1,6 @@
 //! Cross-platform subprocess containment contracts.
 
-use std::{env, error::Error, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{env, error::Error, fs, path::PathBuf, process, sync::Arc, thread, time::Duration};
 
 use plenora_runtime_subprocess::{
     MAX_ARGUMENT_BYTES, MAX_ARGUMENT_COUNT, MAX_CAPTURE_BYTES, MAX_CONCURRENT_SUBPROCESSES,
@@ -11,6 +11,7 @@ use plenora_runtime_subprocess::{
 use tokio::sync::Notify;
 
 const FIXTURE_MODE: &str = "PLENORA_SUBPROCESS_FIXTURE_MODE";
+const FIXTURE_PID_FILE: &str = "PLENORA_SUBPROCESS_FIXTURE_PID_FILE";
 
 #[test]
 #[ignore = "executed only as a child by the subprocess supervisor tests"]
@@ -22,7 +23,32 @@ fn subprocess_fixture_child() {
                 eprint!("stderr-bounded;");
             }
         }
-        Ok("sleep") => thread::sleep(Duration::from_secs(30)),
+        Ok("sleep") => {
+            if let Ok(path) = env::var(FIXTURE_PID_FILE) {
+                let _written = std::fs::write(path, std::process::id().to_string());
+            }
+            thread::sleep(Duration::from_secs(30));
+        }
+        Ok("descendant") => {
+            let executable = env::current_exe().unwrap_or_default();
+            let spawned = std::process::Command::new(executable)
+                .args([
+                    "--exact",
+                    "subprocess_fixture_child",
+                    "--ignored",
+                    "--nocapture",
+                ])
+                .env(FIXTURE_MODE, "sleep")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn();
+            if let Ok(child) = spawned {
+                print!("descendant-pid={};", child.id());
+            }
+            let _flushed = std::io::Write::flush(&mut std::io::stdout());
+            thread::sleep(Duration::from_secs(30));
+        }
         Ok("memory") => {
             let mut allocation = vec![0_u8; 32 * 1024 * 1024];
             for byte in allocation.iter_mut().step_by(4096) {
@@ -300,6 +326,175 @@ async fn linux_rss_limit_terminates_and_reaps_process_tree() -> Result<(), Box<d
     assert_eq!(supervisor.snapshot().memory_terminations, 1);
     assert_eq!(supervisor.snapshot().available, 1);
     Ok(())
+}
+
+#[tokio::test]
+async fn a_dropped_execution_future_releases_capacity_without_leaking_the_child()
+-> Result<(), Box<dyn Error>> {
+    let supervisor = SubprocessSupervisor::new(
+        SubprocessSupervisorConfig::new(1, Duration::from_secs(30))?.with_termination_timeouts(
+            Duration::from_millis(100),
+            Duration::from_secs(2),
+            Duration::from_secs(1),
+        )?,
+    );
+    let pid_file = env::temp_dir().join(format!("plenora-subprocess-drop-{}.pid", process::id()));
+    let _cleared = fs::remove_file(&pid_file);
+    let spec = fixture_spec("sleep")?
+        .with_environment(FIXTURE_PID_FILE, pid_file.to_string_lossy().into_owned())?;
+
+    let mut run = Box::pin(supervisor.run_to_completion(&spec));
+    let started = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            tokio::select! {
+                _terminal = &mut run => return false,
+                () = tokio::time::sleep(Duration::from_millis(10)) => {
+                    if pid_file.exists() {
+                        return true;
+                    }
+                }
+            }
+        }
+    })
+    .await?;
+    assert!(started);
+    let child = fs::read_to_string(&pid_file)?.trim().parse::<u32>()?;
+    drop(run);
+
+    // Dropping the future must return the slot, terminate the child, and leave no pipe reader
+    // behind, so the next invocation is admitted immediately.
+    wait_until(|| supervisor.snapshot().available == 1).await?;
+    if cfg!(target_os = "linux") {
+        wait_until(|| !PathBuf::from(format!("/proc/{child}")).exists()).await?;
+    }
+    let recovered = supervisor
+        .run_to_completion(&fixture_spec("success")?)
+        .await?;
+    assert!(recovered.success());
+    assert_eq!(supervisor.snapshot().started, 2);
+    let _cleared = fs::remove_file(&pid_file);
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn timeout_terminates_descendants_or_reports_degraded_containment()
+-> Result<(), Box<dyn Error>> {
+    let supervisor = SubprocessSupervisor::new(
+        SubprocessSupervisorConfig::new(1, Duration::from_millis(500))?
+            .with_output_limits(256, 256)?
+            .with_termination_timeouts(
+                Duration::from_millis(100),
+                Duration::from_secs(2),
+                Duration::from_secs(1),
+            )?,
+    );
+
+    let report = supervisor
+        .run_to_completion(&fixture_spec("descendant")?)
+        .await?;
+    assert_eq!(report.termination, SubprocessTermination::TimedOut);
+
+    let descendant = descendant_pid(report.stdout.bytes())
+        .ok_or("fixture did not report a descendant identifier")?;
+    if supervisor.snapshot().tree_termination_failures == 0 {
+        // Tree containment was delivered, so the descendant must not survive the parent.
+        wait_until(|| !std::path::Path::new(&format!("/proc/{descendant}")).exists()).await?;
+    }
+    assert_eq!(supervisor.snapshot().available, 1);
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn abandoning_an_execution_force_kills_the_whole_isolated_tree() -> Result<(), Box<dyn Error>>
+{
+    let supervisor =
+        SubprocessSupervisor::new(SubprocessSupervisorConfig::new(1, Duration::from_secs(30))?);
+    let pid_file = env::temp_dir().join(format!("plenora-subprocess-tree-{}.pid", process::id()));
+    let _cleared = fs::remove_file(&pid_file);
+    // The leader and its descendant both ignore SIGTERM, so only the forced group kill issued
+    // from the abandonment drop path can remove them.
+    let spec = SubprocessSpec::new(PathBuf::from("/bin/sh"))?
+        .with_argument("-c")?
+        .with_argument(
+            "sh -c \"trap '' TERM; sleep 30\" & echo -n \"$!\" > \"$PID_FILE\"; \
+             trap '' TERM; sleep 30",
+        )?
+        .with_environment("PID_FILE", pid_file.to_string_lossy().into_owned())?;
+
+    let mut run = Box::pin(supervisor.run_to_completion(&spec));
+    let started = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            tokio::select! {
+                _terminal = &mut run => return false,
+                () = tokio::time::sleep(Duration::from_millis(10)) => {
+                    if pid_file.exists() {
+                        return true;
+                    }
+                }
+            }
+        }
+    })
+    .await?;
+    assert!(started);
+    let descendant = fs::read_to_string(&pid_file)?.trim().parse::<u32>()?;
+    drop(run);
+
+    if supervisor.snapshot().tree_termination_failures == 0 {
+        wait_until(|| !PathBuf::from(format!("/proc/{descendant}")).exists()).await?;
+    }
+    wait_until(|| supervisor.snapshot().available == 1).await?;
+    let _cleared = fs::remove_file(&pid_file);
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn a_stubborn_tree_is_force_killed_while_the_leader_is_still_terminable()
+-> Result<(), Box<dyn Error>> {
+    let supervisor = SubprocessSupervisor::new(
+        SubprocessSupervisorConfig::new(1, Duration::from_millis(500))?
+            .with_output_limits(256, 256)?
+            .with_termination_timeouts(
+                Duration::from_millis(100),
+                Duration::from_secs(2),
+                Duration::from_secs(1),
+            )?,
+    );
+    // Both the leader and its descendant ignore SIGTERM, so only the forced group kill that runs
+    // while the leader is still unreaped can contain the tree.
+    let spec = SubprocessSpec::new(PathBuf::from("/bin/sh"))?
+        .with_argument("-c")?
+        .with_argument(
+            "sh -c \"trap '' TERM; sleep 30\" & echo \"descendant-pid=$!;\"; trap '' TERM; sleep 30",
+        )?;
+
+    let report = supervisor.run_to_completion(&spec).await?;
+    assert_eq!(report.termination, SubprocessTermination::TimedOut);
+
+    let descendant = descendant_pid(report.stdout.bytes())
+        .ok_or("fixture did not report a descendant identifier")?;
+    if report.tree_termination_degraded {
+        assert!(supervisor.snapshot().tree_termination_failures > 0);
+    } else {
+        wait_until(|| !PathBuf::from(format!("/proc/{descendant}")).exists()).await?;
+    }
+    assert_eq!(supervisor.snapshot().available, 1);
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn descendant_pid(stdout: &[u8]) -> Option<u32> {
+    const MARKER: &str = "descendant-pid=";
+    let text = std::str::from_utf8(stdout).ok()?;
+    let start = text.find(MARKER)?.checked_add(MARKER.len())?;
+    text.get(start..)?
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect::<String>()
+        .parse()
+        .ok()
 }
 
 fn fixture_spec(mode: &str) -> Result<SubprocessSpec, SubprocessSpecError> {
