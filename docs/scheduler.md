@@ -14,9 +14,27 @@ same explicit registry capacity. Scheduled payloads should contain identifiers a
 never dataframes or large blobs.
 
 Each dispatch carries a deterministic identity composed of the schedule id and logical due time.
-The application-owned `ScheduleDispatcher` must use this identity as its idempotency key, and must
-not be reentrant: the registry lock is held across the call, so a dispatcher that calls back into
-the scheduler only unblocks after its own dispatch has timed out into an unknown outcome. Dispatch
+The application-owned `ScheduleDispatcher` must use this identity as its idempotency key. The
+registry lock is released for the duration of the call, so one slow dispatch never blocks snapshots
+or schedule mutations and a dispatcher may call back into the scheduler. The occurrence is marked
+reconciliation-required before the lock is released: a concurrent tick skips it and a manual
+trigger, a pause, a resume and a reconciliation are all refused for that window rather than waiting
+for it. Reconciliation in particular is refused because a running attempt cannot be cancelled, so
+resolving it early could start a second external effect for the same occurrence. Abandoning the
+tick ends the attempt and returns control to the owner, so an interrupted dispatch never blocks
+reconciliation permanently. The unsettled set is tracked beside the registry rather than inside the
+schedule, so removing a definition does not forget that one of its occurrences is still executing:
+the identity cannot be registered again until that attempt settles. That set is bounded by the same
+configured schedule count as the registry itself, and a tick that would exceed it reports
+saturation instead.
+
+One limit is inherent, and one consequence of it is not. A dispatch cannot be cancelled, so
+abandoning the tick that issued it leaves an effect whose fate only the application can establish;
+that uncertainty is unavoidable. What follows from it is a choice, and the choice made here is that
+an unresolved occurrence pins its identity: a schedule awaiting reconciliation cannot be removed,
+so its record cannot be discarded and the identity cannot be registered again to dispatch the same
+occurrence a second time. Reconcile first. An attempt the scheduler is still driving settles within
+its dispatch timeout, and an abandoned one settles immediately, so the pin is always releasable. Dispatch
 has a deadline and explicit effect certainty:
 
 - `NotStarted` keeps the same occurrence due for a later tick;
@@ -50,9 +68,11 @@ Plenora must persist schedule definitions and all three cursor fields through `d
 must write them atomically: persisting the cursor without the suppression boundary lets a restart
 inside an abandoned `FireOnce` backlog dispatch a second overdue occurrence. Records written before
 the boundary existed migrate by defaulting it to `None`, which restores the pre-existing behaviour
-of re-evaluating the backlog from the stored cursor. The boundary is defensive by construction: it
-is honoured only under `FireOnce`, a boundary without a cursor is rejected at restore, and a
-boundary ahead of the current tick is discarded as corrupt instead of silencing the schedule. `restore_from` preserves the next due instant,
+of re-evaluating the backlog from the stored cursor. The boundary is honoured only under
+`FireOnce`, and a boundary without a cursor is rejected at restore. It is otherwise trusted exactly
+like `next_due_at`: restoration checks that the cursor fields are mutually consistent but never
+second-guesses their values against the wall clock, so a clock that steps backwards cannot make the
+scheduler replay an interval it already abandoned. `restore_from` preserves the next due instant,
 the suppression boundary, and an unresolved unknown outcome, preventing a restart from converting
 reconciliation into a blind retry. Until that adapter exists, the in-memory scheduler is functional but restart
 durability is not claimed.

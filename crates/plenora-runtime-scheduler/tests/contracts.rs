@@ -193,7 +193,7 @@ async fn observer_duplicate_restore_and_transition_errors_are_explicit()
         scheduler
             .remove_schedule(&ScheduleId::new("missing")?)
             .await
-            .is_none()
+            .is_err()
     );
     assert_eq!(
         scheduler

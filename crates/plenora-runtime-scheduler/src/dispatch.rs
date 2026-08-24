@@ -111,10 +111,10 @@ pub trait ScheduleDispatcher<T>: Send + Sync {
     ///
     /// The occurrence id must be used as an idempotency key by side-effecting implementations.
     ///
-    /// Implementations must not be reentrant: the scheduler holds its registry lock across this
-    /// call, so a dispatcher that calls back into `snapshots`, `pause_schedule`, `resume_schedule`,
-    /// `add_schedule`, `remove_schedule`, `trigger_schedule` or `resolve_reconciliation` blocks
-    /// until this dispatch has already timed out and been recorded as an unknown outcome.
+    /// The scheduler releases its registry lock for the duration of this call, so an
+    /// implementation may read snapshots or mutate schedules while it runs. The occurrence is
+    /// already marked reconciliation-required at that point: a concurrent tick skips it, and an
+    /// owner decision taken from inside this call supersedes whatever this call returns.
     ///
     /// # Errors
     ///

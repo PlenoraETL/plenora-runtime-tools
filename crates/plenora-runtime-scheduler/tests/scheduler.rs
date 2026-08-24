@@ -4,17 +4,18 @@ use std::{
     collections::VecDeque,
     error::Error,
     future::pending,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex, MutexGuard, OnceLock, Weak},
     time::{Duration, SystemTime},
 };
 
 use async_trait::async_trait;
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_scheduler::{
-    FixedIntervalPlan, MisfirePolicy, OneShotPlan, ReconciliationResolution, Schedule,
-    ScheduleDispatchEffect, ScheduleDispatchError, ScheduleDispatcher, ScheduleId, ScheduleIdError,
-    ScheduleOccurrenceId, ScheduleRegistrationError, ScheduleRestoreError, ScheduleSnapshot,
-    ScheduleStatus, ScheduledOccurrence, SchedulerBuilder, SchedulerConfig, SchedulerConfigError,
+    FixedIntervalPlan, ManualTriggerOutcome, MisfirePolicy, OneShotPlan, ReconciliationResolution,
+    Schedule, ScheduleBuildError, ScheduleDispatchEffect, ScheduleDispatchError,
+    ScheduleDispatcher, ScheduleId, ScheduleIdError, ScheduleOccurrenceId,
+    ScheduleRegistrationError, ScheduleRestoreError, ScheduleSnapshot, ScheduleStatus,
+    ScheduledOccurrence, Scheduler, SchedulerBuilder, SchedulerConfig, SchedulerConfigError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -162,10 +163,7 @@ async fn runtime_registration_and_removal_preserve_capacity() -> Result<(), Box<
         scheduler.add_schedule(once("overflow", UNIX_EPOCH)?).await,
         Err(ScheduleRegistrationError::CapacityExceeded { limit: 1 })
     );
-    let removed = scheduler
-        .remove_schedule(&first_id)
-        .await
-        .ok_or_else(|| std::io::Error::other("dynamic schedule was not removed"))?;
+    let removed = scheduler.remove_schedule(&first_id).await?;
     assert_eq!(removed.id, first_id);
     assert!(scheduler.snapshots().await.is_empty());
 
@@ -486,17 +484,18 @@ async fn a_restored_boundary_never_suppresses_another_misfire_policy() -> Result
 }
 
 #[tokio::test]
-async fn a_boundary_ahead_of_the_current_tick_is_discarded_as_corrupt() -> Result<(), Box<dyn Error>>
+async fn a_restored_boundary_survives_a_clock_that_stepped_backwards() -> Result<(), Box<dyn Error>>
 {
     let dispatcher = Arc::new(ScriptedDispatcher::new([]));
     let mut builder = SchedulerBuilder::new(config(1, 8, 4)?);
-    // The scheduler only ever records a boundary it has already ticked past, so a far-future
-    // value is corrupt durable state and must not silence the schedule.
+    // The boundary is trusted durable state, exactly like the cursor beside it, so a tick that
+    // observes an earlier wall clock than the one which recorded it must not replay the interval
+    // the schedule already abandoned.
     builder.register(
-        interval("current", at(100), 1)?
+        interval("rollback", at(100), 1)?
             .with_misfire_policy(MisfirePolicy::FireOnce)
             .restore_from(&ScheduleSnapshot {
-                id: ScheduleId::new("current")?,
+                id: ScheduleId::new("rollback")?,
                 status: ScheduleStatus::Active,
                 next_due_at: Some(at(100)),
                 skip_backlog_through: Some(at(10_000)),
@@ -506,8 +505,9 @@ async fn a_boundary_ahead_of_the_current_tick_is_discarded_as_corrupt() -> Resul
 
     let report = scheduler.tick(at(110)).await;
 
-    assert_eq!(report.dispatched, 1);
-    assert_eq!(dispatcher.attempts()[0].due_at, at(100));
+    assert_eq!(report.dispatched, 0);
+    assert!(report.skipped_misfires > 0);
+    assert!(dispatcher.attempts().is_empty());
     Ok(())
 }
 
@@ -734,4 +734,136 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         Ok(value) => value,
         Err(poisoned) => poisoned.into_inner(),
     }
+}
+
+/// Calls back into the scheduler from inside a dispatch.
+#[derive(Debug, Default)]
+struct ReentrantDispatcher {
+    scheduler: OnceLock<Weak<Scheduler<&'static str, Self>>>,
+    observed_snapshots: Mutex<Vec<usize>>,
+}
+
+#[async_trait]
+impl ScheduleDispatcher<&'static str> for ReentrantDispatcher {
+    async fn dispatch(
+        &self,
+        _occurrence: ScheduledOccurrence<&'static str>,
+    ) -> Result<(), ScheduleDispatchError> {
+        if let Some(scheduler) = self.scheduler.get().and_then(Weak::upgrade) {
+            // Holding the registry lock across this call would make it block until the dispatch
+            // timed out into an unknown outcome.
+            let snapshots = scheduler.snapshots().await;
+            lock(&self.observed_snapshots).push(snapshots.len());
+        }
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn a_dispatcher_may_read_the_registry_while_it_runs() -> Result<(), Box<dyn Error>> {
+    let dispatcher = Arc::new(ReentrantDispatcher::default());
+    let mut builder = SchedulerBuilder::new(config(1, 4, 4)?);
+    builder.register(once("reentrant", UNIX_EPOCH)?)?;
+    let scheduler = Arc::new(builder.build(Arc::clone(&dispatcher)));
+    let _installed = dispatcher.scheduler.set(Arc::downgrade(&scheduler));
+
+    let report = scheduler.tick(UNIX_EPOCH).await;
+
+    assert_eq!(report.dispatched, 1);
+    assert_eq!(report.reconciliation_required, 0);
+    // The callback observed the registry instead of deadlocking into a dispatch timeout.
+    assert_eq!(lock(&dispatcher.observed_snapshots).as_slice(), &[1]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_manual_trigger_is_refused_while_an_automatic_dispatch_is_in_flight()
+-> Result<(), Box<dyn Error>> {
+    let mut builder = SchedulerBuilder::new(config(1, 4, 4)?);
+    builder.register(once("inflight", UNIX_EPOCH)?)?;
+    let scheduler = Arc::new(builder.build(Arc::new(HangingDispatcher)));
+    let ticking = Arc::clone(&scheduler);
+    let tick = tokio::spawn(async move { ticking.tick(UNIX_EPOCH).await });
+    tokio::task::yield_now().await;
+
+    // The registry lock is free during the dispatch, so this observes the in-flight occurrence
+    // rather than blocking on it.
+    let outcome = scheduler
+        .trigger_schedule(&ScheduleId::new("inflight")?, at(1))
+        .await?;
+
+    assert_eq!(outcome, ManualTriggerOutcome::ReconciliationRequired);
+    tick.abort();
+    let _aborted = tick.await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn reconciliation_is_refused_while_the_attempt_is_still_running() -> Result<(), Box<dyn Error>>
+{
+    let mut builder = SchedulerBuilder::new(config(1, 4, 4)?);
+    builder.register(once("running", UNIX_EPOCH)?)?;
+    let scheduler = Arc::new(builder.build(Arc::new(HangingDispatcher)));
+    let ticking = Arc::clone(&scheduler);
+    let tick = tokio::spawn(async move { ticking.tick(UNIX_EPOCH).await });
+    tokio::task::yield_now().await;
+    let id = ScheduleId::new("running")?;
+
+    // The attempt cannot be cancelled, so resolving it now would risk a second external effect
+    // for the same occurrence while the first one is still live.
+    assert_eq!(
+        scheduler
+            .resolve_reconciliation(&id, ReconciliationResolution::Retry)
+            .await,
+        Err(ScheduleBuildError::TransitionNotAllowed(id.clone()))
+    );
+
+    // Abandoning the tick ends the attempt, so the owner regains control.
+    tick.abort();
+    let _aborted = tick.await;
+    scheduler
+        .resolve_reconciliation(&id, ReconciliationResolution::Retry)
+        .await?;
+    assert_eq!(
+        scheduler.snapshots().await[0].status,
+        ScheduleStatus::Active
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_identity_cannot_be_reused_while_its_occurrence_is_still_running()
+-> Result<(), Box<dyn Error>> {
+    let mut builder = SchedulerBuilder::new(config(2, 4, 4)?);
+    builder.register(once("busy", UNIX_EPOCH)?)?;
+    let scheduler = Arc::new(builder.build(Arc::new(HangingDispatcher)));
+    let ticking = Arc::clone(&scheduler);
+    let tick = tokio::spawn(async move { ticking.tick(UNIX_EPOCH).await });
+    tokio::task::yield_now().await;
+    let id = ScheduleId::new("busy")?;
+
+    // Removing the definition would discard the only record that the occurrence is undetermined,
+    // after which the identity could be registered again and dispatch it a second time.
+    assert_eq!(
+        scheduler.remove_schedule(&id).await,
+        Err(ScheduleBuildError::TransitionNotAllowed(id.clone()))
+    );
+
+    // Abandoning the tick ends the attempt but leaves the occurrence unresolved, so the identity
+    // stays pinned until the owner decides.
+    tick.abort();
+    let _aborted = tick.await;
+    assert_eq!(
+        scheduler.remove_schedule(&id).await,
+        Err(ScheduleBuildError::TransitionNotAllowed(id.clone()))
+    );
+
+    // Once reconciled the definition can be removed and the identity reused.
+    scheduler
+        .resolve_reconciliation(&id, ReconciliationResolution::Retry)
+        .await?;
+    let removed = scheduler.remove_schedule(&id).await?;
+    assert_eq!(removed.id, id);
+    scheduler.add_schedule(once("busy", UNIX_EPOCH)?).await?;
+    Ok(())
 }
