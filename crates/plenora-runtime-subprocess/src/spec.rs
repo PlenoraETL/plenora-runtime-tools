@@ -19,7 +19,12 @@ pub const MAX_ENVIRONMENT_BYTES: usize = 1024 * 1024;
 pub enum ProcessTreeMode {
     /// Targets the direct child only.
     DirectChild,
-    /// Starts the child in an isolated group and targets the complete group on supported hosts.
+    /// Places the child in a platform containment object and targets all of its members.
+    ///
+    /// The object is a process group on Unix and a job object on Windows. Termination targets the
+    /// whole unit, but only while the leader is still unreaped; see
+    /// [`SubprocessReport::tree_termination_degraded`](crate::SubprocessReport::tree_termination_degraded)
+    /// for what a host that refuses the request reports.
     #[default]
     IsolatedTree,
 }

@@ -8,7 +8,11 @@ license-file.workspace = true
 publish = false
 
 [dependencies]
+process-wrap = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "process", "rt", "sync", "time"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

@@ -5,13 +5,13 @@ use std::{
     process::{ExitStatus, Stdio},
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicU64, Ordering},
     },
     time::Duration,
 };
 
+use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
 use tokio::{
-    process::{Child, Command},
     sync::Semaphore,
     task::JoinHandle,
     time::{Instant, sleep, timeout},
@@ -215,7 +215,13 @@ impl SubprocessSupervisor {
         };
 
         let mut command = build_command(spec, self.config.process_tree_mode());
-        let mut child = match command.spawn() {
+        // Attaching the containment object reads the identifier of the process that was just
+        // created, and the dependency panics rather than returning if that read yields nothing.
+        // Only a child that has already been waited to completion reports no identifier, and
+        // nothing between the spawn and this line waits, so the condition is unreachable here
+        // rather than merely unlikely. It is recorded because it is the one failure in this
+        // function that would not arrive as a `SubprocessError`.
+        let child = match command.spawn() {
             Ok(child) => child,
             Err(error) => {
                 self.counters.spawn_failures.fetch_add(1, Ordering::Relaxed);
@@ -227,65 +233,46 @@ impl SubprocessSupervisor {
             }
         };
         self.counters.started.fetch_add(1, Ordering::Relaxed);
+        // The child and its containment object are owned together, so abandoning this future
+        // terminates the tree from `Drop` with one non-blocking system call and no platform branch.
+        let mut child = SupervisedChild::new(
+            child,
+            self.config.process_tree_mode(),
+            Arc::clone(&self.counters),
+        );
         let pid = child.id();
         let stdout = SharedCapture::new(self.config.max_stdout_bytes());
         let stderr = SharedCapture::new(self.config.max_stderr_bytes());
         // The guard aborts both pipe readers if this future is dropped before a terminal result.
         let mut capture = CaptureTasks {
-            stdout: spawn_capture(child.stdout.take(), Arc::clone(&stdout)),
-            stderr: spawn_capture(child.stderr.take(), Arc::clone(&stderr)),
+            stdout: spawn_capture(child.take_stdout(), Arc::clone(&stdout)),
+            stderr: spawn_capture(child.take_stderr(), Arc::clone(&stderr)),
         };
-        // Declared after `child` so it runs before the child is dropped and reaped: while the
-        // leader is still unreaped its process-group identifier cannot have been recycled, which
-        // is the only moment a group signal is safe on an abandoned execution.
-        // A wait that fails leaves the leader in an unknown state, so the identifier stops being
-        // pinned and no group signal may target it again.
-        let leader_pinned = Arc::new(AtomicBool::new(true));
-        let mut tree_guard = AbandonedTreeGuard::new(
-            pid,
-            self.config.process_tree_mode(),
-            Arc::clone(&self.counters),
-            Arc::clone(&leader_pinned),
-        );
 
         let mut tree_degraded = false;
         let supervised = self
-            .supervise(
-                &mut child,
-                pid,
-                cancellation.as_mut(),
-                &mut tree_degraded,
-                &leader_pinned,
-            )
+            .supervise(&mut child, pid, cancellation.as_mut(), &mut tree_degraded)
             .await;
         let (termination, status) = match supervised {
             Ok(outcome) => {
                 // The leader was reaped inside supervision and no await separates that reap from
-                // this disarm, so the guard can never fire on a released identifier. The reap is
-                // also counted here, before the next cancellation point.
-                tree_guard.disarm();
+                // this disarm, so the child can never signal a released identifier from `Drop`.
+                // The reap is also counted here, before the next cancellation point.
+                child.disarm();
                 self.counters.completed.fetch_add(1, Ordering::Relaxed);
                 outcome
             }
             Err(error) => {
-                // Supervision returns its failures with the leader still owned, so the guard stays
+                // Supervision returns its failures with the leader still owned, so the child stays
                 // armed across this cleanup: abandoning the future here must still terminate the
                 // tree.
-                let cleanup = terminate_and_reap(
-                    &mut child,
-                    pid,
-                    self.config,
-                    &self.counters,
-                    &mut tree_degraded,
-                    &leader_pinned,
-                )
-                .await;
+                let cleanup = terminate_and_reap(&mut child, self.config, &mut tree_degraded).await;
                 let reaped = cleanup.is_ok();
                 if reaped {
-                    // Only a confirmed reap releases the guard and counts the child; a failed
-                    // cleanup keeps the guard armed so the tree is still signalled while the
-                    // identifier remains pinned.
-                    tree_guard.disarm();
+                    // Only a confirmed reap disarms the child and counts it; a failed cleanup
+                    // keeps it armed so the tree is still signalled while the identifier remains
+                    // pinned.
+                    child.disarm();
                     self.counters.completed.fetch_add(1, Ordering::Relaxed);
                 }
                 capture.drain(self.config.output_drain_timeout()).await;
@@ -318,11 +305,10 @@ impl SubprocessSupervisor {
     /// terminating and reaping it.
     async fn supervise<F>(
         &self,
-        child: &mut Child,
+        child: &mut SupervisedChild,
         pid: Option<u32>,
         mut cancellation: Pin<&mut F>,
         tree_degraded: &mut bool,
-        leader_pinned: &AtomicBool,
     ) -> Result<(SubprocessTermination, ExitStatus), SubprocessError>
     where
         F: Future<Output = ()>,
@@ -344,7 +330,7 @@ impl SubprocessSupervisor {
                 biased;
                 () = cancellation.as_mut() => {
                     self.counters.cancellations.fetch_add(1, Ordering::Relaxed);
-                    let status = terminate_and_reap(child, Some(pid), self.config, &self.counters, tree_degraded, leader_pinned).await?;
+                    let status = terminate_and_reap(child, self.config, tree_degraded).await?;
                     return Ok((
                         SubprocessTermination::Cancelled(SubprocessCancellationPhase::Running),
                         status,
@@ -352,18 +338,26 @@ impl SubprocessSupervisor {
                 }
                 () = &mut deadline => {
                     self.counters.timeouts.fetch_add(1, Ordering::Relaxed);
-                    let status = terminate_and_reap(child, Some(pid), self.config, &self.counters, tree_degraded, leader_pinned).await?;
+                    let status = terminate_and_reap(child, self.config, tree_degraded).await?;
                     return Ok((SubprocessTermination::TimedOut, status));
                 }
-                result = child.wait() => {
+                result = child.wait_leader() => {
                     let status = result.map_err(|error| {
-                        leader_pinned.store(false, Ordering::Release);
                         SubprocessError::new(
                             SubprocessErrorKind::Wait,
                             "subprocess wait failed",
                             error,
                         )
-                    })?;
+                    });
+                    let status = match status {
+                        Ok(status) => status,
+                        Err(error) => {
+                            // A failed wait leaves the leader in an unknown state, so the
+                            // identifier stops being pinned and no signal may target it again.
+                            child.unpin();
+                            return Err(error);
+                        }
+                    };
                     return Ok((SubprocessTermination::Exited, status));
                 }
                 () = &mut memory_tick, if self.config.resident_memory_limit_bytes().is_some() => {
@@ -374,7 +368,7 @@ impl SubprocessSupervisor {
                             // Sampling reads per-process state that disappears the moment the
                             // child exits, so an ordinary exit must not be reported as a sampling
                             // failure.
-                            if let Some(status) = poll_reaped(child, leader_pinned) {
+                            if let Some(status) = child.poll_reaped() {
                                 return Ok((SubprocessTermination::Exited, status));
                             }
                             return Err(SubprocessError::new(
@@ -386,7 +380,7 @@ impl SubprocessSupervisor {
                     };
                     if observed > limit {
                         self.counters.memory_terminations.fetch_add(1, Ordering::Relaxed);
-                        let status = terminate_and_reap(child, Some(pid), self.config, &self.counters, tree_degraded, leader_pinned).await?;
+                        let status = terminate_and_reap(child, self.config, tree_degraded).await?;
                         return Ok((
                             SubprocessTermination::ResidentMemoryLimitExceeded {
                                 observed_bytes: observed,
@@ -414,42 +408,54 @@ impl SubprocessSupervisor {
     }
 }
 
-fn build_command(spec: &SubprocessSpec, tree_mode: ProcessTreeMode) -> Command {
-    let mut command = Command::new(spec.executable());
-    command
-        .args(spec.arguments())
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-    if spec.clear_environment() {
-        command.env_clear();
+fn build_command(spec: &SubprocessSpec, tree_mode: ProcessTreeMode) -> CommandWrap {
+    let mut command = CommandWrap::with_new(spec.executable(), |command| {
+        command
+            .args(spec.arguments())
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        if spec.clear_environment() {
+            command.env_clear();
+        }
+        command.envs(spec.environment());
+        if let Some(directory) = spec.current_directory() {
+            command.current_dir(directory);
+        }
+    });
+    // Kill-on-drop is requested through the wrapper rather than on the command, because the
+    // containment wrapper reads it back: on Windows it is what makes the job object terminate its
+    // members when the last handle closes.
+    command.wrap(KillOnDrop);
+    if tree_mode == ProcessTreeMode::IsolatedTree {
+        wrap_tree_containment(&mut command);
     }
-    command.envs(spec.environment());
-    if let Some(directory) = spec.current_directory() {
-        command.current_dir(directory);
-    }
-    configure_process_tree(&mut command, tree_mode);
     command
 }
 
+/// Attaches the platform containment object that makes descendants addressable as a unit.
+///
+/// This is the only place where the containment primitive differs by platform, and the difference
+/// ends here: every later operation drives the same [`ChildWrapper`] interface, so the
+/// supervisor has one termination path rather than one per platform.
 #[cfg(unix)]
-fn configure_process_tree(command: &mut Command, mode: ProcessTreeMode) {
-    if mode == ProcessTreeMode::IsolatedTree {
-        command.process_group(0);
-    }
+fn wrap_tree_containment(command: &mut CommandWrap) {
+    command.wrap(process_wrap::tokio::ProcessGroup::leader());
 }
 
 #[cfg(windows)]
-fn configure_process_tree(command: &mut Command, mode: ProcessTreeMode) {
-    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-    if mode == ProcessTreeMode::IsolatedTree {
-        command.creation_flags(CREATE_NEW_PROCESS_GROUP);
-    }
+fn wrap_tree_containment(command: &mut CommandWrap) {
+    command.wrap(process_wrap::tokio::JobObject);
 }
 
 #[cfg(not(any(unix, windows)))]
-fn configure_process_tree(_command: &mut Command, _mode: ProcessTreeMode) {}
+fn wrap_tree_containment(_command: &mut CommandWrap) {}
+
+/// Whether this target has a containment object at all.
+///
+/// Where it does not, isolated mode cannot be honoured and every termination must be reported as
+/// degraded instead of silently passing as a delivered tree signal.
+const TREE_CONTAINMENT_SUPPORTED: bool = cfg!(any(unix, windows));
 
 fn spawn_capture<R>(reader: Option<R>, capture: Arc<SharedCapture>) -> JoinHandle<()>
 where
@@ -493,146 +499,164 @@ impl Drop for CaptureTasks {
     }
 }
 
-async fn terminate_and_reap(
-    child: &mut Child,
-    pid: Option<u32>,
-    config: SubprocessSupervisorConfig,
-    counters: &Counters,
-    tree_degraded: &mut bool,
-    leader_pinned: &AtomicBool,
-) -> Result<ExitStatus, SubprocessError> {
-    if let Some(status) = poll_reaped(child, leader_pinned) {
-        // The leader vanished before any tree signal could be delivered, so nothing proves its
-        // descendants ended with it.
-        if config.process_tree_mode() == ProcessTreeMode::IsolatedTree {
-            *tree_degraded = true;
-            counters
-                .tree_termination_failures
-                .fetch_add(1, Ordering::Relaxed);
-        }
-        return Ok(status);
-    }
-
-    let graceful_sent = match pinned_target(pid, leader_pinned) {
-        Some(pid) => signal_tree(pid, config, TreeSignal::Terminate)
-            .await
-            .is_ok(),
-        None => false,
-    };
-    if graceful_sent {
-        // Only a confirmed reap ends termination early; a failed wait unpins the identifier and
-        // falls through to the direct-child path instead of abandoning the child.
-        match timeout(config.graceful_termination(), child.wait()).await {
-            Ok(Ok(status)) => return Ok(status),
-            Ok(Err(_error)) => leader_pinned.store(false, Ordering::Release),
-            Err(_elapsed) => {}
-        }
-    }
-
-    let forced_tree_failed = match pinned_target(pid, leader_pinned) {
-        Some(pid) => signal_tree(pid, config, TreeSignal::Kill).await.is_err(),
-        None => config.process_tree_mode() == ProcessTreeMode::IsolatedTree,
-    };
-    if forced_tree_failed && config.process_tree_mode() == ProcessTreeMode::IsolatedTree {
-        // Containment degraded to the direct child, so the degradation must stay observable per
-        // invocation and in the aggregate instead of being silently discarded before the
-        // fallback kill.
-        *tree_degraded = true;
-        counters
-            .tree_termination_failures
-            .fetch_add(1, Ordering::Relaxed);
-    }
-    // The forced tree signal reaches the leader too, so it may already have exited. Reaping it
-    // here keeps a successful cleanup from being reported as a termination failure.
-    if let Some(status) = poll_reaped(child, leader_pinned) {
-        return Ok(status);
-    }
-    if pinned_target(pid, leader_pinned).is_some()
-        && let Err(error) = child.start_kill()
-    {
-        // A kill request can also fail because the child exited in the meantime.
-        if let Some(status) = poll_reaped(child, leader_pinned) {
-            return Ok(status);
-        }
-        return Err(SubprocessError::new(
-            SubprocessErrorKind::Termination,
-            "subprocess hard termination could not be requested",
-            error,
-        ));
-    }
-    timeout(config.hard_kill_timeout(), child.wait())
-        .await
-        .map_err(|error| {
-            SubprocessError::new(
-                SubprocessErrorKind::Termination,
-                "subprocess did not exit before the hard termination deadline",
-                io::Error::new(io::ErrorKind::TimedOut, error),
-            )
-        })?
-        .map_err(|error| {
-            leader_pinned.store(false, Ordering::Release);
-            SubprocessError::new(
-                SubprocessErrorKind::Termination,
-                "subprocess wait failed after hard termination",
-                error,
-            )
-        })
-}
-
-/// Budget for waiting on the blocking tree signal issued from the abandonment drop path.
+/// One spawned child together with the platform object that contains its descendants.
 ///
-/// `Drop` cannot await, so the helper is bounded by a deliberately small budget rather than the
-/// configured hard-kill timeout: abandoning one execution must never stall an executor thread for
-/// a termination window sized for cooperative shutdown.
-///
-/// This bounds the waiting only. The drop path launches exactly one helper and every wait it
-/// performs has a deadline, but creating that helper is a synchronous operating-system call the
-/// crate cannot deadline without a native signalling primitive it deliberately avoids, so the drop
-/// path as a whole has no hard time bound.
-const ABANDONED_TREE_SIGNAL_BUDGET: Duration = Duration::from_millis(250);
-
-/// Terminates the isolated process tree when an execution future is abandoned.
-///
-/// The guard is declared after the child and disarmed only once the leader has been reaped, so it
-/// can fire exclusively while the leader is unreaped and its process-group identifier therefore
-/// cannot have been recycled.
-struct AbandonedTreeGuard {
-    pid: Option<u32>,
+/// Owning both in one place is what removes the per-platform termination code from this crate.
+/// `start_kill` is a process-group signal on Unix and a job termination on Windows; on both it is a
+/// single non-blocking system call, so abandonment can be handled from `Drop` without creating a
+/// helper process and without any wait that could stall the dropping thread.
+struct SupervisedChild {
+    child: Box<dyn ChildWrapper>,
     mode: ProcessTreeMode,
-    armed: bool,
     counters: Arc<Counters>,
-    leader_pinned: Arc<AtomicBool>,
+    /// True while the identifier is still guaranteed unreaped, so signalling it stays safe.
+    ///
+    /// An unreaped child keeps its identifier reserved on both supported platforms, for different
+    /// reasons: on Unix the exited child remains a zombie until it is reaped, and on Windows the
+    /// identifier is not reused while a handle to the process object is open, which the owning
+    /// child holds until it is dropped. Once a wait has failed that reservation can no longer be
+    /// assumed, so none of the signals this crate composes may target the identifier again.
+    ///
+    /// This gate gets applied to the Windows job object too, where it is not strictly required:
+    /// a job handle stays valid regardless of what happened to the leader identifier. Gating it
+    /// anyway keeps one contract on every platform rather than a stronger one where the primitive
+    /// happens to be stronger. The cost is real and larger than a conservative report: on the rare
+    /// path where a wait has failed, Windows could still have terminated the job promptly, and
+    /// instead this type declines to, waits out the hard-kill budget holding its capacity slot,
+    /// reports a termination failure, and never counts the invocation as completed. Only the leak
+    /// is recovered, by the job's kill-on-close, when this type is dropped. That path is entered
+    /// solely when the operating system fails a wait on our own child, and closing it would mean
+    /// tracking identifier safety and containment ownership as two separate per-platform concepts,
+    /// which is the platform-conditional termination logic this crate exists to have removed.
+    pinned: bool,
+    /// True while an abandoned execution must still terminate the tree from `Drop`.
+    armed: bool,
 }
 
-impl AbandonedTreeGuard {
-    fn new(
-        pid: Option<u32>,
-        mode: ProcessTreeMode,
-        counters: Arc<Counters>,
-        leader_pinned: Arc<AtomicBool>,
-    ) -> Self {
+impl SupervisedChild {
+    fn new(child: Box<dyn ChildWrapper>, mode: ProcessTreeMode, counters: Arc<Counters>) -> Self {
         Self {
-            pid,
+            child,
             mode,
-            armed: matches!(mode, ProcessTreeMode::IsolatedTree),
             counters,
-            leader_pinned,
+            pinned: true,
+            armed: matches!(mode, ProcessTreeMode::IsolatedTree),
         }
+    }
+
+    fn id(&self) -> Option<u32> {
+        self.child.id()
+    }
+
+    fn take_stdout(&mut self) -> Option<tokio::process::ChildStdout> {
+        self.child.stdout().take()
+    }
+
+    fn take_stderr(&mut self) -> Option<tokio::process::ChildStderr> {
+        self.child.stderr().take()
     }
 
     const fn disarm(&mut self) {
         self.armed = false;
     }
+
+    /// Releases the identifier reservation after an operation left the leader in an unknown state.
+    const fn unpin(&mut self) {
+        self.pinned = false;
+    }
+
+    /// Polls for a reaped leader, releasing the identifier reservation on any inspection failure.
+    ///
+    /// Every `try_wait` in this module goes through here so no call site can observe a failure
+    /// without also recording that the identifier can no longer be signalled.
+    ///
+    /// This deliberately inspects the leader rather than the containment unit. Every caller is
+    /// asking whether the identifier it is about to signal is still valid, which is a question
+    /// about the leader alone; the containment unit answers a different question, and answers it
+    /// misleadingly here, because a group whose members have all been reaped is indistinguishable
+    /// from one that never exited.
+    fn poll_reaped(&mut self) -> Option<ExitStatus> {
+        match self.child.inner_mut().try_wait() {
+            Ok(status) => status,
+            Err(_error) => {
+                self.pinned = false;
+                None
+            }
+        }
+    }
+
+    /// Waits for the leader alone, never for the containment unit.
+    ///
+    /// Every wait this crate performs is either raced against cancellation or bounded by a
+    /// deadline, and a containment-unit wait is unsafe in both positions: on Unix it reaps the
+    /// leader first and then keeps draining the unit, so a future dropped after that first step
+    /// would leave the identifier released while this type still believed it was pinned, and the
+    /// drain it was performing would be stranded on the blocking pool. Little is given up by not
+    /// waiting for the unit: descendants are children of the leader, not of this process, so
+    /// reaping them here is possible only if the host has made itself a subreaper, which this
+    /// crate neither does nor can observe.
+    fn wait_leader(&mut self) -> Pin<Box<dyn Future<Output = io::Result<ExitStatus>> + Send + '_>> {
+        self.child.inner_mut().wait()
+    }
+
+    /// Requests cooperative termination of the containment unit, reporting whether one was sent.
+    ///
+    /// Unix has a cooperative signal for a process group. Windows has no equivalent for a job
+    /// object, so there no request is sent and the caller skips the graceful window instead of
+    /// spending it waiting for a request the child never received.
+    fn request_graceful(&self) -> bool {
+        if !self.pinned {
+            return false;
+        }
+        #[cfg(unix)]
+        {
+            self.child.signal(libc::SIGTERM).is_ok()
+        }
+        #[cfg(not(unix))]
+        {
+            false
+        }
+    }
+
+    /// Force-terminates the containment unit, reporting whether the request was accepted.
+    ///
+    /// On a target with no containment object the request still reaches the direct child, but it
+    /// proves nothing about descendants, so isolated mode reports it as undelivered rather than
+    /// claiming a containment it never had.
+    fn force_terminate(&mut self) -> bool {
+        if !self.pinned {
+            return false;
+        }
+        let accepted = self.child.start_kill().is_ok();
+        accepted && (TREE_CONTAINMENT_SUPPORTED || self.mode == ProcessTreeMode::DirectChild)
+    }
+
+    /// Force-terminates only the direct child, bypassing a containment object that refused.
+    ///
+    /// This is the degraded path: it keeps a failed tree signal from also leaking the leader.
+    fn force_terminate_leader(&mut self) -> io::Result<()> {
+        self.child.inner_mut().start_kill()
+    }
+
+    /// Records that containment could not be proven for this invocation.
+    ///
+    /// Direct-child mode makes no tree claim, so nothing is recorded for it.
+    fn record_containment_gap(&self, tree_degraded: &mut bool) {
+        if self.mode == ProcessTreeMode::IsolatedTree {
+            *tree_degraded = true;
+            self.counters
+                .tree_termination_failures
+                .fetch_add(1, Ordering::Relaxed);
+        }
+    }
 }
 
-impl Drop for AbandonedTreeGuard {
+impl Drop for SupervisedChild {
     fn drop(&mut self) {
         if !self.armed {
             return;
         }
-        let delivered = pinned_target(self.pid, &self.leader_pinned)
-            .is_some_and(|pid| kill_abandoned_tree(pid, self.mode, ABANDONED_TREE_SIGNAL_BUDGET));
-        if !delivered {
+        if !self.force_terminate() {
             // An undelivered abandonment signal degrades containment exactly like a failed forced
             // tree signal, so it must stay observable instead of being discarded.
             self.counters
@@ -642,266 +666,70 @@ impl Drop for AbandonedTreeGuard {
     }
 }
 
-/// Force-kills the abandoned tree and reports whether the signal was delivered.
-///
-/// The child was spawned with its own process group, so the group identifier equals the pinned
-/// leader identifier and no lookup helper is required. That keeps this blocking path to one helper
-/// process whose every wait is deadline-bounded, though its creation is not.
-#[cfg(unix)]
-fn kill_abandoned_tree(pid: u32, mode: ProcessTreeMode, budget: Duration) -> bool {
-    let target = if mode == ProcessTreeMode::IsolatedTree {
-        format!("-{pid}")
-    } else {
-        pid.to_string()
-    };
-    let mut command = std::process::Command::new("/bin/kill");
-    command.arg("-KILL");
-    if mode == ProcessTreeMode::IsolatedTree {
-        command.arg("--");
-    }
-    let spawned = command
-        .arg(target)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn();
-    match spawned {
-        Ok(mut helper) => wait_bounded(&mut helper, budget),
-        Err(_error) => false,
-    }
-}
-
-#[cfg(windows)]
-fn kill_abandoned_tree(pid: u32, mode: ProcessTreeMode, budget: Duration) -> bool {
-    let mut command = std::process::Command::new("taskkill.exe");
-    command.arg("/PID").arg(pid.to_string());
-    if mode == ProcessTreeMode::IsolatedTree {
-        command.arg("/T");
-    }
-    let spawned = command
-        .arg("/F")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn();
-    match spawned {
-        Ok(mut helper) => wait_bounded(&mut helper, budget),
-        Err(_error) => false,
-    }
-}
-
-#[cfg(not(any(unix, windows)))]
-const fn kill_abandoned_tree(_pid: u32, _mode: ProcessTreeMode, _budget: Duration) -> bool {
-    false
-}
-
-/// Extra window allowed for reaping a helper that had to be killed.
-///
-/// Together with [`ABANDONED_TREE_SIGNAL_BUDGET`] this bounds every wait the drop path performs.
-#[cfg(any(unix, windows))]
-const ABANDONED_TREE_REAP_BUDGET: Duration = Duration::from_millis(50);
-
-/// Waits for a platform helper within an explicit budget, killing it when the budget elapses.
-///
-/// Every wait in this function is deadline-bounded. A helper that is still not reapable after the
-/// kill window has its handle abandoned rather than blocking the dropping thread any further; if
-/// the kill also failed, that helper may briefly outlive this call or be reparented.
-#[cfg(any(unix, windows))]
-fn wait_bounded(helper: &mut std::process::Child, budget: Duration) -> bool {
-    if let HelperWait::Exited(delivered) = poll_until(helper, budget) {
-        return delivered;
-    }
-    // Both a timeout and an inspection failure leave the helper possibly running, so both take the
-    // kill path rather than abandoning it untouched.
-    let _killed = helper.kill();
-    let _reaped = poll_until(helper, ABANDONED_TREE_REAP_BUDGET);
-    false
-}
-
-/// Outcome of waiting for a platform helper within a deadline.
-#[cfg(any(unix, windows))]
-enum HelperWait {
-    /// The helper exited, carrying whether it reported success.
-    Exited(bool),
-    /// The helper is still running, or its state could no longer be inspected.
-    Unresolved,
-}
-
-/// Polls a helper until it exits or the deadline elapses.
-#[cfg(any(unix, windows))]
-fn poll_until(helper: &mut std::process::Child, budget: Duration) -> HelperWait {
-    let deadline = std::time::Instant::now() + budget;
-    loop {
-        match helper.try_wait() {
-            Ok(Some(status)) => return HelperWait::Exited(status.success()),
-            Ok(None) => {}
-            Err(_error) => return HelperWait::Unresolved,
-        }
-        if std::time::Instant::now() >= deadline {
-            return HelperWait::Unresolved;
-        }
-        std::thread::sleep(Duration::from_millis(1));
-    }
-}
-
-/// Returns the child identifier only while it is still guaranteed to be unreaped.
-///
-/// An unreaped child keeps its identifier reserved on both supported platforms, for different
-/// reasons: on Unix the exited child remains a zombie until it is reaped, and on Windows the
-/// identifier is not reused while a handle to the process object is open, which the owning `Child`
-/// holds until it is dropped. Once a wait has failed that reservation can no longer be assumed, so
-/// none of the signals this crate composes itself may target the identifier again.
-///
-/// Tokio's own `kill_on_drop` handling stays outside this gate: it is scoped to the `Child` handle
-/// it was configured on, and the crate keeps it because it is the only thing that stops an
-/// abandoned direct child from leaking.
-fn pinned_target(pid: Option<u32>, leader_pinned: &AtomicBool) -> Option<u32> {
-    if leader_pinned.load(Ordering::Acquire) {
-        pid
-    } else {
-        None
-    }
-}
-
-/// Polls for a reaped child, releasing the identifier reservation on any inspection failure.
-///
-/// Every `try_wait` in this module goes through here so no call site can observe a failure without
-/// also recording that the identifier can no longer be signalled.
-fn poll_reaped(child: &mut Child, leader_pinned: &AtomicBool) -> Option<ExitStatus> {
-    match child.try_wait() {
-        Ok(status) => status,
-        Err(_error) => {
-            leader_pinned.store(false, Ordering::Release);
-            None
-        }
-    }
-}
-
-/// Signal delivered to a child or to its isolated process tree.
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum TreeSignal {
-    /// Cooperative termination request.
-    Terminate,
-    /// Unconditional termination.
-    Kill,
-}
-
-/// Delivers one platform tree signal under an explicit deadline.
-///
-/// The platform helpers are external processes, so an unresponsive helper must not extend
-/// termination beyond the configured hard-kill budget.
-async fn signal_tree(
-    pid: u32,
+async fn terminate_and_reap(
+    child: &mut SupervisedChild,
     config: SubprocessSupervisorConfig,
-    signal: TreeSignal,
-) -> io::Result<()> {
-    timeout(
-        config.hard_kill_timeout(),
-        signal_process(pid, config.process_tree_mode(), signal),
-    )
-    .await
-    .map_err(|error| io::Error::new(io::ErrorKind::TimedOut, error))?
-}
+    tree_degraded: &mut bool,
+) -> Result<ExitStatus, SubprocessError> {
+    if let Some(status) = child.poll_reaped() {
+        // The leader vanished before any tree signal could be delivered, so nothing proves its
+        // descendants ended with it.
+        child.record_containment_gap(tree_degraded);
+        return Ok(status);
+    }
 
-#[cfg(unix)]
-async fn signal_process(pid: u32, mode: ProcessTreeMode, signal: TreeSignal) -> io::Result<()> {
-    let target = if mode == ProcessTreeMode::IsolatedTree {
-        let child_group = process_group_id(pid).await?;
-        let supervisor_group = process_group_id(std::process::id()).await?;
-        isolated_process_group_target(pid, child_group, supervisor_group)?
-    } else {
-        pid.to_string()
+    if child.request_graceful() {
+        // Only a confirmed reap ends termination early; a failed wait unpins the identifier and
+        // falls through to the forced path instead of abandoning the child.
+        match timeout(config.graceful_termination(), child.wait_leader()).await {
+            Ok(Ok(status)) => return Ok(status),
+            Ok(Err(_error)) => child.unpin(),
+            Err(_elapsed) => {}
+        }
+    }
+
+    if !child.force_terminate() {
+        // Containment degraded to the direct child, so the degradation must stay observable per
+        // invocation and in the aggregate instead of being silently discarded before the fallback
+        // kill.
+        child.record_containment_gap(tree_degraded);
+        // The forced signal may have been refused because the leader exited in the meantime.
+        if let Some(status) = child.poll_reaped() {
+            return Ok(status);
+        }
+        if child.pinned
+            && let Err(error) = child.force_terminate_leader()
+        {
+            if let Some(status) = child.poll_reaped() {
+                return Ok(status);
+            }
+            return Err(SubprocessError::new(
+                SubprocessErrorKind::Termination,
+                "subprocess hard termination could not be requested",
+                error,
+            ));
+        }
+    }
+
+    let waited = timeout(config.hard_kill_timeout(), child.wait_leader()).await;
+    let status = match waited {
+        Ok(status) => status,
+        Err(error) => {
+            return Err(SubprocessError::new(
+                SubprocessErrorKind::Termination,
+                "subprocess did not exit before the hard termination deadline",
+                io::Error::new(io::ErrorKind::TimedOut, error),
+            ));
+        }
     };
-    let mut command = Command::new("/bin/kill");
-    command.arg(match signal {
-        TreeSignal::Terminate => "-TERM",
-        TreeSignal::Kill => "-KILL",
-    });
-    if mode == ProcessTreeMode::IsolatedTree {
-        command.arg("--");
-    }
-    let status = command
-        .arg(target)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .kill_on_drop(true)
-        .status()
-        .await?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(io::Error::other("process signal command failed"))
-    }
-}
-
-#[cfg(unix)]
-async fn process_group_id(pid: u32) -> io::Result<u32> {
-    let output = Command::new("/bin/ps")
-        .arg("-o")
-        .arg("pgid=")
-        .arg("-p")
-        .arg(pid.to_string())
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .kill_on_drop(true)
-        .output()
-        .await?;
-    if !output.status.success() {
-        return Err(io::Error::other("process group lookup failed"));
-    }
-    let value = std::str::from_utf8(&output.stdout)
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
-    value
-        .trim()
-        .parse()
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
-}
-
-#[cfg(unix)]
-fn isolated_process_group_target(
-    pid: u32,
-    child_group: u32,
-    supervisor_group: u32,
-) -> io::Result<String> {
-    if child_group != pid || child_group == supervisor_group {
-        return Err(io::Error::other(
-            "subprocess process group is not safely isolated",
-        ));
-    }
-    Ok(format!("-{child_group}"))
-}
-
-#[cfg(windows)]
-async fn signal_process(pid: u32, mode: ProcessTreeMode, signal: TreeSignal) -> io::Result<()> {
-    let mut command = Command::new("taskkill.exe");
-    command.arg("/PID").arg(pid.to_string());
-    if mode == ProcessTreeMode::IsolatedTree {
-        command.arg("/T");
-    }
-    if signal == TreeSignal::Kill {
-        command.arg("/F");
-    }
-    let status = command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .kill_on_drop(true)
-        .status()
-        .await?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(io::Error::other("process termination command failed"))
-    }
-}
-
-#[cfg(not(any(unix, windows)))]
-async fn signal_process(_pid: u32, _mode: ProcessTreeMode, _signal: TreeSignal) -> io::Result<()> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "process signalling is unsupported on this platform",
-    ))
+    status.map_err(|error| {
+        child.unpin();
+        SubprocessError::new(
+            SubprocessErrorKind::Termination,
+            "subprocess wait failed after hard termination",
+            error,
+        )
+    })
 }
 
 #[cfg(target_os = "linux")]
@@ -932,20 +760,41 @@ async fn resident_memory_bytes(_pid: u32) -> io::Result<u64> {
     ))
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
 mod tests {
-    use super::isolated_process_group_target;
+    use super::{ProcessTreeMode, build_command};
+    use crate::{SubprocessSpec, SubprocessSpecError};
+    use process_wrap::tokio::KillOnDrop;
+
+    #[cfg(unix)]
+    type Containment = process_wrap::tokio::ProcessGroup;
+    #[cfg(windows)]
+    type Containment = process_wrap::tokio::JobObject;
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn only_isolated_tree_mode_attaches_a_containment_object() -> Result<(), SubprocessSpecError> {
+        let spec = SubprocessSpec::new("/nonexistent/never-spawned")?;
+
+        let isolated = build_command(&spec, ProcessTreeMode::IsolatedTree);
+        assert!(isolated.has_wrap::<Containment>());
+
+        let direct = build_command(&spec, ProcessTreeMode::DirectChild);
+        assert!(!direct.has_wrap::<Containment>());
+
+        Ok(())
+    }
 
     #[test]
-    fn isolated_group_target_must_be_distinct_and_led_by_the_child() -> std::io::Result<()> {
-        if isolated_process_group_target(42, 42, 7)? != "-42" {
-            return Err(std::io::Error::other("safe process group was rejected"));
-        }
-        if isolated_process_group_target(42, 7, 7).is_ok()
-            || isolated_process_group_target(42, 42, 42).is_ok()
-        {
-            return Err(std::io::Error::other("unsafe process group was accepted"));
-        }
+    fn kill_on_drop_is_requested_in_every_mode() -> Result<(), SubprocessSpecError> {
+        // The job object reads this back to decide whether closing its last handle terminates the
+        // members, so requesting it on the command instead of through the wrapper would silently
+        // drop Windows containment on abandonment.
+        let spec = SubprocessSpec::new("/nonexistent/never-spawned")?;
+
+        assert!(build_command(&spec, ProcessTreeMode::IsolatedTree).has_wrap::<KillOnDrop>());
+        assert!(build_command(&spec, ProcessTreeMode::DirectChild).has_wrap::<KillOnDrop>());
+
         Ok(())
     }
 }

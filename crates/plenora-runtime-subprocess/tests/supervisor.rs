@@ -378,8 +378,7 @@ async fn a_dropped_execution_future_releases_capacity_without_leaking_the_child(
 
 #[cfg(target_os = "linux")]
 #[tokio::test]
-async fn timeout_terminates_descendants_or_reports_degraded_containment()
--> Result<(), Box<dyn Error>> {
+async fn timeout_terminates_descendants() -> Result<(), Box<dyn Error>> {
     let supervisor = SubprocessSupervisor::new(
         SubprocessSupervisorConfig::new(1, Duration::from_millis(500))?
             .with_output_limits(256, 256)?
@@ -397,10 +396,11 @@ async fn timeout_terminates_descendants_or_reports_degraded_containment()
 
     let descendant = descendant_pid(report.stdout.bytes())
         .ok_or("fixture did not report a descendant identifier")?;
-    if supervisor.snapshot().tree_termination_failures == 0 {
-        // Tree containment was delivered, so the descendant must not survive the parent.
-        wait_until(|| !std::path::Path::new(&format!("/proc/{descendant}")).exists()).await?;
-    }
+    // Containment is a system call on the process group, so it has no environmental prerequisite
+    // that could legitimately make it degrade here: the descendant must not survive the parent.
+    assert!(!report.tree_termination_degraded);
+    assert_eq!(supervisor.snapshot().tree_termination_failures, 0);
+    wait_until(|| !std::path::Path::new(&format!("/proc/{descendant}")).exists()).await?;
     assert_eq!(supervisor.snapshot().available, 1);
     Ok(())
 }
@@ -441,9 +441,8 @@ async fn abandoning_an_execution_force_kills_the_whole_isolated_tree() -> Result
     let descendant = fs::read_to_string(&pid_file)?.trim().parse::<u32>()?;
     drop(run);
 
-    if supervisor.snapshot().tree_termination_failures == 0 {
-        wait_until(|| !PathBuf::from(format!("/proc/{descendant}")).exists()).await?;
-    }
+    assert_eq!(supervisor.snapshot().tree_termination_failures, 0);
+    wait_until(|| !PathBuf::from(format!("/proc/{descendant}")).exists()).await?;
     wait_until(|| supervisor.snapshot().available == 1).await?;
     let _cleared = fs::remove_file(&pid_file);
     Ok(())
@@ -475,11 +474,8 @@ async fn a_stubborn_tree_is_force_killed_while_the_leader_is_still_terminable()
 
     let descendant = descendant_pid(report.stdout.bytes())
         .ok_or("fixture did not report a descendant identifier")?;
-    if report.tree_termination_degraded {
-        assert!(supervisor.snapshot().tree_termination_failures > 0);
-    } else {
-        wait_until(|| !PathBuf::from(format!("/proc/{descendant}")).exists()).await?;
-    }
+    assert!(!report.tree_termination_degraded);
+    wait_until(|| !PathBuf::from(format!("/proc/{descendant}")).exists()).await?;
     assert_eq!(supervisor.snapshot().available, 1);
     Ok(())
 }

@@ -35,7 +35,7 @@ runtime-resources ----> runtime-core
 
 runtime-scheduler ----> runtime-core
 
-runtime-subprocess ----> Tokio process primitives only
+runtime-subprocess ----> Tokio process primitives and platform containment only
 
 runtime-control ----> runtime-messaging
        +-----------> runtime-worker
