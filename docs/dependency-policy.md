@@ -10,7 +10,8 @@ feature di default vanno rivedute, non accettate implicitamente.
 La CI esegue release pinnate di `cargo audit` e `cargo deny check` su entrambi i lockfile (il
 workspace e il workspace separato `fuzz/`) a ogni push e pull request, e ogni settimana attraverso
 `supply-chain.yml`. Le GitHub Actions sono pinnate per SHA completo del commit, con il tag di
-release in un commento; gli strumenti della CI si installano a versioni esatte. Ogni pin esatto in
+release in un commento (per `dtolnay/rust-toolchain`, che non ha release per toolchain, il
+commento dice che lo SHA è un commit dell'action e non la versione di Rust); gli strumenti della CI si installano a versioni esatte. Ogni pin esatto in
 `Cargo.toml` e `fuzz/Cargo.toml` porta accanto la sua motivazione. Le eccezioni di licenza, di
 advisory e di sorgente devono essere strette, documentate e, dove possibile, limitate nel tempo.
 

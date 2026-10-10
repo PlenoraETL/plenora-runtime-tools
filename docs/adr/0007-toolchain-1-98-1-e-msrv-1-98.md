@@ -27,8 +27,9 @@ senza cache.
 - La CI qualifica la toolchain fissata, non ogni patch della serie 1.98: la
   MSRV è una dichiarazione di compatibilità, e la prova vale per 1.98.1.
 - Ogni job della CI che esegue `cargo` installa la toolchain con
-  `dtolnay/rust-toolchain` pinnata per SHA e `toolchain: '1.98.1'`; ogni
-  action è pinnata per SHA completo, con il tag in commento. Il test
+  `dtolnay/rust-toolchain` pinnata per SHA e `toolchain: '1.98.1'`: lo SHA è
+  un commit dell'action, non la versione di Rust, che sceglie solo `toolchain:`. Ogni
+  altra action è pinnata per SHA completo, con il tag in commento. Il test
   d'architettura `workspace_members_and_ci_share_msrv_and_same_sha_qualification`
   verifica che la toolchain fissata appartenga alla serie della MSRV e che ogni
   job `cargo` la usi; `workflow_actions_are_pinned_by_full_commit_sha` verifica
