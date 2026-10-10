@@ -1,7 +1,7 @@
 # Osservabilità
 
 `plenora-runtime-observability` definisce le convenzioni per il tracing strutturato, la
-propagazione del contesto compatibile con W3C, le metriche a bassa cardinalità e la redazione,
+propagazione del contesto compatibile con W3C, le metriche a bassa cardinalità e l'oscuramento dei dati sensibili,
 senza scegliere un backend di telemetria.
 
 Le applicazioni gestiscono installazione del subscriber, campionamento, exporter, collector,
@@ -18,5 +18,5 @@ log, non nelle etichette delle metriche.
 
 Segreti, header di autorizzazione e cookie, credenziali del broker, metadati arbitrari, payload,
 corpi dei dead-letter, configurazione interna ed errori sorgente concreti non devono essere emessi
-per impostazione predefinita. I wrapper diagnostici mostrano un marcatore di redazione fisso, a
+per impostazione predefinita. I wrapper diagnostici mostrano un marcatore fisso al posto del valore oscurato, a
 meno che un'applicazione non prenda una decisione di divulgazione separata ed esplicita.

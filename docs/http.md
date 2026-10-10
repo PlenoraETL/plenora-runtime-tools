@@ -8,7 +8,7 @@ dell'applicazione.
 L'ammissione è limitata prima che girino gli handler dell'applicazione. Il limite globale
 predefinito delle richieste in corso è 256 e il limite predefinito del corpo è 1 MiB; entrambi
 sono limiti validati, configurabili e diversi da zero. I corpi troppo grandi si normalizzano
-attraverso l'hook d'errore comune `payload_too_large`, sicuro rispetto alla redazione.
+attraverso l'hook d'errore comune `payload_too_large`, che non espone dati sensibili.
 
 Ogni richiesta ammessa ha due identificatori:
 

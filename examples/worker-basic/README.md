@@ -7,7 +7,7 @@ Questo esempio usa solo contratti di worker di proprietà di Plenora. Mostra:
 - una policy di retry esponenziale iniettata;
 - il passaggio non bloccante degli eventi di ciclo di vita tramite un dispatcher in memoria
   limitato;
-- l'ispezione sicura rispetto alla redazione di un tentativo fallito;
+- l'ispezione di un tentativo fallito senza esporre dati sensibili;
 - il drain coordinato di worker e runtime.
 
 Eseguirlo dalla radice del workspace:

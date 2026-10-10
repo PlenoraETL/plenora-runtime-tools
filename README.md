@@ -70,7 +70,7 @@ connessione in JSON. Vedere [`tests/integration/README.md`](tests/integration/RE
 Le composizioni eseguibili stanno sotto `examples/`: `worker-basic` mostra l'esecuzione limitata
 indipendente dal motore e la classificazione dei retry; `worker-nats` collega NATS JetStream a un
 registro generico di capability congelato tramite Apalis, con task di handler ammessi
-dinamicamente, concorrenza massima esplicita, configurazione sicura rispetto alla redazione, TLS,
+dinamicamente, concorrenza massima esplicita, configurazione che non espone segreti, TLS,
 ACK/NAK, instradamento dead-letter confermato, health/readiness HTTP e un unico percorso di drain
 coordinato;
 `capability-adapter` è un modello verificato in compilazione per collegare qualunque libreria Rust

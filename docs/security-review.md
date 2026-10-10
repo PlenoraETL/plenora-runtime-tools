@@ -10,16 +10,16 @@
 
 | Confine | Rischi principali | Controlli implementati |
 |---|---|---|
-| Ingresso HTTP | body sovradimensionati, iniezione negli identificatori, header segreti, concorrenza illimitata | body e concorrenza limitati, ID validati, header sensibili, errori comuni redatti, shutdown ordinato |
-| Configurazione e trasporto NATS | divulgazione delle credenziali, downgrade a testo in chiaro, riconnessione o stato di consegna illimitati | tipi di credenziale redatti, TLS obbligatorio per default, testo in chiaro solo con opt-in esplicito, limiti finiti su riconnessione e consumer |
-| Metadati e payload dei messaggi | abuso delle allocazioni, log di segreti, identità malformate | limiti su voci/chiavi/valori/totale, limiti sulla forma codificata prima della decodifica, `Debug` redatto, validazione degli UUID canonici |
+| Ingresso HTTP | body sovradimensionati, iniezione negli identificatori, header segreti, concorrenza illimitata | body e concorrenza limitati, ID validati, header sensibili, errori comuni senza dati sensibili, shutdown ordinato |
+| Configurazione e trasporto NATS | divulgazione delle credenziali, downgrade a testo in chiaro, riconnessione o stato di consegna illimitati | tipi di credenziale mascherati, TLS obbligatorio per default, testo in chiaro solo con opt-in esplicito, limiti finiti su riconnessione e consumer |
+| Metadati e payload dei messaggi | abuso delle allocazioni, log di segreti, identità malformate | limiti su voci/chiavi/valori/totale, limiti sulla forma codificata prima della decodifica, `Debug` mascherato, validazione degli UUID canonici |
 | Esecuzione del worker | crescita illimitata dei task, cancellazione non cooperativa, handle di controllo scaduti | limite a semaforo, nessuna coda posseduta dall'executor, grazia di pulizia limitata, rimozione RAII dei task attivi, ID di task locali all'executor |
 | Controllo operativo | pausa/drain/cancellazione/trigger non autenticati, divulgazione del payload | authorizer applicativo obbligatorio per ogni route HTTP, route di mutazione opzionali, ID validati e limitati, DTO senza payload |
 | Contenimento dei sottoprocessi | iniezione nella shell, credenziali ereditate, processo/output/RSS fuori controllo | avvio diretto senza shell, ambiente svuotato per default, input/concorrenza/output/tempo limitati, terminazione e reap dell'albero, tetto RSS opzionale su Linux |
 | Osservazione del ciclo di vita | blocco dell'handler, crescita della memoria, perdita silenziosa di osservazioni | `try_send` non bloccante, massimo rigido della coda, contatori espliciti di coda piena/chiusa, proiezione sulla health e hook di metrica |
 | Settlement sul broker e DLQ | perdita di messaggi, retry alla cieca dopo un effetto sconosciuto, pubblicazione duplicata in DLQ | pubblicazione confermata prima del TERM, ID deterministico del messaggio in DLQ, `OutcomeUnknown` fail-closed, possesso esplicito dell'ACK |
 | Outbox/inbox | transazioni spezzate, perdita del claim, effetti di business duplicati | contratti e fake indipendenti dalla persistenza documentano i requisiti di transazione atomica; non si dichiara alcun database di produzione |
-| Osservabilità | etichette ad alta cardinalità, propagazione di PII/segreti | etichette limitate e in allowlist, eventi del ciclo di vita senza payload, propagazione transazionale solo W3C, policy di redazione |
+| Osservabilità | etichette ad alta cardinalità, propagazione di PII/segreti | etichette limitate e in allowlist, eventi del ciclo di vita senza payload, propagazione transazionale solo W3C, policy di oscuramento |
 | Supply chain | dipendenze vulnerabili, senza licenza o non pinnate | pin diretti esatti, lockfile, policy delle sorgenti, strumenti di audit/deny pinnati, controllo dell'architettura |
 
 ## Verifiche eseguite

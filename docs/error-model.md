@@ -15,7 +15,7 @@ stabilizzato.
 Il nucleo del worker oggi fornisce questi concetti attraverso WorkerExecutionError, senza esporre
 un tipo del motore. Il relay dell'outbox usa un RelayError generico che conserva le sorgenti dello
 store e del producer, un resoconto parziale del batch e l'operazione fallita. L'output di debug
-redige le sorgenti concrete.
+oscura le sorgenti concrete.
 
 Gli adapter delle capability restituiscono `CapabilityFailure` con un `RetryErrorClass` e un
 `CapabilityRemoteEffect` espliciti. `CapabilityDispatchError` distingue, fra l'altro,

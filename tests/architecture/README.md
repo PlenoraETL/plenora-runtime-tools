@@ -24,7 +24,7 @@ workspace, direzione delle dipendenze approvata, lint di sicurezza condivisi,
 `forbid(unsafe_code)` alle radici dei crate di produzione e nessun costrutto unsafe o di abort nel
 sorgente di produzione. Invarianti statiche mirate coprono code limitate, validazione di payload e
 concorrenza, configurazione NATS con TLS predefinito, opt-in esplicito al replay, viste di health e
-`Debug` redatte, hook di cancellazione e hook deterministici di iniezione dei guasti. La ritenzione
+`Debug` mascherate, hook di cancellazione e hook deterministici di iniezione dei guasti. La ritenzione
 di task e report del runtime, le storie e gli script di guasti del broker fake, e le dimensioni di
 voci, chiavi, valori e aggregato dei metadati dei messaggi devono restare limitate in modo
 esplicito. Ogni pacchetto eredita la MSRV del workspace, ogni job di CI che esegue Cargo la

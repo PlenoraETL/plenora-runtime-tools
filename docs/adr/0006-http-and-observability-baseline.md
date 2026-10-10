@@ -23,7 +23,7 @@ configurazione interna.
   generare quelli mancanti, collegarli entrambi al contesto della richiesta e restituirli negli
   header di risposta.
 - Esporre liveness e readiness come endpoint separati. Restituire per impostazione predefinita solo
-  uno stato aggregato e sicuro rispetto alla redazione; i messaggi dettagliati dei componenti
+  uno stato aggregato, senza dati sensibili; i messaggi dettagliati dei componenti
   restano interni.
 - Collegare l'ammissione HTTP e il servizio ordinato al segnale di arresto del runtime con un
   periodo di grazia limitato.
@@ -33,7 +33,7 @@ configurazione interna.
 - Tenere le metriche dietro un piccolo contratto di sink con nomi di strumenti stabili e attributi
   validati a bassa cardinalità. Fornire un default no-op, così le librerie non richiedono mai un
   runtime di telemetria.
-- Redigere segreti, credenziali, payload, header di autorizzazione, cookie e sorgenti arbitrarie
+- Oscurare segreti, credenziali, payload, header di autorizzazione, cookie e sorgenti arbitrarie
   di errori interni dall'output diagnostico predefinito.
 
 ## Conseguenze

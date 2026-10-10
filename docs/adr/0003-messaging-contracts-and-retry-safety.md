@@ -27,7 +27,7 @@ Il crate di messaggistica:
 - rifiuta di ritentare gli esiti sconosciuti a meno che la configurazione non lo abiliti
   esplicitamente.
 
-L'output Debug espone identità, dimensioni e chiavi, ma redige i valori di payload e metadati.
+L'output Debug espone identità, dimensioni e chiavi, ma oscura i valori di payload e metadati.
 
 ## Conseguenze
 
