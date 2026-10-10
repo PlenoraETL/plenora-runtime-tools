@@ -1,52 +1,59 @@
-# Generic subprocess execution
+# Esecuzione generica in sottoprocesso
 
-Subprocess isolation is a containment mode for selected heavy or native-backed operations. When a
-child exits or is terminated, the operating system reclaims its address space, including allocator
-arenas and memory retained by native libraries.
+L'isolamento in sottoprocesso è una modalità di contenimento per operazioni selezionate, pesanti o
+basate su codice nativo. Quando un processo figlio esce o viene terminato, il sistema operativo ne
+recupera lo spazio di indirizzamento, comprese le arene dell'allocatore e la memoria trattenuta
+dalle librerie native.
 
-This is useful when an operation uses a native library that retains process-global pools, can crash
-the process, cannot cooperate with cancellation, or needs a hard per-operation memory ceiling. It
-is not the default: process startup, serialization, IPC, duplicate-effect recovery, and deployment
-packaging add cost. Ordinary async Rust handlers should remain in-process when their memory reaches
-a stable plateau and they observe cancellation.
+È utile quando un'operazione usa una libreria nativa che trattiene pool globali di processo, può
+mandare in crash il processo, non può cooperare con la cancellazione o richiede un tetto di memoria
+rigido per singola operazione. Non è il default: avvio del processo, serializzazione, IPC, recupero
+dagli effetti duplicati e packaging del deployment aggiungono costi. Gli handler Rust async ordinari
+dovrebbero restare nel processo quando la loro memoria raggiunge un plateau stabile e rispettano la
+cancellazione.
 
-`plenora-runtime-subprocess` implements the protocol-neutral containment layer. A `SubprocessSpec`
-selects an executable, argument vector, explicit environment and working directory; it never invokes
-a shell and clears inherited environment by default. Argument count, argument bytes, environment
-entries and environment bytes are validated before spawn. `Debug` reports sizes and counts rather
-than values.
+`plenora-runtime-subprocess` implementa il livello di contenimento neutrale rispetto al protocollo.
+Una `SubprocessSpec` seleziona un eseguibile, un vettore di argomenti, un ambiente e una directory
+di lavoro espliciti; non invoca mai una shell e per impostazione predefinita azzera l'ambiente
+ereditato. Numero di argomenti, byte degli argomenti, voci d'ambiente e byte d'ambiente sono
+validati prima dello spawn. `Debug` riporta dimensioni e conteggi invece dei valori.
 
-`SubprocessSupervisor` applies explicit maximum concurrency, wall-clock deadline, graceful and
-hard-kill deadlines, bounded stdout/stderr retention, and reaping. Pipes are drained even after the
-retention prefix is full, preventing a verbose child from blocking on a full OS pipe. Cancellation
-distinguishes a request that wins while queued from one that terminates a running child. Unix can
-isolate a process group; Windows creates a new process group and uses the platform tree-termination
-path. Every platform tree signal is itself bounded by the hard-kill deadline, and a forced tree
-signal that cannot be delivered sets `SubprocessReport::tree_termination_degraded` and increments
-`tree_termination_failures` instead of being discarded, so a degraded containment is observable per
-invocation and in the aggregate. A false flag records only that no delivery failure was observed;
-it never proves that no descendant survived. Termination, reaping, and pipe-reader release run on
-every post-spawn failure path, and an error whose direct reaping or tree termination could not be
-completed reports `containment_failed`. Abandoning the execution future releases both pipe readers
-and force-kills the isolated tree from the drop path; because `Drop` cannot await, every wait that
-signal performs is bounded by a small fixed budget rather than the configured hard-kill timeout,
-though creating the platform helper remains a synchronous operating-system call the crate cannot
-deadline without a native primitive it deliberately avoids. A signal it cannot deliver also
-increments `tree_termination_failures`.
+`SubprocessSupervisor` applica concorrenza massima esplicita, scadenza in tempo reale, scadenze per
+la terminazione ordinata e per il kill forzato, conservazione limitata di stdout/stderr e reaping. Le
+pipe vengono svuotate anche dopo che il prefisso conservato è pieno, così un figlio prolisso non si
+blocca su una pipe del sistema operativo piena. La cancellazione distingue una richiesta che vince
+mentre è in coda da una che termina un figlio in esecuzione. Unix può isolare un gruppo di processi;
+Windows crea un nuovo gruppo di processi e usa il percorso di terminazione dell'albero della
+piattaforma. Ogni segnale all'albero della piattaforma è a sua volta limitato dalla scadenza del
+kill forzato, e un segnale forzato all'albero che non può essere consegnato imposta
+`SubprocessReport::tree_termination_degraded` e incrementa `tree_termination_failures` invece di
+essere scartato, così un contenimento degradato è osservabile per ogni invocazione e in aggregato.
+Un flag falso registra solo che non è stato osservato alcun fallimento di consegna; non prova mai
+che nessun discendente sia sopravvissuto. Terminazione, reaping e rilascio dei lettori delle pipe
+avvengono su ogni percorso di fallimento successivo allo spawn, e un errore il cui reaping diretto o
+la cui terminazione dell'albero non ha potuto completarsi riporta `containment_failed`. Abbandonare
+la future di esecuzione rilascia entrambi i lettori delle pipe e uccide forzatamente l'albero isolato
+dal percorso di drop; poiché `Drop` non può fare await, ogni attesa che quel segnale esegue è
+limitata da un piccolo budget fisso invece che dal timeout di kill forzato configurato, anche se la
+creazione dell'helper di piattaforma resta una chiamata sincrona al sistema operativo a cui il crate
+non può imporre una scadenza senza una primitiva nativa che evita deliberatamente. Anche un segnale
+che non riesce a consegnare incrementa `tree_termination_failures`.
 
-Group signals are only ever delivered while the leader is still unreaped, because a process-group
-identifier can be recycled once its leader has been reaped and the crate refuses to send a
-destructive signal that could reach an unrelated group. The consequence is explicit: a descendant
-that ignores graceful termination and outlives a leader which exits on its own, or within the
-graceful window, is not force-killed. Containment is a property of the termination and abandonment
-paths, not of a child that completes normally while leaving background descendants behind.
+I segnali di gruppo vengono consegnati solo finché il leader non è ancora stato raccolto (reaped),
+perché un identificatore di gruppo di processi può essere riciclato una volta raccolto il suo leader
+e il crate si rifiuta di inviare un segnale distruttivo che potrebbe raggiungere un gruppo
+estraneo. La conseguenza è esplicita: un discendente che ignora la terminazione ordinata e
+sopravvive a un leader che esce da sé, o entro la finestra di terminazione ordinata, non viene
+ucciso forzatamente. Il contenimento è una proprietà dei percorsi di terminazione e di abbandono,
+non di un figlio che termina normalmente lasciandosi dietro discendenti in background.
 
-Linux additionally supports a polled per-child RSS ceiling. The supervisor exposes only capacity and
-cumulative lifecycle counters to the control plane.
+Linux supporta inoltre un tetto di RSS per figlio, verificato a intervalli. Il supervisore espone
+al control plane solo la capacità e contatori cumulativi del ciclo di vita.
 
-The crate deliberately does not define a command/result wire protocol, idempotency model, library
-name, executable path, or payload codec. Each application-owned capability adapter decides whether
-to call Rust in-process or serialize a bounded command into a supervised child. The three real
-library APIs and representative memory probes are still required before making that choice. An
-exit or kill only reclaims process memory; it does not prove a remote database, file, or network
-effect did or did not happen.
+Il crate deliberatamente non definisce un protocollo wire di comando/risultato, un modello di
+idempotenza, un nome di libreria, un percorso dell'eseguibile o un codec di payload. Ogni adapter di
+capability posseduto dall'applicazione decide se chiamare Rust nel processo o serializzare un
+comando limitato verso un figlio supervisionato. Le API delle tre librerie reali e sonde di memoria
+rappresentative sono ancora necessarie prima di fare quella scelta. Un'uscita o un kill recupera
+solo la memoria del processo; non prova che un effetto remoto su database, file o rete sia o non
+sia avvenuto.

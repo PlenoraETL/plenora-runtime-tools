@@ -1,28 +1,33 @@
-# HTTP runtime
+# Runtime HTTP
 
-`plenora-runtime-http` is a transport adapter around the shared runtime contracts. Applications
-compose their own routes with the runtime router; authentication, authorization, rate policy, and
-business error mapping remain application responsibilities.
+`plenora-runtime-http` è un adapter di trasporto attorno ai contratti condivisi del runtime. Le
+applicazioni compongono le proprie rotte con il router del runtime; autenticazione,
+autorizzazione, politica di rate e mappatura degli errori di dominio restano responsabilità
+dell'applicazione.
 
-Admission is bounded before application handlers run. The default global in-flight limit is 256
-requests and the default body limit is 1 MiB; both are validated, configurable nonzero bounds.
-Oversized bodies are normalized through the common redaction-safe `payload_too_large` error hook.
+L'ammissione è limitata prima che girino gli handler dell'applicazione. Il limite globale
+predefinito delle richieste in corso è 256 e il limite predefinito del corpo è 1 MiB; entrambi
+sono limiti validati, configurabili e diversi da zero. I corpi troppo grandi si normalizzano
+attraverso l'hook d'errore comune `payload_too_large`, che non espone dati sensibili.
 
-Every admitted request has two identifiers:
+Ogni richiesta ammessa ha due identificatori:
 
-- `x-request-id` identifies one HTTP exchange. A missing value is generated; a malformed supplied
-  value is rejected and never reflected.
-- `x-correlation-id` identifies a logical operation across HTTP and messaging. It uses the shared
-  messaging correlation identifier, is generated when absent, and is rejected when malformed.
+- `x-request-id` identifica un singolo scambio HTTP. Un valore mancante viene generato; un valore
+  fornito e malformato viene rifiutato e mai riflesso.
+- `x-correlation-id` identifica un'operazione logica attraverso HTTP e messaggistica. Usa
+  l'identificatore di correlazione condiviso della messaggistica, viene generato se assente e
+  rifiutato se malformato.
 
-Both values are placed in request extensions, recorded on the HTTP span, and copied to the response.
-They are deliberately excluded from metric attributes because they have unbounded cardinality.
+Entrambi i valori sono messi nelle estensioni della richiesta, registrati sullo span HTTP e
+copiati nella risposta. Sono esclusi di proposito dagli attributi delle metriche perché hanno
+cardinalità illimitata.
 
-`/health` reports aggregate liveness and `/ready` reports admission readiness. Successful aggregate
-states return `200`; unhealthy or not-ready states return `503`. Responses expose stable status
-words only. Component names, operator messages, error sources, credentials, and configuration stay
-inside the process.
+`/health` riporta la liveness aggregata e `/ready` la readiness all'ammissione. Gli stati
+aggregati positivi restituiscono `200`; gli stati non sani o non pronti restituiscono `503`. Le
+risposte espongono solo parole di stato stabili. Nomi dei componenti, messaggi per l'operatore,
+sorgenti degli errori, credenziali e configurazione restano dentro il processo.
 
-Shutdown is cooperative and bounded. The runtime signal begins graceful connection draining; if the
-configured grace period elapses, the adapter returns a structured timeout to its owner. The process
-owner decides whether to log, supervise, or terminate after that result.
+Lo spegnimento è cooperativo e limitato. Il segnale del runtime avvia il drain ordinato delle
+connessioni; se il periodo di grazia configurato scade, l'adapter restituisce al suo proprietario
+un timeout strutturato. Il proprietario del processo decide se, dopo quel risultato, registrare,
+supervisionare o terminare.

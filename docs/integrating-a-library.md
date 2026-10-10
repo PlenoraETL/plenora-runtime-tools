@@ -1,14 +1,14 @@
-# Integrating a Rust library
+# Integrare una libreria Rust
 
-This is the implementation checklist for connecting `data-tools`, `database-tools`, `IO-tools`, or
-a future Rust library to a Plenora consumer. The libraries may evolve independently: no concrete
-library becomes a dependency of `runtime-tools`.
+Questa è la checklist di implementazione per collegare `data-tools`, `database-tools`, `IO-tools` o
+una futura libreria Rust a un consumer Plenora. Le librerie possono evolvere in modo indipendente:
+nessuna libreria concreta diventa una dipendenza di `runtime-tools`.
 
-## Ownership and shape
+## Proprietà e forma
 
-The final consumer owns a small adapter implementing `CapabilityHandler`. Register it once during
-startup under a versioned identity such as `plenora.data-tools@v1`. The registry is then frozen and
-shared by every dynamically admitted worker task.
+Il consumer finale possiede un piccolo adapter che implementa `CapabilityHandler`. Lo si registra
+una sola volta all'avvio sotto un'identità versionata come `plenora.data-tools@v1`. Il registro è
+poi congelato e condiviso da ogni task del worker ammesso dinamicamente.
 
 ```text
 JetStream -> broker adapter -> bounded worker -> capability dispatcher -> app adapter -> library
@@ -17,65 +17,71 @@ JetStream -> broker adapter -> bounded worker -> capability dispatcher -> app ad
                                       +-- timeout/cancellation/progress/heartbeat
 ```
 
-The complete, compiling template is
-[`examples/capability-adapter`](../examples/capability-adapter/README.md). Do not copy its simulated
-library types into production; replace them with the real public API when that API is stable.
+Il modello completo, che compila, è
+[`examples/capability-adapter`](../examples/capability-adapter/README.md). Non copiare in produzione
+i suoi tipi di libreria simulati; sostituirli con la vera API pubblica quando quell'API è stabile.
 
-## Decisions required for each adapter
+## Decisioni richieste per ogni adapter
 
-Before implementation, freeze these items for every operation:
+Prima dell'implementazione, congelare questi elementi per ogni operazione:
 
-| Contract | Required decision |
+| Contratto | Decisione richiesta |
 |---|---|
-| Identity | Namespaced capability name and positive wire version. |
-| Operation | Complete namespaced lowercase identifier such as `io.read` and positive public contract version; never infer routing from payload contents. |
-| Input | Immutable `plenora-...-vN` contract identifier, content type, byte limit, and validation performed before invocation. |
-| Output | Immutable output contract, advertised content type, byte bound, and confirmed `CapabilityResultSink`; acknowledgement-only is valid only for an explicit empty-output contract. |
-| Cancellation | Which concrete calls are cooperative and what happens when a future is dropped. |
-| Progress | Numeric units and optional total; no paths, rows, credentials, or arbitrary text. |
-| Retry | Concrete error variants mapped explicitly to `PlenoraErrorRetry`; `CapabilityFailure::with_public_error` derives the worker retry class without parsing strings or statuses. |
-| Effect | Exact `PlenoraErrorRemoteEffect`; use `Unknown` when proof is impossible. |
-| Idempotency | Stable key, conflict behavior, transaction boundary, and stored-result behavior. |
-| Secrets | Which fields must never enter `Debug`, errors, lifecycle events, labels, or DLQ reasons. |
+| Identità | Nome della capability con namespace e versione wire positiva. |
+| Operazione | Identificatore completo con namespace, in minuscolo, come `io.read`, e versione positiva del contratto pubblico; mai dedurre l'instradamento dal contenuto del payload. |
+| Input | Identificatore immutabile del contratto `plenora-...-vN`, content type, limite in byte e validazione eseguita prima dell'invocazione. |
+| Output | Contratto di output immutabile, content type dichiarato, limite in byte e `CapabilityResultSink` confermato; il solo acknowledgement è valido soltanto per un contratto esplicito a output vuoto. |
+| Cancellazione | Quali chiamate concrete sono cooperative e che cosa succede quando una future viene abbandonata (drop). |
+| Avanzamento | Unità numeriche e totale facoltativo; niente percorsi, righe, credenziali o testo arbitrario. |
+| Retry | Varianti d'errore concrete mappate esplicitamente su `PlenoraErrorRetry`; `CapabilityFailure::with_public_error` ricava la classe di retry del worker senza interpretare stringhe o stati. |
+| Effetto | `PlenoraErrorRemoteEffect` esatto; usare `Unknown` quando la prova è impossibile. |
+| Idempotenza | Chiave stabile, comportamento in caso di conflitto, confine della transazione e comportamento del risultato memorizzato. |
+| Segreti | Quali campi non devono mai entrare in `Debug`, errori, eventi del ciclo di vita, etichette o motivi della DLQ. |
 
-The adapter returns `CapabilityResponse`; the dispatcher owns canonical result metadata and invokes
-the configured result sink. If a database write and message publication must be atomic, use a
-database-backed outbox rather than publishing from the handler transaction.
+L'adapter restituisce `CapabilityResponse`; il dispatcher possiede i metadati canonici del risultato
+e invoca il result sink configurato. Se una scrittura su database e la pubblicazione di un messaggio
+devono essere atomiche, usare una outbox su database invece di pubblicare dalla transazione
+dell'handler.
 
-For artifact-bearing operations, wait for the component-owned immutable payload schema and decode
-that schema exactly. Do not infer local paths, secret fields, artifact references or provider
-configuration by scanning arbitrary JSON.
+Per le operazioni che portano artefatti, attendere lo schema immutabile del payload posseduto dal
+componente e decodificare esattamente quello schema. Non dedurre percorsi locali, campi segreti,
+riferimenti ad artefatti o configurazione del provider scandendo JSON arbitrario.
 
-## Cancellation bridge
+## Ponte di cancellazione
 
-Check `context.shutdown` or `context.cancellation` before invoking the library. During long calls,
-forward a clone of the task token when the library supports it and also race the call against
-`context.cancelled()`. Dropping a Rust future is not proof that a thread, subprocess, database
-statement, or remote request stopped. If cancellation can race an external effect, classify the
-result as `OutcomeUnknown`; do not claim `NotStarted`.
+Controllare `context.shutdown` o `context.cancellation` prima di invocare la libreria. Durante le
+chiamate lunghe, inoltrare un clone del token del task quando la libreria lo supporta e mettere
+anche la chiamata in gara con `context.cancelled()`. Il drop di una future Rust non prova che un
+thread, un sottoprocesso, uno statement di database o una richiesta remota si siano fermati. Se la
+cancellazione può entrare in gara con un effetto esterno, classificare il risultato come
+`OutcomeUnknown`; non dichiarare `NotStarted`.
 
-## Minimum adapter contract tests
+## Test di contratto minimi dell'adapter
 
-Each real adapter must add deterministic tests for:
+Ogni adapter reale deve aggiungere test deterministici per:
 
-1. every supported operation version, input contract, and content type;
-2. unknown operation, malformed input, and oversize rejection before library invocation;
-3. every concrete error variant and its retry/effect mapping;
-4. cancellation before start and during a long-running call;
-5. progress monotonicity and absence of payloads or secrets in observations;
-6. result publication or persistence, including ambiguous outcomes;
-7. duplicate delivery and idempotency behavior where the operation has side effects;
-8. `Debug`, `Display`, and source chains without credential or payload leakage;
-9. graceful drain with an active call and forced termination after the configured bound;
-10. one consumer-level acceptance test through the real library adapter, not only direct calls.
+1. ogni versione di operazione, contratto di input e content type supportati;
+2. operazione sconosciuta, input malformato e rifiuto per dimensione eccessiva prima
+   dell'invocazione della libreria;
+3. ogni variante d'errore concreta e la sua mappatura di retry/effetto;
+4. cancellazione prima dell'avvio e durante una chiamata di lunga durata;
+5. monotonia dell'avanzamento e assenza di payload o segreti nelle osservazioni;
+6. pubblicazione o persistenza del risultato, compresi gli esiti ambigui;
+7. consegna duplicata e comportamento di idempotenza dove l'operazione ha effetti collaterali;
+8. `Debug`, `Display` e catene di source senza fughe di credenziali o payload;
+9. drain ordinato con una chiamata attiva e terminazione forzata dopo il limite configurato;
+10. un test di accettazione a livello di consumer attraverso l'adapter della libreria reale, non
+    solo chiamate dirette.
 
-Use `FakeBroker`, `ManualClock`, and the bounded lifecycle dispatcher for deterministic cases. Keep
-real service tests opt-in and bounded by wall-clock time. The final consumer soak must exercise all
-three real adapters together before the public API is frozen.
+Usare `FakeBroker`, `ManualClock` e il dispatcher limitato del ciclo di vita per i casi
+deterministici. Tenere i test contro servizi reali opt-in e limitati nel tempo reale. Il soak del
+consumer finale deve esercitare insieme tutti e tre gli adapter reali prima che l'API pubblica
+venga congelata.
 
-## Adding a fourth library
+## Aggiungere una quarta libreria
 
-Add a new application-owned adapter and registration. Do not modify the messaging format beyond a
-new versioned capability identity, and do not add the concrete dependency to core, messaging,
-worker, NATS, Apalis, HTTP, observability, or outbox crates. Existing worker capacity, heartbeats,
-retry, dead-letter, health, and shutdown behavior remains shared.
+Aggiungere un nuovo adapter e una nuova registrazione posseduti dall'applicazione. Non modificare il
+formato dei messaggi oltre a una nuova identità di capability versionata, e non aggiungere la
+dipendenza concreta ai crate core, messaging, worker, NATS, Apalis, HTTP, observability o outbox.
+Capacità del worker, heartbeat, retry, dead-letter, health e comportamento di arresto esistenti
+restano condivisi.

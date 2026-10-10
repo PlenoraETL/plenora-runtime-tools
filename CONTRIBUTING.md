@@ -1,17 +1,18 @@
-# Contributing
+# Contribuire
 
-Treat the implementation specification and the documents under `docs/` as normative.
+La specifica di implementazione e i documenti sotto `docs/` sono normativi.
 
-Before submitting a change:
+Prima di proporre una modifica:
 
-1. preserve the dependency direction documented in `docs/boundaries.md`;
-2. keep domain-specific business types out of the runtime crates;
-3. add tests for every implemented requirement;
-4. avoid `unwrap`, `expect`, `panic!`, unbounded queues, and unbounded task spawning in production
-   runtime paths;
-5. document new infrastructure dependencies and material architectural decisions;
-6. run formatting, checks, Clippy, tests, documentation, audit, and dependency-policy gates.
+1. preservare la direzione delle dipendenze documentata in `docs/boundaries.md`;
+2. tenere i tipi di business specifici di dominio fuori dai crate del runtime;
+3. aggiungere test per ogni requisito implementato;
+4. evitare `unwrap`, `expect`, `panic!`, code non limitate e creazione di task non limitata nei
+   percorsi di runtime di produzione;
+5. documentare le nuove dipendenze infrastrutturali e le decisioni architetturali rilevanti;
+6. eseguire formattazione, check, Clippy, test, documentazione, audit e i gate della policy delle
+   dipendenze.
 
-Public APIs are not frozen. Prefer small, reviewable changes that complete one work package at a
-time.
+Le API pubbliche non sono congelate. Preferire modifiche piccole e revisionabili che completino un
+pacchetto di lavoro alla volta.
 

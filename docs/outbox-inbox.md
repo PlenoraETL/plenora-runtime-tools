@@ -1,25 +1,28 @@
-# Outbox, inbox, and idempotency
+# Outbox, inbox e idempotenza
 
-The first milestone provides persistence-neutral traits and deterministic fake stores. A business
-write and its outbox append must ultimately share one transaction; processing and inbox recording
-must likewise be atomic before acknowledgement.
+La prima milestone fornisce trait neutrali rispetto alla persistenza e store finti deterministici.
+Una scrittura di dominio e la sua aggiunta all'outbox devono alla fine condividere un'unica
+transazione; allo stesso modo, elaborazione e registrazione nell'inbox devono essere atomiche prima
+dell'acknowledgement.
 
-OutboxRelay claims one bounded batch and publishes through MessageProducer. Confirmed publication
-is marked published. A producer error is recorded according to policy and returned with its source.
-OutcomeUnknown is retained for reconciliation by default; retrying it requires an explicit opt-in
-because the remote effect may already have happened. A run that returns early releases every claim
-it never attempted as `NotAttempted`/Retry, so a mid-batch failure cannot park later entries until a
-store-specific lease expires; release itself is best effort, an entry whose release also fails is
-counted in `unreleased_claims`, and a run cancelled by dropping its future releases nothing. Those
-entries remain the store's claim-lease or crash-recovery responsibility.
+OutboxRelay rivendica un batch limitato e pubblica attraverso MessageProducer. Una pubblicazione
+confermata viene marcata come pubblicata. Un errore del producer viene registrato secondo la
+politica e restituito con la sua sorgente. OutcomeUnknown è trattenuto per la riconciliazione per
+impostazione predefinita; ritentarlo richiede un opt-in esplicito, perché l'effetto remoto potrebbe
+essere già avvenuto. Un'esecuzione che termina in anticipo rilascia ogni rivendicazione che non ha
+mai tentato come `NotAttempted`/Retry, così un fallimento a metà batch non può parcheggiare le voci
+successive finché non scade un lease specifico dello store; il rilascio stesso è best effort, una
+voce il cui rilascio fallisce a sua volta è contata in `unreleased_claims`, e un'esecuzione
+annullata facendo il drop della sua future non rilascia nulla. Quelle voci restano responsabilità
+del lease di rivendicazione o del ripristino dopo crash dello store.
 
-The first store trait intentionally does not prescribe a lease model. Concrete adapters must define
-claim expiry and crash recovery. InboxDeduplicator is a convenience helper, not an atomicity
-boundary: the inbox check, business effect, and processed record must share the consumer's durable
-transaction.
+Il primo trait dello store di proposito non prescrive un modello di lease. Gli adapter concreti
+devono definire la scadenza delle rivendicazioni e il ripristino dopo crash. InboxDeduplicator è
+un aiuto di comodo, non un confine di atomicità: il controllo dell'inbox, l'effetto di dominio e il
+record di avvenuta elaborazione devono condividere la transazione durevole del consumer.
 
-Idempotency begin is atomic and distinguishes execute, in-progress, conflict, and stored-result
-states. The initial portable decision does not carry stored result bytes.
+L'inizio dell'idempotenza è atomico e distingue gli stati esegui, in corso, conflitto e risultato
+memorizzato. La decisione portabile iniziale non porta i byte del risultato memorizzato.
 
-Concrete database persistence is deferred until plenora-database-tools is stable enough for an
-adapter contract.
+La persistenza concreta su database è rimandata finché plenora-database-tools non sarà abbastanza
+stabile per un contratto di adapter.

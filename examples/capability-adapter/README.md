@@ -1,29 +1,31 @@
-# Generic Rust library adapter
+# Adapter generico per una libreria Rust
 
-This compile-tested example is the template for connecting `data-tools`, `database-tools`,
-`IO-tools`, or a future Rust library without adding that dependency to a runtime crate.
+Questo esempio verificato in compilazione è il modello per collegare `data-tools`, `database-tools`,
+`IO-tools` o una futura libreria Rust senza aggiungere quella dipendenza a un crate del runtime.
 
-The simulated `ExampleLibrary` stands in for the concrete library. The application-owned
-`ExampleLibraryAdapter`:
+La `ExampleLibrary` simulata fa le veci della libreria concreta. L'`ExampleLibraryAdapter` di
+proprietà dell'applicazione:
 
-- exposes a versioned `CapabilityId`, positive operation version, immutable input contract, and
-  validates the operation and content type;
-- passes opaque input to the concrete API only after validation;
-- bridges task cancellation and reports bounded numeric progress;
-- maps concrete failures to an explicit retry class and remote-effect certainty;
-- is registered once at startup in an immutable, bounded registry.
+- espone un `CapabilityId` versionato, una versione di operazione positiva, un contratto di input
+  immutabile, e valida l'operazione e il content type;
+- passa l'input opaco all'API concreta solo dopo la validazione;
+- collega la cancellazione del task e riporta un avanzamento numerico limitato;
+- traduce i fallimenti concreti in una classe di retry esplicita e in una certezza sull'effetto
+  remoto;
+- viene registrato una sola volta all'avvio in un registro immutabile e limitato.
 
-Replace `ExampleLibrary` and `LibraryError` only after the real library API is stable. Keep the
-adapter in the final Plenora consumer, not in `runtime-tools` and not in the concrete library.
+Sostituire `ExampleLibrary` e `LibraryError` solo quando l'API della libreria reale è stabile.
+Tenere l'adapter nel consumer Plenora finale, non in `runtime-tools` e non nella libreria concreta.
 
-Run it from the workspace root:
+Eseguirlo dalla radice del workspace:
 
 ```text
 cargo run -p plenora-example-capability-adapter
 cargo test -p plenora-example-capability-adapter
 ```
 
-The tests are an initial adapter contract: success reaches the library, invalid operations do not,
-transient failures remain retryable, and uncertain external effects are never blindly retried.
-The integration checklist in [`docs/integrating-a-library.md`](../../docs/integrating-a-library.md)
-defines the additional tests required for a real adapter.
+I test sono un contratto iniziale dell'adapter: il successo raggiunge la libreria, le operazioni
+non valide no, i fallimenti transitori restano ritentabili e gli effetti esterni incerti non
+vengono mai ritentati alla cieca.
+La checklist di integrazione in [`docs/integrating-a-library.md`](../../docs/integrating-a-library.md)
+definisce i test aggiuntivi richiesti per un adapter reale.

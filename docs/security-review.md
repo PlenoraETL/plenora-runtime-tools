@@ -1,64 +1,70 @@
-# Security review: v0.1 generic runtime skeleton
+# Revisione di sicurezza: scheletro runtime generico v0.1
 
-- Review date: 2026-08-16
-- Scope: the complete `runtime-tools` workspace, examples, scripts, and CI configuration
-- Status: technical review complete locally; organizational release approval pending
-- Excluded: unfinished Plenora foundation adapters, consumer business authorization, and production
-  deployment configuration
+- Data della revisione: 2026-08-16
+- Ambito: l'intero workspace `runtime-tools`, esempi, script e configurazione della CI
+- Stato: revisione tecnica completa in locale; approvazione organizzativa del rilascio in attesa
+- Escluso: adapter di fondazione Plenora non ancora completati, autorizzazione di business del
+  consumer e configurazione del deployment in produzione
 
-## Reviewed trust boundaries
+## Confini di fiducia rivisti
 
-| Boundary | Primary risks | Implemented controls |
+| Confine | Rischi principali | Controlli implementati |
 |---|---|---|
-| HTTP ingress | oversized bodies, identifier injection, secret headers, unlimited concurrency | bounded body and concurrency, validated IDs, sensitive headers, redacted common errors, graceful shutdown |
-| NATS configuration and transport | credential disclosure, plaintext downgrade, unbounded reconnect or delivery state | redacted credential types, TLS required by default, explicit plaintext opt-in, finite reconnect and consumer bounds |
-| Message metadata and payload | allocation abuse, secret logging, malformed identities | entry/key/value/total bounds, pre-decode encoded bounds, redacted `Debug`, canonical UUID validation |
-| Worker execution | unbounded task growth, non-cooperative cancellation, stale control handles | semaphore bound, no executor-owned queue, bounded cleanup grace, RAII active-task removal, executor-local task IDs |
-| Operational control | unauthenticated pause/drain/cancel/trigger, payload disclosure | application authorizer required for every HTTP route, mutation routes opt-in, validated bounded IDs, payload-free DTOs |
-| Subprocess containment | shell injection, inherited credentials, runaway process/output/RSS | direct spawn without shell, cleared environment by default, bounded inputs/concurrency/output/time, tree termination and reap, optional Linux RSS ceiling |
-| Lifecycle observation | handler blocking, memory growth, silent observation loss | non-blocking `try_send`, hard queue maximum, explicit full/closed counters, health projection and metric hooks |
-| Broker settlement and DLQ | message loss, blind retry after unknown effect, duplicate DLQ publication | confirmed publication before TERM, deterministic DLQ message ID, fail-closed `OutcomeUnknown`, explicit ACK ownership |
-| Outbox/inbox | split transactions, claim loss, duplicate business effects | persistence-neutral contracts and fakes document atomic transaction requirements; no production database claim is made |
-| Observability | high-cardinality labels, PII/secret propagation | allowlisted bounded labels, payload-free lifecycle events, W3C-only transactional propagation, redaction policy |
-| Supply chain | vulnerable, unlicensed, or unpinned dependencies | exact direct pins, lockfile, source policy, pinned audit/deny tools, architecture enforcement |
+| Ingresso HTTP | body sovradimensionati, iniezione negli identificatori, header segreti, concorrenza illimitata | body e concorrenza limitati, ID validati, header sensibili, errori comuni senza dati sensibili, shutdown ordinato |
+| Configurazione e trasporto NATS | divulgazione delle credenziali, downgrade a testo in chiaro, riconnessione o stato di consegna illimitati | tipi di credenziale mascherati, TLS obbligatorio per default, testo in chiaro solo con opt-in esplicito, limiti finiti su riconnessione e consumer |
+| Metadati e payload dei messaggi | abuso delle allocazioni, log di segreti, identità malformate | limiti su voci/chiavi/valori/totale, limiti sulla forma codificata prima della decodifica, `Debug` mascherato, validazione degli UUID canonici |
+| Esecuzione del worker | crescita illimitata dei task, cancellazione non cooperativa, handle di controllo scaduti | limite a semaforo, nessuna coda posseduta dall'executor, grazia di pulizia limitata, rimozione RAII dei task attivi, ID di task locali all'executor |
+| Controllo operativo | pausa/drain/cancellazione/trigger non autenticati, divulgazione del payload | authorizer applicativo obbligatorio per ogni route HTTP, route di mutazione opzionali, ID validati e limitati, DTO senza payload |
+| Contenimento dei sottoprocessi | iniezione nella shell, credenziali ereditate, processo/output/RSS fuori controllo | avvio diretto senza shell, ambiente svuotato per default, input/concorrenza/output/tempo limitati, terminazione e reap dell'albero, tetto RSS opzionale su Linux |
+| Osservazione del ciclo di vita | blocco dell'handler, crescita della memoria, perdita silenziosa di osservazioni | `try_send` non bloccante, massimo rigido della coda, contatori espliciti di coda piena/chiusa, proiezione sulla health e hook di metrica |
+| Settlement sul broker e DLQ | perdita di messaggi, retry alla cieca dopo un effetto sconosciuto, pubblicazione duplicata in DLQ | pubblicazione confermata prima del TERM, ID deterministico del messaggio in DLQ, `OutcomeUnknown` fail-closed, possesso esplicito dell'ACK |
+| Outbox/inbox | transazioni spezzate, perdita del claim, effetti di business duplicati | contratti e fake indipendenti dalla persistenza documentano i requisiti di transazione atomica; non si dichiara alcun database di produzione |
+| Osservabilità | etichette ad alta cardinalità, propagazione di PII/segreti | etichette limitate e in allowlist, eventi del ciclo di vita senza payload, propagazione transazionale solo W3C, policy di oscuramento |
+| Supply chain | dipendenze vulnerabili, senza licenza o non pinnate | pin diretti esatti, lockfile, policy delle sorgenti, strumenti di audit/deny pinnati, controllo dell'architettura |
 
-## Verification performed
+## Verifiche eseguite
 
-- Workspace formatting, Clippy with warnings denied, all tests, and rustdoc warnings denied.
-- Architecture scans reject unsafe blocks, panic shortcuts, secret-bearing debug output, known
-  unbounded channels, reverse dependencies, git dependencies, and non-exact direct versions.
-- Real ephemeral JetStream tests cover TLS/plaintext policy, metadata bounds, heartbeat renewal,
-  retry/redelivery, reconnect readiness, replay isolation, confirmed DLQ, and drain.
-- `cargo audit` found no advisory affecting the current lockfile.
-- `cargo deny check` passed advisories, bans, licenses, and sources. Duplicate dependency versions
-  remain warnings and must continue to be reviewed during upgrades.
+- Formattazione del workspace, Clippy con warning negati, tutti i test, e rustdoc con warning negati.
+- Le scansioni di architettura rifiutano blocchi unsafe, scorciatoie verso il panic, output di debug
+  che contiene segreti, canali illimitati noti, dipendenze inverse, dipendenze git e versioni dirette
+  non esatte.
+- Test su JetStream reale ed effimero coprono la policy TLS/testo in chiaro, i limiti dei metadati,
+  il rinnovo degli heartbeat, retry/riconsegna, readiness alla riconnessione, isolamento del replay,
+  DLQ confermata e drain.
+- `cargo audit` non ha trovato advisory che riguardino il lockfile corrente.
+- `cargo deny check` ha passato advisories, bans, licenses e sources. Le versioni duplicate delle
+  dipendenze restano warning e vanno riviste a ogni aggiornamento.
 
-## Residual risks and required owner actions
+## Rischi residui e azioni richieste ai responsabili
 
-1. Runtime-tools deliberately implements no identity or role policy. The control HTTP adapter calls
-   an application authorizer for every request and hides mutation routes by default, but the
-   consumer must authenticate callers, authorize exact actions, rate-limit the route, and audit
-   accepted mutations.
-2. `WorkerTaskId` is executor-local. Remote APIs must pair it with the worker `instance_id` and use
-   canonical `MessageId` when cross-restart identity is required.
-3. Rust async cancellation cannot stop detached tasks or blocking native calls. Foundation adapters
-   must bridge the supplied token and enforce their own bounded operation deadlines.
-4. Lifecycle saturation drops the newest observation. A required deployment must select
-   `WorkerLifecycleHealthCriticality::Required` and supervise the receiver; an optional deployment
-   remains ready but degraded.
-5. The in-memory outbox/inbox stores are test doubles. Production business effects are unsafe until
-   the database adapter provides atomic business/outbox and business/inbox transactions, claim
-   leases, crash recovery, and stored idempotency results.
-6. Plaintext NATS is test/local-only and requires explicit configuration. Production deployment
-   review must validate certificates, credentials, subject permissions, and infrastructure mode.
-7. This review does not qualify an uncommitted working tree. Final approval must reference the
-   exact commit that passed all GitHub Actions jobs.
+1. Runtime-tools di proposito non implementa alcuna policy di identità o di ruolo. L'adapter HTTP di
+   controllo chiama un authorizer applicativo per ogni richiesta e nasconde per default le route di
+   mutazione, ma il consumer deve autenticare i chiamanti, autorizzare le azioni esatte, limitare la
+   frequenza sulla route e registrare in audit le mutazioni accettate.
+2. `WorkerTaskId` è locale all'executor. Le API remote devono accoppiarlo all'`instance_id` del
+   worker e usare il `MessageId` canonico quando serve un'identità che sopravviva ai riavvii.
+3. La cancellazione async di Rust non può fermare task staccati o chiamate native bloccanti. Gli
+   adapter di fondazione devono collegare il token fornito e imporre scadenze limitate alle proprie
+   operazioni.
+4. La saturazione del ciclo di vita scarta l'osservazione più recente. Un deployment che la richiede
+   deve scegliere `WorkerLifecycleHealthCriticality::Required` e sorvegliare il ricevitore; un
+   deployment opzionale resta ready ma degradato.
+5. Gli store in memoria di outbox/inbox sono test double. Gli effetti di business in produzione non
+   sono sicuri finché l'adapter del database non fornisce transazioni atomiche business/outbox e
+   business/inbox, lease dei claim, recupero dopo crash e risultati di idempotenza memorizzati.
+6. NATS in testo in chiaro è solo per test e uso locale e richiede una configurazione esplicita. La
+   revisione del deployment in produzione deve validare certificati, credenziali, permessi sui
+   subject e modalità dell'infrastruttura.
+7. Questa revisione non qualifica un albero di lavoro non committato. L'approvazione finale deve
+   riferirsi al commit esatto che ha passato tutti i job di GitHub Actions.
 
-## Release approval checklist
+## Checklist di approvazione del rilascio
 
-- [ ] Exact release commit created and pushed.
-- [ ] Same-SHA Windows, Linux, macOS, dependency-policy, documentation, and NATS jobs passed.
-- [ ] Consumer-specific authentication and authorization reviewed.
-- [ ] Production NATS TLS and permissions reviewed.
-- [ ] Any new foundation adapter included in the review scope.
-- [ ] Security owner approval recorded outside the repository through the approved internal channel.
+- [ ] Commit esatto del rilascio creato e pushato.
+- [ ] Passati sullo stesso SHA tutti i job di `ci.yml`: qualità su Windows, Linux e macOS (con la
+  documentazione), anti-panic, dependency-policy, NATS, coverage e fuzz smoke.
+- [ ] Rivista l'autenticazione e l'autorizzazione specifica del consumer.
+- [ ] Rivisti TLS e permessi di NATS in produzione.
+- [ ] Incluso nell'ambito della revisione ogni nuovo adapter di fondazione.
+- [ ] Approvazione del responsabile della sicurezza registrata fuori dal repository, attraverso il
+  canale interno approvato.

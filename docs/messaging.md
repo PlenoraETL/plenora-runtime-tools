@@ -1,64 +1,68 @@
-# Messaging
+# Messaggistica
 
-The messaging crate defines broker-neutral envelopes, serialization boundaries, producer and
-consumer contracts, delivery ownership, acknowledgements, retry decisions, dead-letter data, and
-capability discovery.
+Il crate messaging definisce envelope neutrali rispetto al broker, confini di serializzazione,
+contratti di producer e consumer, proprietà della consegna, acknowledgement, decisioni di retry,
+dati di dead-letter e scoperta delle capability.
 
-No payload codec or broker is mandatory. MessageCodec converts typed values to a media type and
-opaque bytes. MessageMetadata accepts binary values and requires portable namespaced keys such as
-myapp.tenant or plenora.trace.traceparent. Debug output redacts payload bytes, typed payloads, and
-metadata values. The portable map is fail-closed at 64 entries, 128 bytes per key, 8 KiB per value,
-and 32 KiB combined key/value bytes.
+Nessun codec di payload né broker è obbligatorio. MessageCodec converte valori tipizzati in un media
+type e byte opachi. MessageMetadata accetta valori binari e richiede chiavi portabili con namespace
+come myapp.tenant o plenora.trace.traceparent. L'output di Debug oscura i byte del payload, i
+payload tipizzati e i valori dei metadati. La mappa portabile è fail-closed a 64 voci, 128 byte per
+chiave, 8 KiB per valore e 32 KiB di byte complessivi fra chiavi e valori.
 
-Worker-bound messages use canonical metadata keys `plenora.message.id`,
-`plenora.trace.correlation_id`, and optional `plenora.message.causation_id`. The first two are
-required UUIDs for `MetadataMessageDecoder`; invalid identity metadata is rejected before handler
-execution.
+I messaggi destinati al worker usano le chiavi di metadati canoniche `plenora.message.id`,
+`plenora.trace.correlation_id` e la facoltativa `plenora.message.causation_id`. Le prime due sono
+UUID obbligatori per `MetadataMessageDecoder`; metadati d'identità non validi vengono rifiutati
+prima dell'esecuzione dell'handler.
 
-Delivery owns its adapter acknowledgement capability. Calling ack or nack consumes the delivery,
-which makes a second acknowledgement impossible through the safe API.
+Delivery possiede la capability di acknowledgement del suo adapter. Chiamare ack o nack consuma la
+delivery, il che rende impossibile un secondo acknowledgement attraverso l'API sicura.
 
-RetryPolicy receives the current one-based attempt and a classified error. The standard
-ExponentialBackoff policy caps delays, attempts, and an optional elapsed-time budget. Seeded jitter
-is deterministic. OutcomeUnknown remains distinct from confirmed publication and is never
-converted into success or retry unless the application explicitly opts into retry.
+RetryPolicy riceve il tentativo corrente, numerato da uno, e un errore classificato. La policy
+standard ExponentialBackoff limita ritardi, tentativi e un budget facoltativo di tempo trascorso. Il
+jitter con seme è deterministico. OutcomeUnknown resta distinto dalla pubblicazione confermata e non
+viene mai convertito in successo o retry, a meno che l'applicazione non scelga esplicitamente il
+retry.
 
-BrokerCapabilities makes durable consumption, replay, ordering, native dead-letter support, and
-exactly-once claims discoverable without promising features that an adapter cannot provide.
+BrokerCapabilities rende individuabili consumo durevole, replay, ordinamento, supporto nativo al
+dead-letter e garanzie exactly-once, senza promettere funzionalità che un adapter non può fornire.
 
-`DeadLetterSink` turns any dedicated `MessageProducer` into portable dead-letter routing. It adds
-bounded reason, attempt, failure-time, and deterministic `<message-id>.dlq` metadata without
-changing the payload. The distinct DLQ ID prevents JetStream stream-wide de-duplication from
-mistaking the DLQ record for the original publication. `Confirmed` and `OutcomeUnknown` remain
-separate all the way back to the consumer adapter.
+`DeadLetterSink` trasforma qualsiasi `MessageProducer` dedicato in un instradamento dead-letter
+portabile. Aggiunge metadati limitati di motivo, tentativo, istante del fallimento e il
+deterministico `<message-id>.dlq`, senza modificare il payload. L'ID distinto della DLQ impedisce
+alla de-duplicazione a livello di stream di JetStream di scambiare il record della DLQ per la
+pubblicazione originale. `Confirmed` e `OutcomeUnknown` restano separati fino all'adapter del
+consumer.
 
-`plenora-runtime-nats` implements the contracts with a fixed-subject JetStream producer and a
-durable pull consumer. Production-oriented configuration requires TLS by default and binds to
-pre-provisioned infrastructure; local plaintext and resource creation are explicit opt-ins.
-Publication is confirmed only after the JetStream acknowledgement resolves. Ambiguous post-send
-failures return `OutcomeUnknown`. Positive delivery acknowledgement uses server-confirmed double
-ACK; retryable work maps to NAK, `RetryAfter` preserves its delay in a native delayed NAK,
-permanent rejection maps to TERM, and shutdown maps to the configured delayed NAK.
+`plenora-runtime-nats` implementa i contratti con un producer JetStream a subject fisso e un pull
+consumer durevole. La configurazione orientata alla produzione richiede TLS per impostazione
+predefinita e si aggancia a infrastruttura predisposta in anticipo; testo in chiaro locale e
+creazione delle risorse sono opt-in espliciti. La pubblicazione è confermata solo dopo che
+l'acknowledgement di JetStream si risolve. I fallimenti ambigui dopo l'invio restituiscono
+`OutcomeUnknown`. L'acknowledgement positivo della consegna usa il double ACK confermato dal server;
+il lavoro ritentabile si mappa su NAK, `RetryAfter` conserva il suo ritardo in un NAK ritardato
+nativo, il rifiuto permanente si mappa su TERM e l'arresto si mappa sul NAK ritardato configurato.
 
-JetStream reports no native DLQ capability. The Apalis broker runner emulates it explicitly using
-a fixed-subject producer dedicated to a provisioned DLQ subject. It sends TERM for the original
-delivery only after confirmed DLQ publication. Missing configuration, publication failure, or
-`OutcomeUnknown` leaves the original unacknowledged and eligible for redelivery; a TERM failure
-after confirmed publication is reported separately.
+JetStream non dichiara alcuna capability DLQ nativa. Il runner broker di Apalis la emula
+esplicitamente usando un producer a subject fisso dedicato a un subject DLQ predisposto. Invia TERM
+per la consegna originale solo dopo la pubblicazione confermata nella DLQ. Configurazione mancante,
+fallimento della pubblicazione o `OutcomeUnknown` lasciano l'originale senza acknowledgement e
+idonea alla riconsegna; un fallimento del TERM dopo la pubblicazione confermata è riportato a parte.
 
-Operational and replay consumers require finite nonzero `max_deliver`, `max_ack_pending`, and local
-payload-byte limits. Connection configuration additionally requires a finite, positive reconnect
-attempt bound, because the client library treats both an absent and a zero bound as an unlimited
-reconnect loop. Binding checks the existing durable's acknowledgement timeout, delivery and
-pending-ack bounds, filter, ACK policy, and delivery policy before consumption starts. Oversized or
-otherwise malformed incoming messages are TERM-settled without exposing their bytes to a handler and
-consumption continues, so one poisoned delivery cannot stop a worker; the consumer counts these
-rejections and retains the last redaction-safe reason. Only a failed settlement or an actual stream
-failure ends the consumer.
+I consumer operativi e di replay richiedono `max_deliver`, `max_ack_pending` e limiti locali in byte
+del payload finiti e non nulli. La configurazione della connessione richiede inoltre un limite
+finito e positivo ai tentativi di riconnessione, perché la libreria client tratta sia un limite
+assente sia un limite pari a zero come un ciclo di riconnessione illimitato. L'aggancio verifica,
+prima che il consumo inizi, il timeout di acknowledgement del durable esistente, i limiti di
+consegna e di ack pendenti, il filtro, la policy di ACK e la policy di consegna. I messaggi in
+arrivo troppo grandi o altrimenti malformati vengono chiusi con TERM senza esporre i loro byte a un
+handler e il consumo continua, così una consegna avvelenata non può fermare un worker; il consumer
+conta questi rifiuti e conserva l'ultimo motivo sicuro rispetto all'oscuramento. Solo un settlement
+fallito o un vero fallimento dello stream termina il consumer.
 
-Binary metadata is encoded reversibly into reserved NATS headers. Replay configuration names both
-the operational and replay durable and rejects equality, so replay cannot move or overwrite the
-operational consumer cursor. The adapter advertises
-only durable-consumer and replay capabilities. Connection events update health/readiness;
-controlled reconnect preserves the durable consumer, and graceful drain is completed by polling
-consumer streams until they end after `begin_drain`.
+I metadati binari sono codificati in modo reversibile in header NATS riservati. La configurazione
+di replay nomina sia il durable operativo sia quello di replay e ne rifiuta l'uguaglianza, così il
+replay non può spostare né sovrascrivere il cursore del consumer operativo. L'adapter dichiara
+solo le capability di consumer durevole e di replay. Gli eventi di connessione aggiornano
+health/readiness; la riconnessione controllata preserva il consumer durevole, e il drain ordinato si
+completa interrogando gli stream del consumer finché non terminano dopo `begin_drain`.

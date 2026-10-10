@@ -1,11 +1,11 @@
-# Scheduler basic
+# Scheduler di base
 
-This example builds a bounded scheduler, registers one small command, and dispatches its one-shot
-occurrence. A Plenora consumer replaces `ExampleDispatcher` with an application-owned dispatcher
-that publishes to NATS or calls another bounded runtime boundary. The deterministic occurrence id
-must become the downstream idempotency key.
+Questo esempio costruisce uno scheduler limitato, registra un piccolo comando ed esegue il dispatch
+della sua occorrenza one-shot. Un consumer Plenora sostituisce `ExampleDispatcher` con un
+dispatcher di proprietà dell'applicazione che pubblica su NATS o chiama un altro confine limitato
+del runtime. L'id deterministico dell'occorrenza deve diventare la chiave di idempotenza a valle.
 
-Run it with:
+Eseguirlo con:
 
 ```text
 cargo run -p plenora-runtime-example-scheduler-basic

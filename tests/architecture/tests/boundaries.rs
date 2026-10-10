@@ -699,12 +699,12 @@ fn qualification_docs_preserve_open_release_and_security_gates() -> Result<(), B
     let mut violations = Vec::new();
 
     for required in [
-        "CI on Windows, Linux, and macOS",
-        "No release candidate has been qualified yet",
-        "a real Plenora consumer",
-        "a PFM microservice proof of concept",
-        "transactional outbox/inbox persistence",
-        "same-SHA CI and security approval",
+        "CI su Windows, Linux e macOS",
+        "Nessun candidato al rilascio è stato ancora qualificato",
+        "un vero consumer Plenora",
+        "un proof of concept di microservizio PFM",
+        "la persistenza transazionale di outbox/inbox",
+        "CI sullo stesso SHA e approvazione di sicurezza",
     ] {
         if !qualification.contains(required) {
             violations.push(format!(
@@ -714,10 +714,10 @@ fn qualification_docs_preserve_open_release_and_security_gates() -> Result<(), B
         }
     }
     for required in [
-        "organizational release approval pending",
-        "Runtime-tools deliberately implements no identity or role policy",
-        "exact commit",
-        "Security owner approval",
+        "approvazione organizzativa del rilascio in attesa",
+        "Runtime-tools di proposito non implementa alcuna policy di identità o di ruolo",
+        "commit esatto",
+        "Approvazione del responsabile della sicurezza",
     ] {
         if !security.contains(required) {
             violations.push(format!(

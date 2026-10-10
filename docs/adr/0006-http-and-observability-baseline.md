@@ -1,42 +1,46 @@
-# ADR 0006: HTTP and observability baseline
+# ADR 0006: base di HTTP e osservabilità
 
-- Status: accepted
-- Date: 2026-08-16
+- Stato: accettato
+- Data: 2026-08-16
 
-## Context
+## Contesto
 
-Milestone 4 adds a reusable HTTP service boundary and common telemetry conventions. The HTTP
-surface must compose with application routes without absorbing business authorization. Telemetry
-must propagate across HTTP and messaging boundaries without choosing an exporter, collector, or
-vendor backend. Health endpoints and diagnostics must not disclose component details, credentials,
-payloads, or internal configuration by default.
+La Milestone 4 aggiunge un confine di servizio HTTP riusabile e convenzioni comuni di telemetria.
+La superficie HTTP deve comporsi con le route dell'applicazione senza assorbire l'autorizzazione di
+business. La telemetria deve propagarsi attraverso i confini HTTP e di messaggistica senza scegliere
+un exporter, un collector o un backend di un fornitore. Gli endpoint di health e la diagnostica non
+devono rivelare per impostazione predefinita dettagli dei componenti, credenziali, payload o
+configurazione interna.
 
-## Decision
+## Decisione
 
-- Pin Axum 0.8.9 and tower-http 0.7.0 with default features disabled and only the HTTP server,
-  JSON, Tokio, tracing, request-id, sensitive-header, and trace features required by the adapter.
-- Keep Axum and Tower HTTP types inside `plenora-runtime-http`; core, messaging, worker, and outbox
-  contracts remain independent of the web stack.
-- Treat `x-request-id` as a transport-local diagnostic identifier and `x-correlation-id` as the
-  cross-boundary operation identifier. Validate bounded incoming values, generate missing values,
-  attach both to request context, and return them in response headers.
-- Expose liveness and readiness as separate endpoints. Return only aggregate, redaction-safe state
-  by default; detailed component messages remain internal.
-- Connect HTTP admission and graceful serving to the runtime shutdown signal with a bounded grace
-  period.
-- Pin tracing 0.1.44, OpenTelemetry API 0.32.0, and tracing-opentelemetry 0.33.0. The observability
-  crate supplies conventions and an interoperability bridge, but does not install a global
-  subscriber, SDK, exporter, collector, or vendor backend.
-- Keep metrics behind a small sink contract with stable instrument names and validated,
-  low-cardinality attributes. Provide a no-op default so libraries never require a telemetry
-  runtime.
-- Redact secrets, credentials, payloads, authorization headers, cookies, and arbitrary internal
-  error sources from default diagnostic output.
+- Fissare Axum 0.8.9 e tower-http 0.7.0 con le feature predefinite disattivate e solo le feature
+  server HTTP, JSON, Tokio, tracing, request-id, sensitive-header e trace richieste dall'adapter.
+- Tenere i tipi HTTP di Axum e Tower dentro `plenora-runtime-http`; i contratti di core,
+  messaging, worker e outbox restano indipendenti dallo stack web.
+- Trattare `x-request-id` come identificatore diagnostico locale al trasporto e `x-correlation-id`
+  come identificatore dell'operazione attraverso i confini. Validare i valori in ingresso limitati,
+  generare quelli mancanti, collegarli entrambi al contesto della richiesta e restituirli negli
+  header di risposta.
+- Esporre liveness e readiness come endpoint separati. Restituire per impostazione predefinita solo
+  uno stato aggregato, senza dati sensibili; i messaggi dettagliati dei componenti
+  restano interni.
+- Collegare l'ammissione HTTP e il servizio ordinato al segnale di arresto del runtime con un
+  periodo di grazia limitato.
+- Fissare tracing 0.1.44, OpenTelemetry API 0.32.0 e tracing-opentelemetry 0.33.0. Il crate di
+  osservabilità fornisce convenzioni e un ponte di interoperabilità, ma non installa un subscriber
+  globale, un SDK, un exporter, un collector o un backend di un fornitore.
+- Tenere le metriche dietro un piccolo contratto di sink con nomi di strumenti stabili e attributi
+  validati a bassa cardinalità. Fornire un default no-op, così le librerie non richiedono mai un
+  runtime di telemetria.
+- Oscurare segreti, credenziali, payload, header di autorizzazione, cookie e sorgenti arbitrarie
+  di errori interni dall'output diagnostico predefinito.
 
-## Consequences
+## Conseguenze
 
-Applications retain ownership of route composition, authentication, authorization, subscriber
-installation, exporter selection, and collector configuration. HTTP and messaging can share
-correlation and trace context without making either core contract depend on a telemetry backend.
-Backend-specific metrics and tracing adapters can be introduced later without changing the
-runtime lifecycle or messaging contracts.
+Le applicazioni mantengono la responsabilità di composizione delle route, autenticazione,
+autorizzazione, installazione del subscriber, scelta dell'exporter e configurazione del collector.
+HTTP e messaggistica possono condividere il contesto di correlazione e di trace senza che uno dei
+due contratti core dipenda da un backend di telemetria. Adapter di metriche e tracing specifici di
+un backend si possono introdurre in seguito senza cambiare il ciclo di vita del runtime né i
+contratti di messaggistica.

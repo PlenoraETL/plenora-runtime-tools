@@ -1,22 +1,24 @@
-# Basic worker example
+# Esempio di worker di base
 
-This example uses only Plenora-owned worker contracts. It demonstrates:
+Questo esempio usa solo contratti di worker di proprietà di Plenora. Mostra:
 
-- a typed `WorkerHandler`;
-- a bounded concurrency configuration;
-- an injected exponential retry policy;
-- non-blocking lifecycle handoff through a bounded in-memory dispatcher;
-- redaction-safe inspection of a failed attempt;
-- coordinated worker and runtime drain.
+- un `WorkerHandler` tipizzato;
+- una configurazione a concorrenza limitata;
+- una policy di retry esponenziale iniettata;
+- il passaggio non bloccante degli eventi di ciclo di vita tramite un dispatcher in memoria
+  limitato;
+- l'ispezione di un tentativo fallito senza esporre dati sensibili;
+- il drain coordinato di worker e runtime.
 
-Run it from the workspace root:
+Eseguirlo dalla radice del workspace:
 
 ```text
 cargo run -p plenora-example-worker-basic
 ```
 
-The example intentionally triggers one retryable failure, but prints only its stable category and
-retry decision. It never prints the message payload or handler source.
-The lifecycle receiver is drained explicitly in the same async flow: the dispatcher owns no
-background task and reports accepted, delivered, and saturation-drop counters. The example also
-projects the final dispatcher state into runtime health using the optional criticality policy.
+L'esempio provoca di proposito un fallimento ritentabile, ma ne stampa solo la categoria stabile e
+la decisione di retry. Non stampa mai il payload del messaggio né la sorgente dell'handler.
+Il ricevitore del ciclo di vita viene svuotato esplicitamente nello stesso flusso async: il
+dispatcher non possiede alcun task in background e riporta i contatori di eventi accettati,
+consegnati e scartati per saturazione. L'esempio proietta anche lo stato finale del dispatcher
+nella health del runtime usando la policy di criticità opzionale.

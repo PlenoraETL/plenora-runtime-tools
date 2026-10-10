@@ -1,10 +1,10 @@
-# plenora-runtime-tools — Agent Implementation Specification
+# plenora-runtime-tools — Specifica implementativa per agenti
 
 **Documento:** Specifica tecnica implementativa per agenti di sviluppo  
 **Versione:** 0.1  
 **Data:** 15 agosto 2026  
-**Stato:** Draft implementativo — skeleton e prima foundation runtime  
-**Repository target proposto:** `PlenoraETL/plenora-runtime-tools`  
+**Stato:** Bozza implementativa — scheletro e prima foundation runtime  
+**Repository di destinazione proposto:** `PlenoraETL/plenora-runtime-tools`  
 **Linguaggio:** Rust  
 **Consumer principale di validazione:** PFM — Plenora Facility Management  
 **Classificazione:** Uso interno  
@@ -18,15 +18,16 @@ Questo documento deve essere trattato come specifica esecutiva.
 Gli agenti devono:
 
 1. rispettare rigorosamente i confini architetturali;
-2. non introdurre business model PFM nel core;
+2. non introdurre modelli di business PFM nel core;
 3. non accoppiare il core a NATS, Apalis, PostgreSQL o altri provider concreti;
 4. mantenere ogni crate compilabile e testabile in isolamento;
-5. privilegiare trait, adapter e dependency inversion;
+5. privilegiare trait, adapter e inversione delle dipendenze;
 6. non introdurre nuove dipendenze infrastrutturali senza motivazione documentata;
 7. aggiungere test per ogni requisito implementato;
-8. evitare `unwrap`, `expect`, `panic!` nei path runtime di produzione;
+8. evitare `unwrap`, `expect`, `panic!` nei percorsi runtime di produzione;
 9. preservare error category, phase, remote effect e retry disposition quando disponibili;
-10. produrre codice leggibile, documentato e compatibile con gli standard già usati nelle altre librerie Plenora.
+10. produrre codice leggibile, documentato e compatibile con gli standard già usati nelle altre
+    librerie Plenora.
 
 Quando una scelta non è definita da questa specifica, l'agente deve:
 
@@ -41,32 +42,33 @@ d. preferire la soluzione meno accoppiante.
 
 # 1. Obiettivo
 
-Costruire `plenora-runtime-tools`, una foundation Rust riusabile per l'esecuzione di microservizi e worker asincroni.
+Costruire `plenora-runtime-tools`, una foundation Rust riusabile per l'esecuzione di microservizi e
+worker asincroni.
 
 La libreria deve fornire una superficie comune per:
 
-- lifecycle del processo;
+- ciclo di vita del processo;
 - graceful shutdown;
-- task supervision;
-- worker execution;
-- message producer/consumer abstraction;
-- broker integration;
+- supervisione dei task;
+- esecuzione dei worker;
+- astrazione producer/consumer dei messaggi;
+- integrazione con il broker;
 - retry/backoff;
 - ack/nack;
-- dead-letter handling;
-- replay hooks;
+- gestione dei dead-letter;
+- hook di replay;
 - health/readiness;
-- runtime context;
+- contesto di runtime;
 - correlation e causation;
-- trace propagation;
+- propagazione delle trace;
 - outbox relay;
-- inbox/dedup abstractions;
-- idempotency abstractions;
-- observability hooks;
+- astrazioni inbox/dedup;
+- astrazioni di idempotenza;
+- hook di osservabilità;
 - testkit;
 - integrazione opzionale con le altre foundation Plenora.
 
-La libreria non deve implementare business logic.
+La libreria non deve implementare logica di business.
 
 ---
 
@@ -118,7 +120,7 @@ Dipendenza diretta ammessa dal runtime:
 runtime adapter → database-tools
 ```
 
-solo per moduli opzionali come outbox/inbox persistence adapter.
+solo per moduli opzionali come gli adapter di persistenza per outbox/inbox.
 
 Dipendenze dirette da evitare:
 
@@ -136,29 +138,32 @@ runtime-core → database-tools
 
 Il runtime asincrono di riferimento è Tokio.
 
-La libreria non deve reinventare scheduler, async executor, timer, socket I/O o task primitive.
+La libreria non deve reinventare scheduler, executor asincroni, timer, I/O su socket o primitive dei
+task.
 
 ## 3.2 Middleware
 
-Tower è la base preferita per middleware e composizione dei servizi.
+Tower è la base preferita per i middleware e la composizione dei servizi.
 
-Utilizzare Tower per capability come timeout, retry, rate limit, tracing, load shedding e middleware custom.
+Utilizzare Tower per funzionalità come timeout, retry, rate limit, tracing, load shedding e
+middleware personalizzati.
 
-## 3.3 Worker engine
+## 3.3 Motore dei worker
 
-Apalis è il **worker engine candidato iniziale**.
+Apalis è il **motore dei worker candidato iniziale**.
 
-> Apalis deve restare un implementation detail dietro API Plenora.
+> Apalis deve restare un dettaglio implementativo dietro API Plenora.
 
 Nessun microservizio consumer deve essere obbligato a importare tipi Apalis.
 
 ## 3.4 Broker iniziale
 
-NATS + JetStream è il **broker adapter candidato iniziale**.
+NATS + JetStream è l'**adapter di broker candidato iniziale**.
 
-> NATS deve restare un implementation detail dietro trait Plenora.
+> NATS deve restare un dettaglio implementativo dietro trait Plenora.
 
-Il core deve poter supportare in futuro Kafka, RabbitMQ o altri broker senza modifica delle API business dei consumer.
+Il core deve poter supportare in futuro Kafka, RabbitMQ o altri broker senza modificare le API di
+business dei consumer.
 
 ## 3.5 HTTP
 
@@ -166,9 +171,9 @@ Axum è il candidato iniziale per l'adapter HTTP.
 
 `runtime-core` non dipende da Axum.
 
-## 3.6 Observability
+## 3.6 Osservabilità
 
-Usare `tracing` e integrazione OpenTelemetry.
+Usare `tracing` e l'integrazione con OpenTelemetry.
 
 Il runtime non deve imporre un backend specifico.
 
@@ -178,30 +183,31 @@ Il runtime non deve imporre un backend specifico.
 
 Questa libreria non deve diventare:
 
-- ORM;
-- database abstraction;
-- ETL engine;
-- data transformation engine;
-- file parser;
-- workflow di dominio;
-- BPM engine;
-- authorization engine;
-- API gateway;
-- schema registry;
-- event sourcing engine;
-- distributed transaction coordinator;
-- saga business engine;
-- scheduler infrastrutturale Kubernetes;
-- container orchestrator;
-- replacement di NATS;
-- replacement di Apalis;
-- replacement di Tokio.
+- un ORM;
+- un'astrazione di database;
+- un motore ETL;
+- un motore di trasformazione dei dati;
+- un parser di file;
+- un workflow di dominio;
+- un motore BPM;
+- un motore di autorizzazione;
+- un API gateway;
+- uno schema registry;
+- un motore di event sourcing;
+- un coordinatore di transazioni distribuite;
+- un motore di saga di business;
+- uno scheduler infrastrutturale Kubernetes;
+- un orchestratore di container;
+- un sostituto di NATS;
+- un sostituto di Apalis;
+- un sostituto di Tokio.
 
-Non introdurre nel core concetti di dominio come `Building`, `Asset`, `WorkOrder`, `Tenant`, `Organization`, `CadastralUnit`.
+Non introdurre nel core concetti di dominio come `Building`, `Asset`, `WorkOrder`, `Tenant`,
+`Organization`, `CadastralUnit`.
 
 ---
 
-# 5. Repository layout
+# 5. Struttura del repository
 
 Creare il workspace:
 
@@ -257,9 +263,9 @@ plenora-runtime-tools/
 
 ---
 
-# 6. Dependency direction
+# 6. Direzione delle dipendenze
 
-La dependency direction è normativa.
+La direzione delle dipendenze è normativa.
 
 ```text
                      runtime-core
@@ -287,7 +293,7 @@ Regole:
 4. `runtime-messaging` non dipende da NATS.
 5. `runtime-worker` non espone tipi Apalis.
 6. `runtime-outbox` non dipende da PostgreSQL.
-7. l'eventuale adapter database dipenderà da `database-tools`, mai il contrario.
+7. l'eventuale adapter di database dipenderà da `database-tools`, mai il contrario.
 8. i microservizi dipendono dalle API Plenora, non dalle implementazioni sottostanti.
 
 ---
@@ -298,14 +304,14 @@ Regole:
 
 Fornire:
 
-- runtime lifecycle;
-- shutdown coordination;
-- task supervision;
-- clock abstraction minima;
-- service identity metadata;
-- generic runtime context;
-- health/readiness model;
-- error primitives comuni del runtime.
+- ciclo di vita del runtime;
+- coordinamento dello shutdown;
+- supervisione dei task;
+- astrazione minima dell'orologio;
+- metadati d'identità del servizio;
+- contesto di runtime generico;
+- modello di health/readiness;
+- primitive d'errore comuni del runtime.
 
 ## 7.2 API candidate
 
@@ -341,7 +347,7 @@ Non introdurre tenant o domini PFM.
 
 ---
 
-# 8. Task supervision
+# 8. Supervisione dei task
 
 Il runtime deve distinguere:
 
@@ -358,27 +364,27 @@ pub struct TaskSpec {
 }
 ```
 
-Fallimento di task `Critical`:
+Fallimento di un task `Critical`:
 
 ```text
 → runtime unhealthy
 → shutdown coordinato
 ```
 
-Fallimento di task `Optional`:
+Fallimento di un task `Optional`:
 
 ```text
 → log / metric
 → policy configurabile
 ```
 
-Il runtime deve catturare panic dei task e convertirli in outcome governato.
+Il runtime deve catturare i panic dei task e convertirli in un esito governato.
 
 ---
 
 # 9. Graceful shutdown
 
-Sequenza target:
+Sequenza obiettivo:
 
 ```text
 shutdown signal
@@ -399,12 +405,12 @@ terminate
 Requisiti:
 
 - shutdown idempotente;
-- signal multipli equivalenti a uno;
-- grace timeout configurabile;
-- nessun nuovo lavoro dopo entering-drain;
-- in-flight work osservabile;
-- timeout di drain produce esito esplicito;
-- niente process hang indefinito.
+- più segnali equivalgono a uno solo;
+- timeout di grazia configurabile;
+- nessun nuovo lavoro dopo l'ingresso in drain;
+- lavoro in corso osservabile;
+- il timeout del drain produce un esito esplicito;
+- nessun blocco indefinito del processo.
 
 ---
 
@@ -429,7 +435,7 @@ pub struct ComponentHealth {
 }
 ```
 
-Il core deve poter aggregare broker, database, worker, outbox relay e external dependency.
+Il core deve poter aggregare broker, database, worker, outbox relay e dipendenze esterne.
 
 Health e readiness non devono essere sinonimi.
 
@@ -437,7 +443,7 @@ Health e readiness non devono essere sinonimi.
 
 # 11. Crate `plenora-runtime-messaging`
 
-Responsabilità: definire il contratto broker-agnostic.
+Responsabilità: definire il contratto indipendente dal broker.
 
 ## 11.1 Identificatori
 
@@ -464,7 +470,7 @@ pub struct MessageEnvelope<T> {
 
 ## 11.3 MessageMetadata
 
-Deve essere genericamente namespaced.
+Deve essere organizzato per namespace in modo generico.
 
 ```text
 myapp.key
@@ -472,13 +478,13 @@ plenora.message.*
 plenora.trace.*
 ```
 
-Non hardcodare namespace consumer come `pfm.*`.
+Non cablare nel codice namespace di consumer come `pfm.*`.
 
 ---
 
-# 12. Serialization
+# 12. Serializzazione
 
-Il core messaging non deve imporre il payload format al dominio.
+Il core di messaging non deve imporre il formato del payload al dominio.
 
 ```rust
 pub struct SerializedMessage {
@@ -525,7 +531,7 @@ pub enum PublishOutcome {
 }
 ```
 
-Non trasformare un outcome incerto in successo.
+Non trasformare un esito incerto in un successo.
 
 ---
 
@@ -542,7 +548,7 @@ pub trait MessageConsumer: Send {
 }
 ```
 
-La delivery possiede envelope/message, delivery attempt, broker metadata e ack handle.
+La delivery possiede envelope/messaggio, tentativo di consegna, metadati del broker e handle di ack.
 
 ```rust
 pub struct Delivery {
@@ -552,7 +558,7 @@ pub struct Delivery {
 }
 ```
 
-Ack API:
+API di ack:
 
 ```rust
 impl Delivery {
@@ -565,7 +571,7 @@ Dopo `ack` / `nack`, la delivery non deve essere riutilizzabile.
 
 ---
 
-# 15. Ack/Nack semantics
+# 15. Semantica di ack/nack
 
 ```rust
 pub enum NackReason {
@@ -576,11 +582,11 @@ pub enum NackReason {
 }
 ```
 
-Il mapping verso NATS/Kafka/RabbitMQ appartiene agli adapter.
+La mappatura verso NATS/Kafka/RabbitMQ spetta agli adapter.
 
 ---
 
-# 16. Retry model
+# 16. Modello di retry
 
 ```rust
 pub enum RetryDecision {
@@ -601,11 +607,11 @@ pub trait RetryPolicy<E> {
 Requisiti:
 
 - jitter opzionale;
-- exponential backoff;
-- max attempts;
-- max elapsed time;
-- no retry su outcome sconosciuto salvo policy esplicita;
-- retry policy non hardcoded nel worker engine.
+- backoff esponenziale;
+- numero massimo di tentativi;
+- tempo massimo trascorso;
+- nessun retry su esito sconosciuto, salvo policy esplicita;
+- policy di retry non cablata nel motore dei worker.
 
 ---
 
@@ -644,7 +650,7 @@ pub struct BrokerCapabilities {
 }
 ```
 
-Mai assumere capability inesistenti.
+Mai presumere capability inesistenti.
 
 ---
 
@@ -672,9 +678,9 @@ pub struct WorkerContext {
 }
 ```
 
-Nessun business field PFM.
+Nessun campo di business PFM.
 
-Worker concurrency:
+Concorrenza dei worker:
 
 ```rust
 pub struct WorkerConcurrency {
@@ -682,11 +688,11 @@ pub struct WorkerConcurrency {
 }
 ```
 
-No unbounded task spawn e no unbounded channel.
+Nessuno spawn illimitato di task e nessun canale illimitato.
 
 ---
 
-# 19. Apalis adapter
+# 19. Adapter Apalis
 
 Crate:
 
@@ -694,7 +700,7 @@ Crate:
 adapters/plenora-runtime-apalis
 ```
 
-Nessun tipo Apalis deve comparire nelle API pubbliche core.
+Nessun tipo Apalis deve comparire nelle API pubbliche del core.
 
 Responsabilità:
 
@@ -706,24 +712,24 @@ Apalis Service / Worker
 
 Apalis gestisce:
 
-- worker concurrency;
-- worker lifecycle;
-- Tower pipeline;
-- scheduling/execution mechanics;
-- retry middleware dove appropriato.
+- concorrenza dei worker;
+- ciclo di vita dei worker;
+- pipeline Tower;
+- meccanica di scheduling/esecuzione;
+- middleware di retry dove appropriato.
 
 Plenora mantiene:
 
 - envelope;
-- context;
-- ack semantics;
-- error classification;
-- outbox/inbox semantics;
-- health conventions.
+- contesto;
+- semantica di ack;
+- classificazione degli errori;
+- semantica di outbox/inbox;
+- convenzioni di health.
 
 ---
 
-# 20. NATS JetStream adapter
+# 20. Adapter NATS JetStream
 
 Crate:
 
@@ -735,17 +741,17 @@ Responsabilità:
 
 - `MessageProducer`;
 - `MessageConsumer`;
-- Delivery ack/nack;
-- durable consumer;
-- pull consumer;
-- explicit ack;
-- redelivery;
-- replay capability;
+- ack/nack della Delivery;
+- consumer durevole;
+- consumer pull;
+- ack esplicito;
+- riconsegna;
+- capability di replay;
 - health check;
-- broker metadata;
-- reconnect.
+- metadati del broker;
+- riconnessione.
 
-Config candidata:
+Configurazione candidata:
 
 ```rust
 pub struct NatsConfig {
@@ -764,13 +770,13 @@ pub struct JetStreamConsumerConfig {
 }
 ```
 
-Non hardcodare subject PFM.
+Non cablare nel codice subject PFM.
 
-Non creare automaticamente infrastruttura di produzione senza flag esplicito.
+Non creare automaticamente infrastruttura di produzione senza un flag esplicito.
 
 ---
 
-# 21. Responsabilità NATS / Apalis / runtime-tools
+# 21. Responsabilità di NATS / Apalis / runtime-tools
 
 ```text
 NATS JetStream
@@ -804,7 +810,7 @@ runtime-tools
 
 # 22. Crate `plenora-runtime-outbox`
 
-La prima versione deve offrire astrazioni e fake store, non persistenza PostgreSQL reale.
+La prima versione deve offrire astrazioni e fake store, non una persistenza PostgreSQL reale.
 
 ```rust
 #[async_trait]
@@ -842,7 +848,7 @@ pub struct OutboxEntry {
 
 # 23. OutboxRelay
 
-Flow:
+Flusso:
 
 ```text
 claim pending
@@ -859,7 +865,7 @@ published      │
           retain/retry
 ```
 
-`OutcomeUnknown` non deve essere automaticamente convertito in retry immediato.
+`OutcomeUnknown` non deve essere convertito automaticamente in un retry immediato.
 
 Serve una policy esplicita.
 
@@ -908,11 +914,11 @@ Persistenza concreta fuori dal core.
 
 ---
 
-# 25. Database adapter — rinviato
+# 25. Adapter di database — rinviato
 
 Non implementare nella prima milestone l'adapter reale verso `plenora-database-tools`.
 
-Lo skeleton deve però permettere:
+Lo scheletro deve però permettere:
 
 ```text
 runtime-outbox traits
@@ -924,7 +930,7 @@ runtime-database adapter
 database-tools
 ```
 
-La transazione business rimane posseduta dal consumer.
+La transazione di business resta di proprietà del consumer.
 
 Pattern futuro obbligatorio:
 
@@ -963,30 +969,30 @@ Fornire:
 
 - bootstrap;
 - request ID;
-- correlation extraction/generation;
-- trace integration;
-- health endpoints;
-- readiness endpoints;
-- graceful shutdown hook;
-- common error-response hooks.
+- estrazione/generazione della correlation;
+- integrazione con il tracing;
+- endpoint di health;
+- endpoint di readiness;
+- hook di graceful shutdown;
+- hook comuni per le risposte d'errore.
 
-Non implementare autorizzazione business.
+Non implementare autorizzazione di business.
 
 ---
 
-# 27. Observability crate
+# 27. Crate di osservabilità
 
 Fornire convenzioni/helper per:
 
-- structured tracing;
-- span naming;
-- correlation propagation;
-- metric naming;
-- worker metrics;
-- broker metrics;
-- outbox metrics;
-- health metrics;
-- redaction hooks.
+- tracing strutturato;
+- nomenclatura degli span;
+- propagazione della correlation;
+- nomenclatura delle metriche;
+- metriche dei worker;
+- metriche del broker;
+- metriche dell'outbox;
+- metriche di health;
+- hook di mascheramento.
 
 Metriche candidate:
 
@@ -1012,11 +1018,11 @@ broker_reconnect_total
 consumer_lag
 ```
 
-Non imporre Grafana, Datadog, Tempo, Jaeger o backend specifico.
+Non imporre Grafana, Datadog, Tempo, Jaeger o un backend specifico.
 
 ---
 
-# 28. Error model
+# 28. Modello degli errori
 
 Il runtime deve seguire la stessa filosofia delle altre librerie Plenora.
 
@@ -1030,13 +1036,14 @@ retry disposition
 source
 ```
 
-Non creare un error model incompatibile.
+Non creare un modello degli errori incompatibile.
 
-Se i tipi condivisi verranno stabilizzati in un crate comune futuro, migrare senza breaking API dove possibile.
+Se i tipi condivisi verranno stabilizzati in un futuro crate comune, migrare senza rompere le API
+dove possibile.
 
 ---
 
-# 29. Cancellation bridging
+# 29. Ponte per la cancellazione
 
 Le altre foundation possiedono primitive proprie.
 
@@ -1055,7 +1062,7 @@ Runtime ShutdownSignal
 La cancellazione deve essere:
 
 - cooperativa;
-- bounded;
+- limitata;
 - osservabile;
 - idempotente.
 
@@ -1063,7 +1070,7 @@ La cancellazione deve essere:
 
 # 30. Crate `plenora-runtime-testkit`
 
-First-class, non posticipato.
+Di prima classe, non rinviato.
 
 Fornire:
 
@@ -1076,25 +1083,25 @@ Fornire:
 - FakeIdempotencyStore;
 - ManualClock / TestClock;
 - ShutdownHarness;
-- deterministic retry utilities.
+- utility deterministiche per il retry.
 
 FakeBroker deve supportare:
 
 - enqueue;
 - dequeue;
-- duplicate injection;
-- delayed delivery;
+- iniezione di duplicati;
+- consegna ritardata;
 - nack;
-- redelivery;
-- disconnect simulation;
-- ack failure simulation;
-- publish outcome unknown simulation.
+- riconsegna;
+- simulazione di disconnessione;
+- simulazione di un fallimento dell'ack;
+- simulazione di un esito di publish sconosciuto.
 
 ---
 
-# 31. Test scenarios obbligatori
+# 31. Scenari di test obbligatori
 
-## Worker success
+## Successo del worker
 
 ```text
 enqueue
@@ -1103,7 +1110,7 @@ enqueue
 → ack
 ```
 
-## Worker failure retryable
+## Fallimento del worker ripetibile
 
 ```text
 handler error retryable
@@ -1113,14 +1120,14 @@ handler error retryable
 → ack
 ```
 
-## Worker permanent failure
+## Fallimento permanente del worker
 
 ```text
 handler permanent error
 → dead-letter
 ```
 
-## Duplicate delivery
+## Consegna duplicata
 
 ```text
 same message_id delivered twice
@@ -1136,7 +1143,7 @@ shutdown
 → process exits
 ```
 
-## Forced shutdown
+## Shutdown forzato
 
 ```text
 shutdown
@@ -1145,7 +1152,7 @@ shutdown
 → delivery nack/requeue where supported
 ```
 
-## Broker disconnect
+## Disconnessione del broker
 
 ```text
 broker unavailable
@@ -1154,7 +1161,7 @@ broker unavailable
 → readiness true
 ```
 
-## Publish OutcomeUnknown
+## Publish con OutcomeUnknown
 
 ```text
 publish remote effect unknown
@@ -1164,7 +1171,7 @@ publish remote effect unknown
 
 ---
 
-# 32. Architecture tests
+# 32. Test architetturali
 
 Impedire almeno:
 
@@ -1178,7 +1185,7 @@ runtime-outbox imports PostgreSQL driver
 
 ---
 
-# 33. CI gates
+# 33. Gate della CI
 
 Pipeline minima:
 
@@ -1193,31 +1200,31 @@ cargo deny check
 
 Aggiungere, coerentemente con le altre librerie:
 
-- no-panic/anti-unwrap checks;
-- unsafe code policy;
-- dependency pinning;
-- MSRV check;
+- controlli no-panic/anti-unwrap;
+- policy sul codice unsafe;
+- pinning delle dipendenze;
+- verifica della MSRV;
 - Windows/Linux/macOS;
-- same-SHA release qualification.
+- qualificazione del rilascio sullo stesso SHA.
 
 ---
 
-# 34. Security requirements
+# 34. Requisiti di sicurezza
 
-- no secret nei log;
-- credential type redacted;
-- NATS credentials non Debug-visible;
-- metadata sensitive redacted;
-- TLS richiesto dagli adapter production-oriented;
-- health endpoint non espone secret/config interna;
+- nessun segreto nei log;
+- tipo delle credenziali mascherato;
+- credenziali NATS non visibili tramite Debug;
+- metadati sensibili mascherati;
+- TLS richiesto dagli adapter orientati alla produzione;
+- l'endpoint di health non espone segreti né configurazione interna;
 - replay non abilitato automaticamente;
-- DLQ payload non loggato per default;
-- no broker credential in error messages;
-- bounded payload configuration.
+- payload della DLQ non registrato nei log per impostazione predefinita;
+- nessuna credenziale del broker nei messaggi d'errore;
+- configurazione con payload limitato.
 
 ---
 
-# 35. Milestone 1 — Skeleton + fakes
+# 35. Milestone 1 — Scheletro + fake
 
 Implementare:
 
@@ -1263,14 +1270,14 @@ plenora-runtime-apalis
 
 Dimostrare:
 
-- worker startup;
-- concurrency;
-- handler dispatch;
-- Tower middleware;
+- avvio dei worker;
+- concorrenza;
+- dispatch verso gli handler;
+- middleware Tower;
 - retry;
 - graceful shutdown;
-- error propagation;
-- zero leakage di tipi Apalis nelle API core.
+- propagazione degli errori;
+- nessuna fuoriuscita di tipi Apalis nelle API del core.
 
 ---
 
@@ -1284,21 +1291,21 @@ plenora-runtime-nats
 
 Dimostrare:
 
-- connection;
-- durable pull consumer;
-- explicit ack;
-- redelivery;
-- reconnect;
-- resume;
+- connessione;
+- consumer pull durevole;
+- ack esplicito;
+- riconsegna;
+- riconnessione;
+- ripresa;
 - replay;
-- duplicate delivery;
+- consegna duplicata;
 - graceful shutdown.
 
-Test con NATS ephemeral/containerizzato.
+Test con NATS effimero/in container.
 
 ---
 
-# 38. Milestone 4 — HTTP + observability
+# 38. Milestone 4 — HTTP + osservabilità
 
 Deliverable:
 
@@ -1309,18 +1316,18 @@ plenora-runtime-observability
 
 Dimostrare:
 
-- Axum bootstrap;
+- bootstrap Axum;
 - correlation;
 - tracing;
 - health/readiness;
 - shutdown;
-- metric hooks.
+- hook per le metriche.
 
 ---
 
-# 39. Milestone 5 — Database adapter
+# 39. Milestone 5 — Adapter di database
 
-Solo dopo stabilizzazione `plenora-database-tools`.
+Solo dopo la stabilizzazione di `plenora-database-tools`.
 
 Deliverable futuro:
 
@@ -1330,27 +1337,27 @@ plenora-runtime-database
 
 Implementare:
 
-- outbox store adapter;
-- inbox store adapter;
-- idempotency store adapter;
-- health adapter.
+- adapter per lo store di outbox;
+- adapter per lo store di inbox;
+- adapter per lo store di idempotenza;
+- adapter di health.
 
 ---
 
-# 40. Agent Work Packages
+# 40. Pacchetti di lavoro per gli agenti
 
-## AGENT-00 — Workspace bootstrap
+## AGENT-00 — Avvio del workspace
 
 Deliverable:
 
-- root workspace;
+- workspace radice;
 - crate vuoti;
 - README;
-- docs skeleton;
-- fmt/clippy/test workflow;
-- dependency policy.
+- scheletro della documentazione;
+- workflow fmt/clippy/test;
+- policy delle dipendenze.
 
-Acceptance:
+Accettazione:
 
 ```text
 cargo check --workspace
@@ -1368,17 +1375,17 @@ Implementare:
 - ShutdownSignal;
 - RuntimeContext;
 - RuntimeHandle;
-- task supervision;
+- supervisione dei task;
 - health/readiness;
 - graceful shutdown.
 
 Test:
 
 - shutdown idempotente;
-- critical task failure;
-- optional task failure;
-- drain timeout;
-- task panic captured.
+- fallimento di un task critical;
+- fallimento di un task optional;
+- timeout del drain;
+- panic di un task catturato.
 
 ## AGENT-02 — runtime-messaging
 
@@ -1390,7 +1397,7 @@ Implementare:
 - MessageMetadata;
 - SerializedMessage;
 - MessageEnvelope;
-- Producer/Consumer traits;
+- trait Producer/Consumer;
 - Delivery;
 - Ack/Nack;
 - RetryPolicy;
@@ -1398,10 +1405,10 @@ Implementare:
 
 Test:
 
-- metadata namespacing;
-- ownership ack;
-- retry decisions;
-- serialization-neutral core.
+- namespace dei metadati;
+- ownership dell'ack;
+- decisioni di retry;
+- core neutrale rispetto alla serializzazione.
 
 ## AGENT-03 — runtime-testkit
 
@@ -1411,13 +1418,13 @@ Implementare:
 - FakeConsumer;
 - FakeDelivery;
 - FakeBroker;
-- fault injection;
-- deterministic clock;
-- shutdown harness.
+- iniezione di guasti;
+- orologio deterministico;
+- harness di shutdown.
 
-## AGENT-04 — runtime-worker + Apalis adapter
+## AGENT-04 — runtime-worker + adapter Apalis
 
-Implementare core:
+Implementare nel core:
 
 - WorkerHandler;
 - WorkerContext;
@@ -1425,82 +1432,82 @@ Implementare core:
 
 Adapter:
 
-- mapping verso Apalis;
-- Tower layers;
-- concurrency;
+- mappatura verso Apalis;
+- layer Tower;
+- concorrenza;
 - graceful shutdown.
 
-Vincolo: nessun tipo Apalis nelle API core.
+Vincolo: nessun tipo Apalis nelle API del core.
 
 ## AGENT-05 — runtime-outbox
 
 Implementare:
 
-- OutboxStore trait;
-- InboxStore trait;
-- IdempotencyStore trait;
+- trait OutboxStore;
+- trait InboxStore;
+- trait IdempotencyStore;
 - OutboxEntry;
 - OutboxRelay;
-- dedup helper.
+- helper di dedup.
 
 Solo fake store nella prima fase.
 
-## AGENT-06 — NATS adapter
+## AGENT-06 — Adapter NATS
 
 Implementare:
 
-- async NATS client adapter;
-- JetStream producer;
-- durable pull consumer;
-- explicit ack;
-- reconnect;
+- adapter per il client NATS asincrono;
+- producer JetStream;
+- consumer pull durevole;
+- ack esplicito;
+- riconnessione;
 - replay;
-- capability report;
+- report delle capability;
 - health.
 
-Test con NATS ephemeral.
+Test con NATS effimero.
 
-## AGENT-07 — HTTP adapter
+## AGENT-07 — Adapter HTTP
 
 Implementare:
 
-- Axum bootstrap;
-- Tower middleware;
-- request/correlation ID;
+- bootstrap Axum;
+- middleware Tower;
+- ID di request/correlation;
 - health;
 - readiness;
 - graceful shutdown.
 
-Non implementare authorization PFM.
+Non implementare l'autorizzazione PFM.
 
-## AGENT-08 — Observability
+## AGENT-08 — Osservabilità
 
 Implementare:
 
-- tracing spans;
-- propagation;
-- worker metrics;
-- broker metrics;
-- outbox metrics;
-- redaction interfaces.
+- span di tracing;
+- propagazione;
+- metriche dei worker;
+- metriche del broker;
+- metriche dell'outbox;
+- interfacce di mascheramento.
 
-## AGENT-09 — Cross-cutting QA
+## AGENT-09 — QA trasversale
 
 Verificare:
 
-- dependency direction;
-- implementation leakage;
-- secret leakage;
-- bounded queues;
-- panic paths;
-- cancellation;
-- fault injection;
-- docs;
-- examples.
+- direzione delle dipendenze;
+- fuoriuscita di dettagli implementativi;
+- fuoriuscita di segreti;
+- code limitate;
+- percorsi di panic;
+- cancellazione;
+- iniezione di guasti;
+- documentazione;
+- esempi.
 
 ---
 
-# 41. Merge order raccomandato
+# 41. Ordine di merge raccomandato
 
 ```text
 AGENT-00
@@ -1518,115 +1525,115 @@ AGENT-07 + AGENT-08
 AGENT-09
 ```
 
-Alcuni stream possono procedere in parallelo dopo la stabilizzazione dei trait.
+Alcuni filoni possono procedere in parallelo dopo la stabilizzazione dei trait.
 
 ---
 
-# 42. Scope creep guard
+# 42. Argine contro lo scope creep
 
 Non implementare nella v0.1:
 
 - scheduler cron distribuito;
 - workflow DAG;
-- saga orchestration engine;
-- distributed locks;
-- distributed cache;
-- leader election;
+- motore di orchestrazione di saga;
+- lock distribuiti;
+- cache distribuita;
+- elezione del leader;
 - schema registry;
-- Kafka adapter;
-- RabbitMQ adapter;
-- Kubernetes operator;
-- UI dashboard;
-- admin console;
-- PFM-specific middleware;
-- database adapter reale prima della stabilizzazione richiesta.
+- adapter Kafka;
+- adapter RabbitMQ;
+- operator Kubernetes;
+- dashboard UI;
+- console di amministrazione;
+- middleware specifici per PFM;
+- adapter di database reale prima della stabilizzazione richiesta.
 
-Ogni elemento richiede issue/ADR separato.
+Ogni elemento richiede una issue/ADR separata.
 
 ---
 
-# 43. API freeze gates
+# 43. Gate per il congelamento delle API
 
-Non congelare API 1.0 prima di avere:
+Non congelare le API 1.0 prima di avere:
 
-1. fake E2E;
-2. Apalis integration;
-3. NATS integration;
+1. E2E con i fake;
+2. integrazione con Apalis;
+3. integrazione con NATS;
 4. almeno un consumer reale di prova;
-5. un microservizio PFM PoC;
-6. outbox adapter su database-tools;
-7. fault injection.
+5. un PoC di microservizio PFM;
+6. adapter di outbox su database-tools;
+7. iniezione di guasti.
 
 ---
 
 # 44. Definition of Done generale
 
-`plenora-runtime-tools` skeleton è considerato completato quando:
+Lo scheletro di `plenora-runtime-tools` è considerato completato quando:
 
-- [ ] repository workspace creato;
-- [ ] dependency direction verificata;
+- [ ] workspace del repository creato;
+- [ ] direzione delle dipendenze verificata;
 - [ ] runtime-core implementato;
 - [ ] runtime-messaging implementato;
 - [ ] runtime-worker implementato;
-- [ ] runtime-outbox traits implementati;
+- [ ] trait di runtime-outbox implementati;
 - [ ] runtime-testkit implementato;
-- [ ] fake E2E completo;
-- [ ] Apalis adapter funzionante;
-- [ ] NATS JetStream adapter funzionante;
+- [ ] E2E con i fake completo;
+- [ ] adapter Apalis funzionante;
+- [ ] adapter NATS JetStream funzionante;
 - [ ] graceful shutdown verificato;
 - [ ] retry verificato;
-- [ ] duplicate delivery verificata;
-- [ ] DLQ semantics verificata;
+- [ ] consegna duplicata verificata;
+- [ ] semantica della DLQ verificata;
 - [ ] OutcomeUnknown propagato;
 - [ ] health/readiness disponibili;
-- [ ] observability hooks disponibili;
-- [ ] HTTP adapter disponibile o esplicitamente rinviato;
-- [ ] nessun PFM business type nel core;
-- [ ] nessun Apalis type leakage;
-- [ ] nessun NATS type leakage;
-- [ ] docs e examples completi;
+- [ ] hook di osservabilità disponibili;
+- [ ] adapter HTTP disponibile o esplicitamente rinviato;
+- [ ] nessun tipo di business PFM nel core;
+- [ ] nessuna fuoriuscita di tipi Apalis;
+- [ ] nessuna fuoriuscita di tipi NATS;
+- [ ] documentazione ed esempi completi;
 - [ ] CI verde;
-- [ ] security review completata.
+- [ ] revisione di sicurezza completata.
 
 ---
 
-# 45. PFM consumer readiness
+# 45. Prontezza per il consumer PFM
 
-Questa sezione è consumer-specifica ma non modifica il core.
+Questa sezione è specifica del consumer ma non modifica il core.
 
 PFM deve poter costruire sopra runtime-tools:
 
-- metadata `pfm.*`;
-- tenant/actor context;
+- metadati `pfm.*`;
+- contesto tenant/actor;
 - correlation/causation;
-- transactional outbox;
-- transactional inbox;
+- outbox transazionale;
+- inbox transazionale;
 - replay governato;
-- durable consumers;
-- audit consumer;
-- graph projection consumer;
-- KPI consumer;
-- notification consumer.
+- consumer durevoli;
+- consumer di audit;
+- consumer di proiezione sul grafo;
+- consumer dei KPI;
+- consumer delle notifiche.
 
-Nessuno di questi concetti deve essere hardcoded nel runtime generico.
+Nessuno di questi concetti deve essere cablato nel runtime generico.
 
 ---
 
-# 46. Open decisions / ADR
+# 46. Decisioni aperte / ADR
 
 Creare ADR per:
 
-1. versione Apalis da fissare;
-2. versione NATS client da fissare;
-3. JSON vs altro codec per esempi/default;
-4. modello error condiviso definitivo;
-5. bridge cancellation con le altre foundation;
-6. schema outbox fisico;
-7. schema inbox fisico;
-8. database adapter API;
-9. HTTP adapter public surface;
-10. OpenTelemetry propagation format;
-11. release/MSRV policy;
+1. versione di Apalis da fissare;
+2. versione del client NATS da fissare;
+3. JSON o altro codec per esempi/default;
+4. modello d'errore condiviso definitivo;
+5. ponte di cancellazione con le altre foundation;
+6. schema fisico dell'outbox;
+7. schema fisico dell'inbox;
+8. API dell'adapter di database;
+9. superficie pubblica dell'adapter HTTP;
+10. formato di propagazione OpenTelemetry;
+11. policy di rilascio/MSRV;
 12. eventuale supporto Kafka;
 13. eventuale supporto RabbitMQ.
 
@@ -1679,4 +1686,4 @@ plenora-runtime-tools
 
 | Versione | Data | Sintesi |
 |---|---|---|
-| 0.1 | 15 agosto 2026 | Prima specifica implementativa agent-oriented dello skeleton `plenora-runtime-tools`, con core broker-agnostic, Apalis worker adapter, NATS JetStream adapter, outbox/inbox abstractions, lifecycle, health, observability e testkit. |
+| 0.1 | 15 agosto 2026 | Prima specifica implementativa orientata agli agenti per lo scheletro di `plenora-runtime-tools`, con core indipendente dal broker, adapter worker Apalis, adapter NATS JetStream, astrazioni outbox/inbox, ciclo di vita, health, osservabilità e testkit. |

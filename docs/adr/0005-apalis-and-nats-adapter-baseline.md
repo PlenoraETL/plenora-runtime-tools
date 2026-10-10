@@ -1,49 +1,56 @@
-# ADR 0005: Apalis and NATS adapter baseline
+# ADR 0005: base degli adapter Apalis e NATS
 
-- Status: accepted
-- Date: 2026-08-15
+- Stato: accettato
+- Data: 2026-08-15
 
-## Context
+## Contesto
 
-Milestone 2 introduces Apalis as a worker engine adapter and NATS JetStream as a concrete broker
-adapter. Both libraries evolve independently from the Plenora contracts and must remain behind
-adapter boundaries. Publication and acknowledgement can have an unknown remote effect, while a
-Plenora delivery owns its acknowledgement capability and cannot be cloned safely.
+La Milestone 2 introduce Apalis come adapter del motore di worker e NATS JetStream come adapter di
+broker concreto. Entrambe le librerie evolvono indipendentemente dai contratti Plenora e devono
+restare dietro i confini degli adapter. Pubblicazione e acknowledgement possono avere un effetto
+remoto sconosciuto, mentre una consegna Plenora possiede la propria capability di acknowledgement
+e non si può clonare in sicurezza.
 
-## Decision
+## Decisione
 
-- Pin stable Apalis 0.7.4 with default features disabled. Enable only concurrency limiting and
-  panic capture. Do not adopt the Apalis 1.0 release candidate in the initial release.
-- Keep retry classification in Plenora. Do not apply a Tower retry layer to an owned delivery.
-- Pin async-nats 0.50.0 with default features disabled and enable JetStream, Ring TLS, Chrono time
-  conversion, and NKey credentials.
-- Require TLS by default for production connections. Local plaintext use requires explicit
-  configuration.
-- Bind producers to an explicit subject and consumers to an existing stream and durable consumer
-  by default. Infrastructure creation requires an explicit provisioning flag.
-- A JetStream publish is confirmed only after its publish acknowledgement resolves. Ambiguous
-  post-send failures remain OutcomeUnknown and are never retried implicitly.
-- Use explicit pull-consumer acknowledgements. Positive acknowledgement waits for server
-  confirmation. Retryable failures map to NAK; permanent and consumer-rejected failures map to
-  TERM. Shutdown maps to a delayed NAK configured by the adapter.
-- Surface controlled reconnect for credential rotation and deterministic verification. Graceful
-  drain is asynchronous: after `begin_drain`, callers poll consumer streams until they end before
-  completing process shutdown.
-- Report capabilities conservatively: durable consumers and replay are true; ordered delivery,
-  native dead-letter, and exactly-once claims remain false.
-- Preserve binary Plenora metadata through a reversible textual encoding in reserved NATS
-  headers. Never place raw secrets or payloads in Debug or error output.
-- Compose NATS and Apalis at the application boundary through the broker-neutral
-  `BrokerWorkerRunner`; neither concrete adapter depends on the other.
-- Poll the broker only after Apalis concurrency readiness grants capacity. Preserve retry delay in
-  `NackReason::RetryAfter` and map it to JetStream delayed NAK.
-- Pin the ephemeral integration server to the official multi-architecture image
-  nats:2.14.5-alpine3.22 with OCI digest
+- Fissare Apalis 0.7.4 stabile con le feature predefinite disattivate. Attivare solo la
+  limitazione della concorrenza e la cattura dei panic. Non adottare la release candidate di
+  Apalis 1.0 nel rilascio iniziale.
+- Tenere la classificazione dei retry in Plenora. Non applicare un layer di retry di Tower a una
+  consegna posseduta.
+- Fissare async-nats 0.50.0 con le feature predefinite disattivate e attivare JetStream, TLS con
+  Ring, conversione temporale Chrono e credenziali NKey.
+- Richiedere TLS per impostazione predefinita per le connessioni di produzione. L'uso locale in
+  chiaro richiede una configurazione esplicita.
+- Per impostazione predefinita, legare i producer a un subject esplicito e i consumer a uno stream
+  e a un consumer durevole esistenti. La creazione di infrastruttura richiede un flag di
+  provisioning esplicito.
+- Una pubblicazione JetStream è confermata solo dopo che il suo acknowledgement di pubblicazione è
+  risolto. I fallimenti ambigui dopo l'invio restano OutcomeUnknown e non vengono mai ritentati
+  implicitamente.
+- Usare acknowledgement espliciti del pull consumer. L'acknowledgement positivo attende la conferma
+  del server. I fallimenti ritentabili diventano NAK; quelli permanenti e quelli rifiutati dal
+  consumer diventano TERM. L'arresto diventa un NAK ritardato configurato dall'adapter.
+- Esporre una riconnessione controllata per la rotazione delle credenziali e la verifica
+  deterministica. Il drain ordinato è asincrono: dopo `begin_drain`, i chiamanti interrogano gli
+  stream del consumer finché non terminano prima di completare l'arresto del processo.
+- Dichiarare le capability in modo conservativo: consumer durevoli e replay sono veri; consegna
+  ordinata, dead-letter nativo ed exactly-once restano falsi.
+- Preservare i metadati binari Plenora tramite una codifica testuale reversibile in header NATS
+  riservati. Non mettere mai segreti grezzi o payload nell'output Debug o di errore.
+- Comporre NATS e Apalis al confine dell'applicazione tramite il `BrokerWorkerRunner` indipendente
+  dal broker; nessuno dei due adapter concreti dipende dall'altro.
+- Interrogare il broker solo dopo che la readiness di concorrenza di Apalis concede capacità.
+  Preservare il ritardo di retry in `NackReason::RetryAfter` e tradurlo nel NAK ritardato di
+  JetStream.
+- Fissare il server di integrazione effimero all'immagine ufficiale multi-architettura
+  nats:2.14.5-alpine3.22 con digest OCI
   sha256:d4ac35882ac65aff236cd65b9d3fa4d24332c681e1a85f94eedccd3cdd65b1da.
 
-## Consequences
+## Conseguenze
 
-The worker core remains independent of Apalis and messaging remains independent of NATS.
-Applications must own idempotency for at-least-once delivery and uncertain publication. Adapter
-tests can exercise real JetStream behavior without making production infrastructure implicitly.
-Future adoption of Apalis 1.0 or a different TLS provider requires a new compatibility review.
+Il core dei worker resta indipendente da Apalis e la messaggistica resta indipendente da NATS.
+Le applicazioni devono farsi carico dell'idempotenza per la consegna at-least-once e per la
+pubblicazione incerta. I test degli adapter possono esercitare il comportamento reale di JetStream
+senza creare implicitamente infrastruttura di produzione. Un'adozione futura di Apalis 1.0 o di un
+diverso provider TLS richiede una nuova revisione di compatibilità.

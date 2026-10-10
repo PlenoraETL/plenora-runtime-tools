@@ -1,16 +1,16 @@
-# Generic capability integration
+# Integrazione generica delle capability
 
-`plenora-runtime-capabilities` is the stable connection point between generic runtime mechanics and
-application-owned Rust libraries. Runtime crates do not import `data-tools`, `database-tools`,
-`IO-tools`, or future foundation crates.
+`plenora-runtime-capabilities` è il punto di collegamento stabile fra la meccanica generica del
+runtime e le librerie Rust di proprietà dell'applicazione. I crate del runtime non importano
+`data-tools`, `database-tools`, `IO-tools` né futuri crate di fondazione.
 
-## Registration model
+## Modello di registrazione
 
-The embedding consumer constructs a bounded registry during startup and then freezes it. Every
-identity contains a lowercase ASCII namespace and a positive wire version, for example
-`plenora.data-tools@v1`. Every operation is also the complete namespaced public identifier, such as
-`data.run`; local aliases such as `run` are rejected. One handler may route multiple validated
-operations for that library.
+Il consumer ospite costruisce un registro limitato durante l'avvio e poi lo congela. Ogni identità
+contiene un namespace ASCII minuscolo e una versione di wire positiva, per esempio
+`plenora.data-tools@v1`. Anche ogni operazione è l'identificatore pubblico completo con namespace,
+come `data.run`; gli alias locali come `run` sono rifiutati. Un solo handler può instradare più
+operazioni validate per quella libreria.
 
 ```rust,ignore
 let discovery = CapabilityDiscovery::from_json(component.capabilities_v2()?)?;
@@ -24,19 +24,19 @@ let dispatcher = CapabilityDispatcher::with_result_sink(
 )?;
 ```
 
-`CapabilityDispatcher` implements `WorkerHandler<CapabilityRequest>`, so the same value plugs into
-the engine-neutral worker executor or the Apalis broker runner. Registry lookup performs no task
-spawn and no runtime mutation. Dynamic worker futures are still admitted only up to the worker's
-`max_in_flight` bound.
+`CapabilityDispatcher` implementa `WorkerHandler<CapabilityRequest>`, quindi lo stesso valore si
+innesta nell'executor dei worker neutrale rispetto all'engine o nel runner del broker di Apalis. La
+ricerca nel registro non avvia task e non modifica il runtime. Le future dinamiche dei worker sono
+comunque ammesse solo fino al limite `max_in_flight` del worker.
 
-## Adapter ownership
+## Proprietà degli adapter
 
-Concrete libraries do not implement the runtime trait and do not depend on runtime-tools. The
-consumer owns the translation wrapper:
+Le librerie concrete non implementano il trait del runtime e non dipendono da runtime-tools. Il
+consumer possiede il wrapper di traduzione:
 
-For a complete example that is compiled and tested with the workspace, use
-[`examples/capability-adapter`](../examples/capability-adapter/README.md). The following abbreviated
-fragment only illustrates ownership:
+Per un esempio completo, compilato e provato insieme al workspace, usare
+[`examples/capability-adapter`](../examples/capability-adapter/README.md). Il frammento abbreviato
+che segue illustra solo la proprietà:
 
 ```rust,ignore
 struct DataToolsAdapter {
@@ -57,18 +57,19 @@ impl CapabilityHandler for DataToolsAdapter {
 }
 ```
 
-The handler returns a serialized public result or a classified failure. The dispatcher validates
-the result against frozen discovery metadata, adds canonical Runtime Binding metadata and publishes
-it through a broker-neutral `CapabilityResultSink`. A missing sink, incompatible output, failed
-publication or ambiguous publication outcome cannot become a successful worker acknowledgement.
+L'handler restituisce un risultato pubblico serializzato o un fallimento classificato. Il
+dispatcher valida il risultato rispetto ai metadati di discovery congelati, aggiunge i metadati
+canonici di Runtime Binding e lo pubblica tramite un `CapabilityResultSink` neutrale rispetto al
+broker. Un sink mancante, un output incompatibile, una pubblicazione fallita o un esito di
+pubblicazione ambiguo non possono diventare un acknowledgement riuscito del worker.
 
-Adding a fourth library means adding another wrapper and startup registration. NATS, Apalis, HTTP,
-worker execution, heartbeat, retry, DLQ, and shutdown code do not change.
+Aggiungere una quarta libreria significa aggiungere un altro wrapper e una registrazione all'avvio.
+Il codice di NATS, Apalis, HTTP, esecuzione dei worker, heartbeat, retry, DLQ e shutdown non cambia.
 
-## Wire contract and bounds
+## Contratto di wire e limiti
 
-`CapabilityMessageCodec` stores the Runtime Binding 1.0 request identity in five
-reserved portable metadata keys:
+`CapabilityMessageCodec` memorizza l'identità della richiesta di Runtime Binding 1.0 in cinque
+chiavi di metadati portabili riservate:
 
 - `plenora.capability.name`;
 - `plenora.capability.version`;
@@ -76,40 +77,44 @@ reserved portable metadata keys:
 - `plenora.operation.version`;
 - `plenora.input.contract`.
 
-`CapabilityRequest` exposes the operation version through `OperationVersion` and
-the immutable input schema through `ContractId`. The codec removes the five reserved keys before
-handing the opaque input to an adapter and preserves all other metadata, including
-`plenora.trace.correlation_id` and supported execution controls. Payload bytes and content type
-remain transport-neutral. The dispatcher rejects
-payloads above its configured bound before lookup or invocation. The registry defaults to 64
-handlers, has a hard maximum of 4,096, rejects duplicates, and exposes no mutation after `build()`.
+`CapabilityRequest` espone la versione dell'operazione tramite `OperationVersion` e
+lo schema di input immutabile tramite `ContractId`. Il codec rimuove le cinque chiavi riservate
+prima di passare l'input opaco a un adapter e conserva tutti gli altri metadati, compresi
+`plenora.trace.correlation_id` e i controlli di esecuzione supportati. I byte del payload e il
+content type restano neutrali rispetto al trasporto. Il dispatcher rifiuta
+i payload sopra il limite configurato prima della ricerca o dell'invocazione. Il registro ha un
+valore predefinito di 64 handler, un massimo rigido di 4.096, rifiuta i duplicati e non espone
+alcuna modifica dopo `build()`.
 
-Discovery registration is mandatory for `plenora.rest-tools@v1`. Its profile requires
-`rest.test`, `rest.generate`, `rest.enrich`, `rest.download` and `rest.upload`, all on the runtime
-surface. Requests are rejected before invocation when operation status/version, input contract,
-JSON envelope or advertised controls differ. Absolute UTC deadlines cancel the invocation token;
-a timeout after invocation may have begun remains an unknown remote outcome. Deadlines are compared
-against an injectable `Clock` that defaults to the operating-system clock, so boundary behavior is
-reproducible without depending on real elapsed time.
+La registrazione tramite discovery è obbligatoria per `plenora.rest-tools@v1`. Il suo profilo
+richiede `rest.test`, `rest.generate`, `rest.enrich`, `rest.download` e `rest.upload`, tutte sulla
+superficie del runtime. Le richieste sono rifiutate prima dell'invocazione quando stato/versione
+dell'operazione, contratto di input, involucro JSON o controlli dichiarati non corrispondono. Le
+scadenze UTC assolute cancellano il token di invocazione; un timeout dopo che l'invocazione può
+essere cominciata resta un esito remoto sconosciuto. Le scadenze sono confrontate con un `Clock`
+iniettabile che per default è l'orologio del sistema operativo, così il comportamento ai bordi è
+riproducibile senza dipendere dal tempo realmente trascorso.
 
-The request-vector evidence and immutable contracts revision are documented in
-[`contract-alignment.md`](contract-alignment.md). Confirmed success-result transport is implemented.
-Typed public errors enforce category, phase, remote effect, retry and bounded details; terminal
-error publication after retry exhaustion remains coupled to worker settlement and is still a gate.
+Le prove dei vettori di richiesta e la revisione immutabile dei contratti sono documentate in
+[`contract-alignment.md`](contract-alignment.md). Il trasporto confermato dei risultati di successo
+è implementato. Gli errori pubblici tipizzati impongono categoria, fase, effetto remoto, retry e
+dettagli limitati; la pubblicazione dell'errore terminale dopo l'esaurimento dei retry resta legata
+al settlement del worker ed è ancora un gate.
 
-Unknown capabilities and oversized input are safe dead-letter classifications with
-`NotStarted` remote effect. Adapter failures preserve their concrete source while requiring an
-explicit retry class and effect certainty. `OutcomeUnknown` therefore retains the existing
-fail-closed retry behavior.
+Le capability sconosciute e l'input sovradimensionato sono classificazioni dead-letter sicure con
+effetto remoto `NotStarted`. I fallimenti degli adapter conservano la loro sorgente concreta ma
+richiedono una classe di retry esplicita e la certezza dell'effetto. `OutcomeUnknown` mantiene
+quindi il comportamento di retry fail-closed esistente.
 
-Runtime-tools treats payload JSON as component-owned. It will add artifact-reference and
-secret-reference extraction only from the released REST payload schemas; it will not scan JSON for
-guessed field names. This keeps the runtime a black-box orchestrator rather than an HTTP client.
+Runtime-tools tratta il JSON del payload come proprietà del componente. Aggiungerà l'estrazione di
+riferimenti ad artefatti e a segreti solo dagli schemi di payload REST rilasciati; non scandirà il
+JSON in cerca di nomi di campo indovinati. Così il runtime resta un orchestratore a scatola chiusa
+invece di un client HTTP.
 
-## Testing
+## Test
 
-`FakeCapabilityHandler` lives in `plenora-runtime-testkit`. It records only payload-free routing,
-identity, attempt, and byte-count observations. Invocation history and FIFO scripted outcomes are
-both bounded. Consumers can test new adapters and routing without NATS or any unfinished concrete
-library. The per-adapter release checklist is in
-[`integrating-a-library.md`](integrating-a-library.md).
+`FakeCapabilityHandler` sta in `plenora-runtime-testkit`. Registra solo osservazioni senza payload
+su instradamento, identità, tentativo e conteggio dei byte. La cronologia delle invocazioni e gli
+esiti scriptati FIFO sono entrambi limitati. I consumer possono provare nuovi adapter e
+l'instradamento senza NATS né alcuna libreria concreta non ancora completa. La checklist di rilascio
+per ogni adapter è in [`integrating-a-library.md`](integrating-a-library.md).

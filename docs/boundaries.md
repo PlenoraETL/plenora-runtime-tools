@@ -1,40 +1,42 @@
-# Architectural boundaries
+# Confini architetturali
 
-The following constraints are normative:
+I vincoli seguenti sono normativi:
 
-- `plenora-runtime-core` must not depend on concrete adapters, Apalis, NATS, database drivers, or
-  business-domain crates.
-- `plenora-runtime-messaging` must remain broker-agnostic.
-- `plenora-runtime-worker` must not expose Apalis types.
-- `plenora-runtime-capabilities` may depend on core, worker, and messaging but must not depend on a
-  concrete Rust foundation library, broker, worker engine, HTTP framework, database driver, or
-  telemetry backend.
-- `plenora-runtime-outbox` must not depend on PostgreSQL or another concrete store.
-- `plenora-runtime-resources` may depend on core and worker contracts but must not choose a broker,
-  worker engine, database, HTTP framework, or telemetry backend.
-- `plenora-runtime-scheduler` may depend on core runtime contracts and pinned backend-neutral
-  cron/timezone calculators. Broker dispatch, persistence, and application commands remain behind
-  public traits.
-- `plenora-runtime-subprocess` owns bounded OS-process containment only; it must not know workers,
-  brokers, databases, application libraries, command codecs, or business payloads.
-- `plenora-runtime-control` may aggregate worker, resource, scheduler, subprocess and messaging
-  contracts but must not select HTTP, a broker/worker engine, database, telemetry backend, or
-  application library.
-- `plenora-runtime-control-http` is an optional outward adapter. Every route requires an
-  application-supplied authorizer and mutation routes require explicit enablement.
-- `plenora-runtime-http` owns the Axum and Tower HTTP integration; web-framework types must not
-  leak into core, messaging, worker, or outbox contracts.
-- `plenora-runtime-observability` must remain backend-neutral and must not install an exporter,
-  collector, vendor SDK, or process-global subscriber.
-- HTTP bootstrap owns transport concerns only. Authentication and business authorization remain
-  application composition concerns.
-- adapters may depend inward on public Plenora contracts; core crates never depend outward on
-  adapters.
-- all queues, channels, payloads, and task concurrency must have explicit bounds.
-- schedule registries, dispatches per tick, catch-up work, and dispatch duration must have explicit
-  bounds; no occurrence backlog may be materialized as an unbounded queue.
-- capability handlers are registered during startup and frozen before worker execution; runtime
-  dispatch does not mutate or discover code dynamically.
+- `plenora-runtime-core` non deve dipendere da adapter concreti, Apalis, NATS, driver di database o
+  crate del dominio di business.
+- `plenora-runtime-messaging` deve restare agnostico rispetto al broker.
+- `plenora-runtime-worker` non deve esporre tipi Apalis.
+- `plenora-runtime-capabilities` può dipendere da core, worker e messaging ma non deve dipendere da
+  una libreria Rust di fondazione concreta, broker, motore di worker, framework HTTP, driver di
+  database o backend di telemetria.
+- `plenora-runtime-outbox` non deve dipendere da PostgreSQL o da un altro store concreto.
+- `plenora-runtime-resources` può dipendere dai contratti di core e worker ma non deve scegliere un
+  broker, un motore di worker, un database, un framework HTTP o un backend di telemetria.
+- `plenora-runtime-scheduler` può dipendere dai contratti di runtime di core e da calcolatori
+  cron/fuso orario pinnati e neutrali rispetto al backend. Dispatch verso il broker, persistenza e
+  comandi applicativi restano dietro trait pubblici.
+- `plenora-runtime-subprocess` possiede solo il contenimento limitato dei processi del sistema
+  operativo; non deve conoscere worker, broker, database, librerie applicative, codec di comando o
+  payload di business.
+- `plenora-runtime-control` può aggregare i contratti di worker, resource, scheduler, subprocess e
+  messaging ma non deve scegliere HTTP, un motore broker/worker, un database, un backend di
+  telemetria o una libreria applicativa.
+- `plenora-runtime-control-http` è un adapter facoltativo verso l'esterno. Ogni route richiede un
+  authorizer fornito dall'applicazione e le route di modifica richiedono un'abilitazione esplicita.
+- `plenora-runtime-http` possiede l'integrazione HTTP di Axum e Tower; i tipi del framework web non
+  devono trapelare nei contratti di core, messaging, worker o outbox.
+- `plenora-runtime-observability` deve restare neutrale rispetto al backend e non deve installare
+  exporter, collector, SDK di fornitori o subscriber globali di processo.
+- Il bootstrap HTTP possiede solo le questioni di trasporto. Autenticazione e autorizzazione di
+  business restano questioni di composizione dell'applicazione.
+- gli adapter possono dipendere verso l'interno dai contratti pubblici Plenora; i crate core non
+  dipendono mai verso l'esterno dagli adapter.
+- tutte le code, i canali, i payload e la concorrenza dei task devono avere limiti espliciti.
+- registri delle pianificazioni, dispatch per tick, lavoro di recupero e durata del dispatch devono
+  avere limiti espliciti; nessun arretrato di occorrenze può essere materializzato come coda
+  illimitata.
+- gli handler di capability sono registrati all'avvio e congelati prima dell'esecuzione del worker;
+  il dispatch a runtime non modifica né scopre codice dinamicamente.
 
-The `plenora-runtime-architecture-tests` crate enforces these dependency directions and scans
-production sources for abortive shortcuts.
+Il crate `plenora-runtime-architecture-tests` impone queste direzioni di dipendenza e scandisce i
+sorgenti di produzione alla ricerca di scorciatoie che abortiscono.

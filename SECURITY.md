@@ -1,14 +1,14 @@
-# Security policy
+# Policy di sicurezza
 
-This repository is public and pre-release. Report suspected vulnerabilities privately through
-GitHub private vulnerability reporting: open the repository's **Security** tab and choose
-**Report a vulnerability**. Do not open a public issue, pull request, or discussion for a
-suspected vulnerability.
+Questo repository è pubblico e in fase pre-rilascio. Le vulnerabilità sospette si segnalano in
+privato tramite la segnalazione privata di vulnerabilità di GitHub: aprire la scheda **Security**
+del repository e scegliere **Report a vulnerability**. Non aprire issue, pull request o discussion
+pubbliche per una vulnerabilità sospetta.
 
-Reports should include the affected revision, a minimal reproduction, the expected impact, and
-whether secrets or production data may have been exposed. Never include live credentials or
-sensitive payloads in a report.
+Una segnalazione deve includere la revisione interessata, una riproduzione minima, l'impatto
+atteso e se segreti o dati di produzione possono essere stati esposti. Non includere mai
+credenziali attive o payload sensibili in una segnalazione.
 
-The current technical review, its exclusions, and release-approval checklist are documented in
-[`docs/security-review.md`](docs/security-review.md). That document does not replace approval from
-the designated Plenora security owner for an exact release commit.
+La revisione tecnica attuale, le sue esclusioni e la checklist di approvazione del rilascio sono
+documentate in [`docs/security-review.md`](docs/security-review.md). Quel documento non sostituisce
+l'approvazione del responsabile della sicurezza Plenora designato per un commit di rilascio esatto.

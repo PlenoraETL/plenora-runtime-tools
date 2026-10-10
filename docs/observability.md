@@ -1,18 +1,22 @@
-# Observability
+# Osservabilità
 
-`plenora-runtime-observability` defines conventions for structured tracing, W3C-compatible context
-propagation, low-cardinality metrics, and redaction without choosing a telemetry backend.
+`plenora-runtime-observability` definisce le convenzioni per il tracing strutturato, la
+propagazione del contesto compatibile con W3C, le metriche a bassa cardinalità e l'oscuramento dei dati sensibili,
+senza scegliere un backend di telemetria.
 
-Applications own subscriber installation, sampling, exporters, collectors, storage, and dashboards.
-Library code emits through a backend-neutral sink and remains valid when the no-op sink is used.
+Le applicazioni gestiscono installazione del subscriber, campionamento, exporter, collector,
+archiviazione e dashboard. Il codice di libreria emette attraverso un sink neutrale rispetto al
+backend e resta valido quando si usa il sink no-op.
 
-The stable metric vocabulary covers runtime tasks and shutdown, message receipt and processing,
-worker lifecycle queue depth and drops, outbox relay state, broker connectivity, and consumer lag.
-Lifecycle drop counters take deltas from the worker dispatcher snapshot and use only the bounded
-`full` or `closed` reason vocabulary. Attribute keys and values are validated and bounded. Request,
-message, and correlation identifiers belong in spans or logs, not in metric labels.
+Il vocabolario stabile delle metriche copre task e spegnimento del runtime, ricezione ed
+elaborazione dei messaggi, profondità della coda e scarti del ciclo di vita del worker, stato del
+relay dell'outbox, connettività del broker e ritardo del consumer. I contatori degli scarti del
+ciclo di vita prendono gli incrementi dallo snapshot del dispatcher del worker e usano solo il
+vocabolario limitato di motivi `full` o `closed`. Chiavi e valori degli attributi sono validati e
+limitati. Gli identificatori di richiesta, di messaggio e di correlazione stanno negli span o nei
+log, non nelle etichette delle metriche.
 
-Secrets, authorization and cookie headers, broker credentials, arbitrary metadata, payloads,
-dead-letter bodies, internal configuration, and concrete source errors must not be emitted by
-default. Diagnostic wrappers display a fixed redaction marker unless an application makes a
-separate, explicit disclosure decision.
+Segreti, header di autorizzazione e cookie, credenziali del broker, metadati arbitrari, payload,
+corpi dei dead-letter, configurazione interna ed errori sorgente concreti non devono essere emessi
+per impostazione predefinita. I wrapper diagnostici mostrano un marcatore fisso al posto del valore oscurato, a
+meno che un'applicazione non prenda una decisione di divulgazione separata ed esplicita.

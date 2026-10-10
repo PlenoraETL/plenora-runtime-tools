@@ -1,27 +1,32 @@
-# Architecture tests
+# Test d'architettura
 
-This test-only crate enforces dependency direction and production-source safety rules.
+Questo crate di soli test fa rispettare la direzione delle dipendenze e le regole di sicurezza del
+codice sorgente di produzione.
 
-The root workspace must list tests/architecture as a member before running:
+Il crate è membro del workspace radice e si esegue con:
 
     cargo test -p plenora-runtime-architecture-tests
 
-The tests use only the Rust standard library. They inspect manifests and production source beneath
-crates and adapters. Test sources and examples are deliberately excluded from production scans.
+I test usano solo la libreria standard di Rust. Ispezionano i manifest e il sorgente di produzione
+sotto crates e adapters. I sorgenti di test e gli esempi sono esclusi di proposito dalle scansioni
+di produzione.
 
-The enforced boundaries cover broker and worker implementation leakage, database-driver leakage,
-HTTP and telemetry dependencies in foundational crates, backend neutrality in observability, and
-the exclusion of authentication, business, and PFM scope from the HTTP adapter. Panic-path and
-secret-leakage scans mask Rust documentation, comments, and literals where those do not represent
-executable code, while secret-bearing values inside formatting and logging macros remain checked.
-Inline items guarded by `cfg(test)` are also excluded from production-only scans.
+I confini applicati coprono la fuoriuscita di implementazioni di broker e worker, la fuoriuscita di
+driver di database, le dipendenze HTTP e di telemetria nei crate di fondazione, l'indipendenza dal
+backend nell'osservabilità e l'esclusione dall'adapter HTTP di autenticazione, business e ambito
+PFM. Le scansioni sui percorsi di panic e sulla fuoriuscita di segreti mascherano documentazione,
+commenti e letterali Rust dove non rappresentano codice eseguibile, mentre i valori che portano
+segreti dentro le macro di formattazione e di logging restano controllati.
+Anche gli elementi inline protetti da `cfg(test)` sono esclusi dalle scansioni di sola produzione.
 
-Workspace-wide gates additionally require exact or workspace-inherited dependency versions,
-approved dependency direction, shared safety lints, `forbid(unsafe_code)` at production crate
-roots, and no unsafe or abortive constructs in production source. Targeted static invariants cover
-bounded queues, payload and concurrency validation, TLS-by-default NATS configuration, explicit
-replay opt-in, redacted health and `Debug` views, cancellation hooks, and deterministic fault
-injection hooks. Runtime task/report retention, fake-broker histories and fault scripts, and
-message metadata entry/key/value/aggregate sizes must remain explicitly bounded. Every package
-inherits the workspace MSRV, every Cargo-running CI job selects it, and every qualification job
-depends on the workflow's explicit expected-SHA check.
+I gate a livello di workspace richiedono inoltre versioni delle dipendenze esatte o ereditate dal
+workspace, direzione delle dipendenze approvata, lint di sicurezza condivisi,
+`forbid(unsafe_code)` alle radici dei crate di produzione e nessun costrutto unsafe o di abort nel
+sorgente di produzione. Invarianti statiche mirate coprono code limitate, validazione di payload e
+concorrenza, configurazione NATS con TLS predefinito, opt-in esplicito al replay, viste di health e
+`Debug` mascherate, hook di cancellazione e hook deterministici di iniezione dei guasti. La ritenzione
+di task e report del runtime, le storie e gli script di guasti del broker fake, e le dimensioni di
+voci, chiavi, valori e aggregato dei metadati dei messaggi devono restare limitate in modo
+esplicito. Ogni pacchetto eredita la MSRV del workspace, ogni job di CI che esegue Cargo la
+seleziona e ogni job di qualificazione dipende dal controllo esplicito dello SHA atteso del
+workflow.

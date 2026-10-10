@@ -1,21 +1,23 @@
-# Memory-retention probe
+# Sonda di ritenzione della memoria
 
-This package tests whether long-lived worker execution releases task-owned allocations. It uses
-synthetic committed buffers, so it validates runtime mechanics and the measurement harness rather
-than predicting the future memory behavior of `data-tools`, `database-tools`, or `IO-tools`.
+Questo pacchetto verifica se l'esecuzione prolungata dei worker rilascia le allocazioni possedute
+dai task. Usa buffer sintetici effettivamente allocati, quindi valida i meccanismi del runtime e
+l'harness di misura anziché predire il comportamento futuro della memoria di `data-tools`,
+`database-tools` o `IO-tools`.
 
-The normal workspace suite runs small deterministic contracts for success, failure, timeout,
-concurrency, and the growth classifier. The RSS soak is opt-in and must run through the bounded
-Docker wrapper from the workspace root:
+La suite normale del workspace esegue piccoli contratti deterministici per successo, fallimento,
+timeout, concorrenza e il classificatore della crescita. Il soak RSS è opzionale e va eseguito
+tramite il wrapper Docker limitato dalla radice del workspace:
 
 ```powershell
 ./scripts/memory-soak.ps1
 ```
 
-The wrapper builds once, executes each scenario in a network-disabled container with a hard memory
-limit, and writes one CSV file per scenario below `target/memory-soak/`. The intentional
-`leak-control` scenario must be classified as growing; it proves that the harness detects retained
-allocations.
+Il wrapper compila una volta, esegue ogni scenario in un container senza rete con un limite di
+memoria rigido e scrive un file CSV per scenario sotto `target/memory-soak/`. Lo scenario
+intenzionale `leak-control` deve essere classificato come in crescita; prova che l'harness rileva
+le allocazioni trattenute.
 
-High RSS after the first iteration is not automatically a leak. A stable allocator plateau passes.
-Growth is measured between the median of the first and last sample quartiles after warm-up.
+Un RSS alto dopo la prima iterazione non è automaticamente un leak. Un plateau stabile
+dell'allocatore passa. La crescita si misura fra la mediana del primo e quella dell'ultimo quartile
+dei campioni dopo il riscaldamento.
