@@ -1,0 +1,66 @@
+name: supply-chain
+
+# `cargo audit` e `cargo deny check` sui due lockfile del repository: il
+# workspace e il workspace separato di `fuzz/`.
+#
+# Gira a calendario perché il rischio qui non arriva da un commit:
+# un'advisory pubblicata domani riguarda il codice fermo di oggi, e senza una
+# corsa schedulata resterebbe invisibile fino alla PR successiva. Sulle PR e
+# sui push lo stesso controllo lo fa il job `Dependency policy` di `ci.yml`.
+
+on:
+  schedule:
+    # Lunedì 05:41 UTC. Minuto non tondo: gli orari tondi sono i più
+    # congestionati su Actions e le corse schedulate vengono rimandate.
+    - cron: '41 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  supply-chain:
+    name: cargo audit + cargo deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # 1.98.1
+        with:
+          toolchain: '1.98.1'
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      # Stesse versioni del job `Dependency policy` di ci.yml.
+      - name: Install cargo-audit 0.22.2
+        run: cargo install --locked cargo-audit --version 0.22.2
+
+      - name: Install cargo-deny 0.20.2
+        run: cargo install --locked cargo-deny --version 0.20.2
+
+      # Ogni controllo gira anche se il precedente è rosso: un'advisory sul
+      # workspace non deve nascondere una violazione nel lock di `fuzz/`.
+      - name: Audit workspace
+        if: ${{ !cancelled() }}
+        run: cargo audit
+
+      - name: Audit fuzz workspace
+        if: ${{ !cancelled() }}
+        run: cargo audit --file fuzz/Cargo.lock
+
+      - name: Deny workspace
+        if: ${{ !cancelled() }}
+        run: cargo deny check
+
+      - name: Deny fuzz workspace
+        if: ${{ !cancelled() }}
+        run: cargo deny --manifest-path fuzz/Cargo.toml check

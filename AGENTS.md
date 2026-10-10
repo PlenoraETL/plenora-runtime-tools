@@ -70,7 +70,10 @@ risultato:
 
 - i gate della CI devono essere verdi su Linux **e** Windows;
 - `cargo audit` e `cargo deny` possono diventare rossi senza un commit, quando
-  esce un'advisory: un rosso lì non dice che il commit è cambiato;
+  esce un'advisory: per questo girano anche ogni settimana
+  (`supply-chain.yml`), e un rosso lì non dice che il commit è cambiato;
+- il fuzz ha due livelli: lo smoke da 2000 esecuzioni su ogni PR e le
+  campagne con budget di tempo di `fuzz.yml`, settimanali o a mano;
 - le prove su NATS reale valgono per il container effimero della CI, non per un
   deploy con TLS e permessi dei subject reali;
 - se un gate non è stato eseguito, si dice che non è stato eseguito. Un gate
