@@ -556,7 +556,18 @@ fn workspace_members_and_ci_share_msrv_and_same_sha_qualification() -> Result<()
         .ok_or_else(|| {
             ArchitectureViolation("workspace.package is missing rust-version".to_owned())
         })?;
+    let toolchain_path = root.join("rust-toolchain.toml");
+    let toolchain_contents = strip_toml_comments(&fs::read_to_string(&toolchain_path)?);
+    let channel =
+        toml_section_assignment(&toolchain_contents, "toolchain", "channel").ok_or_else(|| {
+            ArchitectureViolation("rust-toolchain.toml is missing toolchain.channel".to_owned())
+        })?;
     let mut violations = Vec::new();
+    if channel != msrv && !channel.starts_with(&format!("{msrv}.")) {
+        violations.push(format!(
+            "pinned toolchain {channel} is not a release of the workspace MSRV {msrv}"
+        ));
+    }
 
     for manifest in workspace_manifests(&root)?
         .into_iter()
@@ -623,15 +634,52 @@ fn workspace_members_and_ci_share_msrv_and_same_sha_qualification() -> Result<()
                 .filter(|character| !character.is_whitespace())
                 .collect();
             for required in [
-                format!("rustuptoolchaininstall{msrv}"),
-                format!("rustupdefault{msrv}"),
+                "uses:dtolnay/rust-toolchain@".to_owned(),
+                format!("toolchain:'{channel}'"),
             ] {
                 if !compact.contains(&required) {
                     violations.push(format!(
-                        "{} job {name} does not run on workspace MSRV {msrv}",
+                        "{} job {name} does not run on the pinned toolchain {channel}",
                         relative_path(&root, &workflow_path)
                     ));
                 }
+            }
+        }
+    }
+
+    finish_violations(violations)
+}
+
+#[test]
+fn workflow_actions_are_pinned_by_full_commit_sha() -> Result<(), Box<dyn Error>> {
+    let root = workspace_root()?;
+    let workflows = root.join(".github/workflows");
+    let mut violations = Vec::new();
+
+    for entry in fs::read_dir(&workflows)? {
+        let path = entry?.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("yml") {
+            continue;
+        }
+        let contents = fs::read_to_string(&path)?;
+        for line in contents.lines() {
+            let trimmed = line.trim().trim_start_matches("- ");
+            let Some(reference) = trimmed.strip_prefix("uses:") else {
+                continue;
+            };
+            let reference = reference.split('#').next().unwrap_or_default().trim();
+            let pinned = reference.rsplit_once('@').is_some_and(|(action, sha)| {
+                !action.is_empty()
+                    && sha.len() == 40
+                    && sha
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            });
+            if !pinned {
+                violations.push(format!(
+                    "{} uses an action not pinned by full commit SHA: {reference}",
+                    relative_path(&root, &path)
+                ));
             }
         }
     }
@@ -683,6 +731,13 @@ fn qualification_docs_preserve_open_release_and_security_gates() -> Result<(), B
         "cargo clippy --workspace --all-targets --all-features --locked",
         "cargo test --workspace --all-targets --all-features --locked",
         "cargo doc --workspace --no-deps --all-features --locked",
+        "cargo clippy --workspace --lib --all-features --locked --",
+        "-D clippy::unwrap_used",
+        "-D clippy::expect_used",
+        "-D clippy::panic",
+        "-D clippy::unreachable",
+        "cargo audit --file fuzz/Cargo.lock",
+        "cargo deny --manifest-path fuzz/Cargo.toml check",
     ] {
         if !workflow.contains(required) {
             violations.push(format!(

@@ -231,7 +231,7 @@ impl<S: MetricSink + ?Sized> WorkerMetrics<S> {
     pub fn lifecycle_queue_depth(&self, queued: usize) {
         self.sink.record_gauge(
             metric_names::WORKER_LIFECYCLE_QUEUE_DEPTH,
-            u64::try_from(queued).map_or(u64::MAX, std::convert::identity),
+            u64::try_from(queued).unwrap_or(u64::MAX),
             &MetricLabels::new(),
         );
     }

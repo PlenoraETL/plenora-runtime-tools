@@ -43,13 +43,16 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt --component clippy
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # 1.98.1
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
 
-      - name: Select pinned Rust toolchain
-        run: rustup default 1.97.1
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Check formatting
         run: cargo fmt --all --check
@@ -68,6 +71,37 @@ jobs:
           RUSTDOCFLAGS: -D warnings
         run: cargo doc --workspace --no-deps --all-features --locked
 
+  # Gate anti-panic: il codice di libreria non scrive primitive di panico.
+  # `--lib` lascia fuori test, binari ed esempi, dove un `expect` è
+  # un'asserzione e non un difetto. Un'eccezione è un `#[allow]` puntuale con
+  # `reason`, accanto al codice che la giustifica.
+  anti-panic:
+    name: clippy anti-panic (librerie)
+    needs: qualification-sha
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # 1.98.1
+        with:
+          toolchain: '1.98.1'
+          components: clippy
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - name: Run anti-panic Clippy on libraries
+        run: >-
+          cargo clippy --workspace --lib --all-features --locked --
+          -D warnings
+          -D clippy::unwrap_used
+          -D clippy::expect_used
+          -D clippy::panic
+          -D clippy::unreachable
+
   dependency-policy:
     name: Dependency policy
     needs: qualification-sha
@@ -75,13 +109,15 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.97.1 --profile minimal
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # 1.98.1
+        with:
+          toolchain: '1.98.1'
 
-      - name: Select pinned Rust toolchain
-        run: rustup default 1.97.1
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Install cargo-audit
         run: cargo install --locked cargo-audit --version 0.22.2
@@ -89,11 +125,19 @@ jobs:
       - name: Audit dependencies
         run: cargo audit
 
+      # `fuzz/` ha workspace e lock separati: senza un controllo dedicato il
+      # suo grafo potrebbe divergere restando invisibile.
+      - name: Audit fuzz dependencies
+        run: cargo audit --file fuzz/Cargo.lock
+
       - name: Install cargo-deny
         run: cargo install --locked cargo-deny --version 0.20.2
 
       - name: Check dependency policy
         run: cargo deny check
+
+      - name: Check fuzz dependency policy
+        run: cargo deny --manifest-path fuzz/Cargo.toml check
 
   nats-integration:
     name: NATS JetStream integration
@@ -102,13 +146,15 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.97.1 --profile minimal
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # 1.98.1
+        with:
+          toolchain: '1.98.1'
 
-      - name: Select pinned Rust toolchain
-        run: rustup default 1.97.1
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Start ephemeral NATS JetStream
         id: nats
@@ -150,13 +196,16 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.97.1 --profile minimal --component llvm-tools-preview
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # 1.98.1
+        with:
+          toolchain: '1.98.1'
+          components: llvm-tools-preview
 
-      - name: Select pinned Rust toolchain
-        run: rustup default 1.97.1
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Install pinned coverage tool
         run: cargo install --locked cargo-llvm-cov --version 0.8.7
@@ -219,13 +268,15 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.97.1 --profile minimal
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # 1.98.1
+        with:
+          toolchain: '1.98.1'
 
-      - name: Select pinned Rust toolchain
-        run: rustup default 1.97.1
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Install pinned nightly fuzz toolchain
         run: rustup toolchain install nightly-2026-08-01 --profile minimal

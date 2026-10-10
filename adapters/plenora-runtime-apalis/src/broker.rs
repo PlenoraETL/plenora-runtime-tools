@@ -567,6 +567,10 @@ where
     /// # Errors
     ///
     /// Returns a source-preserving error for decode, metadata, or settlement failures.
+    #[allow(
+        clippy::result_large_err,
+        reason = "BrokerWorkerError conserva per valore le sorgenti di decode, metadati, heartbeat, DLQ e settlement; è un percorso di errore freddo, e inscatolarlo cambierebbe l'API pubblica senza beneficio misurato"
+    )]
     pub async fn execute(
         &self,
         mut delivery: Delivery,
@@ -605,6 +609,10 @@ where
         Ok(outcome)
     }
 
+    #[allow(
+        clippy::result_large_err,
+        reason = "BrokerWorkerError conserva per valore le sorgenti di decode, metadati, heartbeat, DLQ e settlement; è un percorso di errore freddo, e inscatolarlo cambierebbe l'API pubblica senza beneficio misurato"
+    )]
     async fn settle_delivery(
         &self,
         delivery: Delivery,
@@ -630,6 +638,10 @@ where
         }
     }
 
+    #[allow(
+        clippy::result_large_err,
+        reason = "BrokerWorkerError conserva per valore le sorgenti di decode, metadati, heartbeat, DLQ e settlement; è un percorso di errore freddo, e inscatolarlo cambierebbe l'API pubblica senza beneficio misurato"
+    )]
     async fn publish_dead_letter(
         &self,
         delivery: Delivery,
@@ -1045,6 +1057,10 @@ fn combined_metadata(delivery: &Delivery) -> Result<MessageMetadata, MetadataKey
     Ok(metadata)
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "BrokerWorkerError conserva per valore le sorgenti di decode, metadati, heartbeat, DLQ e settlement; è un percorso di errore freddo, e inscatolarlo cambierebbe l'API pubblica senza beneficio misurato"
+)]
 async fn reject_decode<E, H>(
     delivery: Delivery,
     error: E,
@@ -1055,6 +1071,10 @@ async fn reject_decode<E, H>(
     }
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "BrokerWorkerError conserva per valore le sorgenti di decode, metadati, heartbeat, DLQ e settlement; è un percorso di errore freddo, e inscatolarlo cambierebbe l'API pubblica senza beneficio misurato"
+)]
 async fn reject_metadata<E, H>(
     delivery: Delivery,
     error: MetadataKeyError,
@@ -1068,6 +1088,10 @@ async fn reject_metadata<E, H>(
     }
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "BrokerWorkerError conserva per valore le sorgenti di decode, metadati, heartbeat, DLQ e settlement; è un percorso di errore freddo, e inscatolarlo cambierebbe l'API pubblica senza beneficio misurato"
+)]
 async fn reject_heartbeat<E, H>(
     delivery: Delivery,
     heartbeat: AckError,

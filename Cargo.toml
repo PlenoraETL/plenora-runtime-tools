@@ -13,7 +13,9 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97.1"
+# MSRV della famiglia Plenora (ADR 0007); la toolchain fissata è in
+# rust-toolchain.toml.
+rust-version = "1.98"
 # Licenza proprietaria source-available del repository (LICENSE): non esiste
 # un identificatore SPDX, quindi si usa `license-file`. Tutti i crate sono
 # `publish = false`.

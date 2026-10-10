@@ -52,7 +52,8 @@ discovery and authorized HTTP control are described in
 
 ## Local validation
 
-The pinned development toolchain and conservative v0.1 MSRV are Rust 1.97.1. When Rust is not
+The pinned development toolchain is Rust 1.98.1 and the MSRV is Rust 1.98
+([ADR 0007](docs/adr/0007-toolchain-1-98-1-e-msrv-1-98.md)). When Rust is not
 installed on the host, use the Docker helper from PowerShell:
 
 ```powershell
