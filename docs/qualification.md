@@ -27,7 +27,7 @@ Passing local tests does not by itself qualify a commit or prove that a Plenora 
 | Common Runtime Binding 1.0 | Request/discovery/success path implemented | Pinned vectors verify routing and REST discovery. Confirmed results preserve operation version, output contract, content type and correlation. Typed terminal-error publication after retry settlement remains an open release gate. |
 | Dependency audit and policy | Complete locally | Pinned `cargo-audit 0.22.2` and `cargo-deny 0.20.2` pass; permitted duplicate-version warnings remain reviewable. |
 | Security review | Technically complete, release approval pending | See [`security-review.md`](security-review.md). Organizational approval must reference the exact commit. |
-| CI on Windows, Linux, and macOS | Pending commit | The workflow exists, but no local working tree can claim CI status before a commit is pushed and qualified. |
+| CI on Windows, Linux, and macOS | Running on every push and pull request; Linux and Windows required, macOS informational | The same-SHA dispatch of `ci.yml` on `main` at `9972954` (2026-10-10) passed every job except the dependency policy: `cargo audit` reported RUSTSEC-2026-0285 in `rustls 0.23.43` and the yanked `chacha20 0.10.1`, both fixed by a lockfile update. No release candidate has been qualified yet; that remains API-freeze gate 6. |
 
 ## Mandatory scenario matrix
 
