@@ -65,7 +65,7 @@ installato sull'host, usare l'helper Docker da PowerShell:
 ```
 
 L'harness di integrazione NATS usa un container effimero solo su loopback ed emette i dati di
-connessione in JSON. Vedere [`tests/architecture/README.md`](tests/architecture/README.md).
+connessione in JSON. Vedere [`tests/integration/README.md`](tests/integration/README.md).
 
 Le composizioni eseguibili stanno sotto `examples/`: `worker-basic` mostra l'esecuzione limitata
 indipendente dal motore e la classificazione dei retry; `worker-nats` collega NATS JetStream a un

@@ -14,7 +14,8 @@ release in un commento; gli strumenti della CI si installano a versioni esatte. 
 `Cargo.toml` e `fuzz/Cargo.toml` porta accanto la sua motivazione. Le eccezioni di licenza, di
 advisory e di sorgente devono essere strette, documentate e, dove possibile, limitate nel tempo.
 
-La qualifica di rilascio si avvia con uno SHA di commit atteso esplicito. Tutti i job dei sistemi
-operativi, della documentazione, della policy delle dipendenze e di NATS reale dipendono da quel
+La qualifica di rilascio si avvia con uno SHA di commit atteso esplicito. Tutti gli altri job di
+`ci.yml` (qualità sui tre sistemi operativi, con la documentazione, anti-panic, policy delle
+dipendenze, NATS reale, coverage e fuzz smoke) dipendono da quel
 job di verifica e qualificano quindi la stessa revisione estratta, con la toolchain pinnata Rust
 1.98.1; la MSRV dichiarata è Rust 1.98 (ADR 0007).

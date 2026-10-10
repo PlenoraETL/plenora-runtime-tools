@@ -8,7 +8,7 @@ Gli errori del runtime devono conservare, quando noti:
 - disposizione al retry;
 - errore sorgente.
 
-La rappresentazione condivisa concreta resta un ADR aperto. Le implementazioni dovrebbero evitare
+La rappresentazione condivisa concreta resta una decisione aperta: nessun ADR la fissa ancora. Le implementazioni dovrebbero evitare
 scelte pubbliche irreversibili finché il vocabolario d'errore più ampio di Plenora non si è
 stabilizzato.
 
@@ -18,6 +18,8 @@ store e del producer, un resoconto parziale del batch e l'operazione fallita. L'
 redige le sorgenti concrete.
 
 Gli adapter delle capability restituiscono `CapabilityFailure` con un `RetryErrorClass` e un
-`CapabilityRemoteEffect` espliciti. `CapabilityDispatchError` distingue l'instradamento
-sconosciuto, il rifiuto del payload prima dell'invocazione e il fallimento di un adapter invocato.
+`CapabilityRemoteEffect` espliciti. `CapabilityDispatchError` distingue, fra l'altro,
+l'instradamento sconosciuto, il rifiuto prima dell'invocazione (payload troppo grande, richiesta
+incompatibile), la deadline scaduta, il fallimento di un adapter invocato, la risposta
+incompatibile e i fallimenti o gli esiti ambigui della pubblicazione del risultato.
 Le sorgenti concrete sono conservate per le catene d'errore ma escluse da `Display` e `Debug`.

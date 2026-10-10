@@ -61,7 +61,8 @@
 ## Checklist di approvazione del rilascio
 
 - [ ] Commit esatto del rilascio creato e pushato.
-- [ ] Passati i job Windows, Linux, macOS, dependency-policy, documentazione e NATS sullo stesso SHA.
+- [ ] Passati sullo stesso SHA tutti i job di `ci.yml`: qualità su Windows, Linux e macOS (con la
+  documentazione), anti-panic, dependency-policy, NATS, coverage e fuzz smoke.
 - [ ] Rivista l'autenticazione e l'autorizzazione specifica del consumer.
 - [ ] Rivisti TLS e permessi di NATS in produzione.
 - [ ] Incluso nell'ambito della revisione ogni nuovo adapter di fondazione.

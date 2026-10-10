@@ -9,7 +9,8 @@ La stratificazione implementata è:
 runtime-worker  ----> runtime-core
        +-----------> runtime-messaging
 
-runtime-capabilities ----> runtime-worker
+runtime-capabilities ----> runtime-core
+             +----------> runtime-worker
              +----------> runtime-messaging
 
 runtime-outbox  ----> runtime-messaging
@@ -17,9 +18,11 @@ runtime-outbox  ----> runtime-messaging
 runtime-testkit ----> runtime-core
        +-----------> runtime-messaging
        +-----------> runtime-outbox
+       +-----------> runtime-worker
        +-----------> runtime-capabilities
 
-runtime-apalis  ----> runtime-worker
+runtime-apalis  ----> runtime-core
+       +-----------> runtime-worker
        +-----------> runtime-messaging
 
 runtime-nats    ----> runtime-core
@@ -44,6 +47,9 @@ runtime-control ----> runtime-messaging
        +-----------> runtime-subprocess
 
 runtime-control-http ----> runtime-control + Axum
+       +-----------> runtime-worker
+       +-----------> runtime-resources
+       +-----------> runtime-scheduler
 ```
 
 Il relay dell'outbox pubblica attraverso il contratto di producer di messaging e non dipende dal

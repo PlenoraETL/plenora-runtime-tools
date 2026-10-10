@@ -3,7 +3,7 @@
 Questo crate di soli test fa rispettare la direzione delle dipendenze e le regole di sicurezza del
 codice sorgente di produzione.
 
-Il workspace radice deve elencare tests/architecture come membro prima di eseguire:
+Il crate è membro del workspace radice e si esegue con:
 
     cargo test -p plenora-runtime-architecture-tests
 
