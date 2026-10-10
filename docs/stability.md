@@ -1,40 +1,40 @@
-# Stability qualification
+# Qualifica di stabilità
 
-Stability tests complement functional correctness with bounded sustained load and repeated
-lifecycle transitions. Deterministic acceptance checks assert invariants rather than jobs per
-second; a separate release-mode microbenchmark records coordination throughput without turning
-hardware-specific numbers into correctness thresholds.
+I test di stabilità affiancano alla correttezza funzionale un carico sostenuto limitato e
+transizioni ripetute del ciclo di vita. I controlli di accettazione deterministici verificano
+invarianti, non job al secondo; un microbenchmark separato in modalità release registra il
+throughput di coordinamento senza trasformare numeri legati all'hardware in soglie di correttezza.
 
-## Always-on scenarios
+## Scenari sempre attivi
 
-The normal workspace suite runs these scenarios on Windows, Linux, and macOS:
+La suite normale del workspace esegue questi scenari su Windows, Linux e macOS:
 
-- 2,048 broker messages with `max_in_flight=32`; exactly 32 handlers become active, 2,016 remain
-  queued, every message is acknowledged once, and no active task or delivery remains;
-- 64 simultaneously active tasks receive concurrent cancellation requests and release every task
-  registry entry and execution permit;
-- 100 independently constructed worker executors each process and drain eight concurrent tasks
-  without residual state;
-- 1,000 memory pressure/recovery cycles leave reversible worker admission open and sampling failure
-  remains closed until confirmed recovery;
-- a 10,001-occurrence scheduler backlog advances through bounded ticks without materializing a
-  queue, while crash-before-effect, unknown outcome, timeout, and cursor restart paths remain
-  deterministic;
-- the process-shaped capability consumer continues to cover generic dispatch, HTTP readiness, ACK,
-  and coordinated shutdown.
+- 2.048 messaggi del broker con `max_in_flight=32`; esattamente 32 handler diventano attivi, 2.016
+  restano in coda, ogni messaggio riceve un solo ACK e non resta alcun task attivo né consegna;
+- 64 task attivi contemporaneamente ricevono richieste di cancellazione concorrenti e rilasciano ogni
+  voce del registro dei task e ogni permesso di esecuzione;
+- 100 executor di worker costruiti in modo indipendente elaborano e svuotano ciascuno otto task
+  concorrenti senza stato residuo;
+- 1.000 cicli di pressione di memoria e recupero lasciano aperta l'ammissione reversibile del
+  worker, e un fallimento del campionamento resta chiuso fino al recupero confermato;
+- un arretrato dello scheduler di 10.001 occorrenze avanza per tick limitati senza materializzare una
+  coda, mentre i percorsi di crash prima dell'effetto, esito sconosciuto, timeout e riavvio dal
+  cursore restano deterministici;
+- il consumer di capability in forma di processo continua a coprire dispatch generico, readiness
+  HTTP, ACK e shutdown coordinato.
 
-Every scenario has a wall-clock timeout. Queue, history, registry, task, message, and payload sizes
-remain explicitly bounded during the test.
+Ogni scenario ha un timeout a orologio. Le dimensioni di code, storico, registro, task, messaggi e
+payload restano limitate in modo esplicito durante il test.
 
-## Real JetStream soak
+## Soak su JetStream reale
 
-The ignored-by-default NATS suite runs in the existing pinned ephemeral Docker container during CI.
-It publishes and confirms 256 uniquely identified messages, forces a client reconnect at the
-midpoint while observing `NotReady` then `Ready`, receives and server-confirms every ACK, and rejects
-loss, duplicates, out-of-range sequences, or incomplete drain. The entire scenario has a 60-second
-timeout.
+La suite NATS, ignorata per default, gira in CI nel container Docker effimero e pinnato già
+esistente. Pubblica e conferma 256 messaggi con identificativi univoci, forza una riconnessione del
+client a metà osservando `NotReady` e poi `Ready`, riceve ogni ACK con conferma del server, e
+rifiuta perdite, duplicati, sequenze fuori intervallo o drain incompleto. L'intero scenario ha un
+timeout di 60 secondi.
 
-Run the in-process stability tests directly:
+I test di stabilità in-process si eseguono direttamente:
 
 ```text
 cargo test -p plenora-runtime-worker --test stability --locked -- --nocapture
@@ -43,7 +43,7 @@ cargo test -p plenora-runtime-resources --test pressure --locked -- --nocapture
 cargo test -p plenora-runtime-scheduler --test scheduler --locked -- --nocapture
 ```
 
-Run the real soak only against the loopback Docker harness:
+Il soak reale si esegue solo contro l'harness Docker in loopback:
 
 ```powershell
 $status = ./scripts/nats-docker.ps1 Start | ConvertFrom-Json
@@ -56,37 +56,39 @@ finally {
 }
 ```
 
-These tests detect boundedness, lifecycle, duplicate/loss, and recovery regressions. They do not
-replace a long-running production-like soak on the final Plenora consumer with its real foundation
-adapters and persistence.
+Questi test rilevano regressioni di limitatezza, ciclo di vita, duplicati/perdite e recupero. Non
+sostituiscono un soak lungo, simile alla produzione, sul consumer Plenora finale con i suoi veri
+adapter di fondazione e la sua persistenza.
 
-## Synthetic memory soak
+## Soak sintetico della memoria
 
-`tests/memory` exercises a single long-lived Rust worker with committed synthetic allocations. It
-covers allocator plateau, fragmentation, maximum configured concurrency, handler error, timeout
-cancellation, and a deliberately retained control allocation. The Docker wrapper constrains the
-entire process and records Linux RSS without exposing the host to an unbounded OOM experiment:
+`tests/memory` esercita un singolo worker Rust a lunga vita con allocazioni sintetiche effettive.
+Copre plateau dell'allocatore, frammentazione, concorrenza massima configurata, errore dell'handler,
+cancellazione per timeout e un'allocazione di controllo trattenuta di proposito. Il wrapper Docker
+vincola l'intero processo e registra l'RSS su Linux senza esporre l'host a un esperimento di OOM
+illimitato:
 
 ```powershell
 ./scripts/memory-soak.ps1 -AllocationMiB 64 -MaxInFlight 4 -ContainerMemory 1g
 ```
 
-Passing proves that runtime-owned task futures and cancellation paths release their synthetic
-allocations and that the growth detector recognizes a known leak. It does not prove that unfinished
-native libraries return or reuse memory; their real adapters must reuse this harness before choosing
-in-process or isolated execution.
+Il verde prova che le future dei task possedute dal runtime e i percorsi di cancellazione rilasciano
+le loro allocazioni sintetiche e che il rilevatore di crescita riconosce un leak noto. Non prova che
+librerie native non ancora completate restituiscano o riusino la memoria; i loro adapter reali
+devono riusare questo harness prima di scegliere fra esecuzione in-process o isolata.
 
-## Reproducible coordination benchmark
+## Benchmark di coordinamento riproducibile
 
-Run one warm-up and at least five recorded samples on the same host and power profile:
+Eseguire un riscaldamento e almeno cinque campioni registrati sullo stesso host e con lo stesso
+profilo energetico:
 
 ```text
 cargo run --release -p plenora-runtime-example-benchmark -- \
   --iterations 20000 --max-in-flight 32
 ```
 
-The command prints one JSON object containing worker and scheduler elapsed time and rates. The
-worker driver keeps at most `max_in_flight` Tokio tasks in its `JoinSet`; the scheduler retains one
-cursor rather than creating an occurrence queue. Record commit SHA, CPU, OS, Rust version and the
-median. This benchmark isolates runtime coordination and must not be presented as expected NATS,
-database, Python or real-library throughput.
+Il comando stampa un oggetto JSON con tempo trascorso e frequenze del worker e dello scheduler. Il
+driver del worker tiene al più `max_in_flight` task Tokio nel suo `JoinSet`; lo scheduler conserva
+un solo cursore invece di creare una coda di occorrenze. Registrare SHA del commit, CPU, sistema
+operativo, versione di Rust e mediana. Questo benchmark isola il coordinamento del runtime e non va
+presentato come throughput atteso di NATS, del database, di Python o delle librerie reali.

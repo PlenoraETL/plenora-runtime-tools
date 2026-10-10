@@ -1,63 +1,66 @@
-# Qualification status
+# Stato della qualifica
 
-This document separates the v0.1 runtime skeleton, release qualification, and consumer API freeze.
-Passing local tests does not by itself qualify a commit or prove that a Plenora consumer is ready.
+Questo documento tiene distinti lo scheletro runtime v0.1, la qualifica di rilascio e il congelamento
+dell'API per i consumer. Test locali verdi non qualificano da soli un commit e non provano che un
+consumer Plenora sia pronto.
 
-## Skeleton Definition of Done
+## Definition of Done dello scheletro
 
-| Requirement | Status | Evidence or remaining condition |
+| Requisito | Stato | Prova o condizione mancante |
 |---|---|---|
-| Workspace and dependency direction | Complete locally | Architecture tests validate every internal edge and implementation boundary. |
-| Core, messaging, worker, capabilities, outbox traits, and testkit | Complete locally | Workspace tests cover lifecycle, generic extension routing, retry, deduplication, faults, and bounded memory. |
-| Apalis and NATS JetStream adapters | Complete locally | Fake broker tests and opt-in real JetStream tests cover ACK/NAK, DLQ, replay, health, and drain. |
-| Mandatory fake end-to-end scenarios | Complete locally | Success, retry/redelivery, permanent failure, duplicate suppression, graceful and forced shutdown, and `OutcomeUnknown` are covered. |
-| Bounded stability suite | Complete locally | Sustained 2,048-message backpressure, 64-task cancellation, 100 worker lifecycles, and a 256-message real JetStream reconnect soak are automated; final consumer soak remains an API-freeze gate. |
-| Coverage and fuzz qualification | Complete locally | `cargo-llvm-cov 0.8.7` enforces at least 90% line coverage over the runtime workspace plus real JetStream paths; six bounded `cargo-fuzz 0.13.2` targets cover portable parsing, retry, NATS configuration, propagation, cron/control IDs, and subprocess specifications. |
-| Synthetic memory qualification | Complete locally | Deterministic contracts prove task-owned allocation release; a 1 GiB Docker soak validates allocator plateau, fragmentation, concurrency, error/cancellation cleanup, and an intentional growing-memory control. Real library memory behavior remains an API-freeze gate. |
-| Disconnect readiness transition | Complete locally | The real-NATS test observes `NotReady` during forced reconnect and `Ready` after recovery. |
-| HTTP and observability hooks | Complete locally | HTTP lifecycle/security bounds and backend-neutral spans, propagation, metrics, and redaction are tested. |
-| Worker heartbeat and active-task control | Complete locally | Instance lifecycle, bounded capacity, cancellation by task or message ID, and broker settlement are tested. |
-| Memory pressure admission control | Complete locally | Linux RSS sampling, soft/hard states, fail-closed readiness, hysteresis, and 1,000 recovery cycles are deterministic. |
-| Generic programmed scheduling | Complete locally | One-shot/interval plans, extensible plan trait, bounded misfires/catch-up, runtime registration, reconciliation, restart cursor, and shutdown are tested. |
-| Cron and scheduler control | Complete locally | Explicit IANA timezone/DST behavior, deterministic no-drift jitter, durable pause/resume, and bounded manual trigger are tested. |
-| Generic subprocess containment | Complete locally | Direct spawn without a shell, bounded admission/output, timeout/cancellation/tree termination, reap, Linux RSS ceiling, and capacity reuse are tested; no application protocol is claimed. |
-| Generic operational control | Complete locally | Frozen bounded registry, worker/task/scheduler/resource snapshots and mutations are tested; HTTP is always application-authorized and mutation routes are opt-in. |
-| Lifecycle persistence handoff | Complete as a boundary | The bounded dispatcher exposes drops, health projection, and metric primitives; no database persistence is claimed. |
-| Documentation and examples | Complete for the generic skeleton | The process-shaped NATS consumer composes versioned capability routing, worker, HTTP health/readiness, heartbeats, and coordinated drain; a separate compile-tested template defines the future concrete-library adapter contract. |
-| Common Runtime Binding 1.0 | Request/discovery/success path implemented | Pinned vectors verify routing and REST discovery. Confirmed results preserve operation version, output contract, content type and correlation. Typed terminal-error publication after retry settlement remains an open release gate. |
-| Dependency audit and policy | Complete locally | Pinned `cargo-audit 0.22.2` and `cargo-deny 0.20.2` pass; permitted duplicate-version warnings remain reviewable. |
-| Security review | Technically complete, release approval pending | See [`security-review.md`](security-review.md). Organizational approval must reference the exact commit. |
-| CI on Windows, Linux, and macOS | Running on every push and pull request; Linux and Windows required, macOS informational | The same-SHA dispatch of `ci.yml` on `main` at `9972954` (2026-10-10) passed every job except the dependency policy: `cargo audit` reported RUSTSEC-2026-0285 in `rustls 0.23.43` and the yanked `chacha20 0.10.1`, both fixed by a lockfile update. No release candidate has been qualified yet; that remains API-freeze gate 6. |
+| Workspace e direzione delle dipendenze | Completo in locale | I test di architettura validano ogni arco interno e ogni confine di implementazione. |
+| Core, messaging, worker, capability, trait dell'outbox e testkit | Completo in locale | I test del workspace coprono ciclo di vita, routing generico delle estensioni, retry, deduplicazione, guasti e memoria limitata. |
+| Adapter Apalis e NATS JetStream | Completo in locale | I test con broker finto e quelli opzionali su JetStream reale coprono ACK/NAK, DLQ, replay, health e drain. |
+| Scenari end-to-end finti obbligatori | Completo in locale | Sono coperti successo, retry/riconsegna, fallimento permanente, soppressione dei duplicati, shutdown ordinato e forzato, e `OutcomeUnknown`. |
+| Suite di stabilità limitata | Completo in locale | Sono automatizzati backpressure sostenuta su 2.048 messaggi, cancellazione di 64 task, 100 cicli di vita del worker e un soak di riconnessione su JetStream reale con 256 messaggi; il soak finale sul consumer resta un gate del congelamento dell'API. |
+| Qualifica di coverage e fuzz | Completo in locale | `cargo-llvm-cov 0.8.7` impone almeno il 90% di coverage di riga sul workspace runtime più i percorsi JetStream reali; sei target `cargo-fuzz 0.13.2` limitati coprono parsing portabile, retry, configurazione NATS, propagazione, ID di cron/controllo e specifiche dei sottoprocessi. |
+| Qualifica sintetica della memoria | Completo in locale | Contratti deterministici provano il rilascio delle allocazioni possedute dai task; un soak Docker da 1 GiB valida plateau dell'allocatore, frammentazione, concorrenza, pulizia su errore e cancellazione, e un controllo con memoria in crescita voluta. Il comportamento di memoria delle librerie reali resta un gate del congelamento dell'API. |
+| Transizione di readiness alla disconnessione | Completo in locale | Il test su NATS reale osserva `NotReady` durante la riconnessione forzata e `Ready` dopo il recupero. |
+| Hook HTTP e di osservabilità | Completo in locale | Sono testati i limiti di ciclo di vita e sicurezza HTTP e span, propagazione, metriche e redazione indipendenti dal backend. |
+| Heartbeat del worker e controllo dei task attivi | Completo in locale | Sono testati ciclo di vita dell'istanza, capacità limitata, cancellazione per ID di task o di messaggio e settlement sul broker. |
+| Controllo di ammissione sotto pressione di memoria | Completo in locale | Campionamento dell'RSS su Linux, stati soft/hard, readiness fail-closed, isteresi e 1.000 cicli di recupero sono deterministici. |
+| Pianificazione programmata generica | Completo in locale | Sono testati piani one-shot e a intervallo, trait di piano estensibile, misfire/recupero limitati, registrazione a runtime, riconciliazione, cursore al riavvio e shutdown. |
+| Cron e controllo dello scheduler | Completo in locale | Sono testati comportamento esplicito su fuso orario IANA e ora legale, jitter deterministico senza deriva, pausa/ripresa durevoli e trigger manuale limitato. |
+| Contenimento generico dei sottoprocessi | Completo in locale | Sono testati avvio diretto senza shell, ammissione e output limitati, timeout/cancellazione/terminazione dell'albero, reap, tetto RSS su Linux e riuso della capacità; non si dichiara alcun protocollo applicativo. |
+| Controllo operativo generico | Completo in locale | Sono testati il registro congelato e limitato, gli snapshot e le mutazioni di worker/task/scheduler/risorse; l'HTTP è sempre autorizzato dall'applicazione e le route di mutazione sono opzionali. |
+| Passaggio della persistenza del ciclo di vita | Completo come confine | Il dispatcher limitato espone scarti, proiezione sulla health e primitive di metrica; non si dichiara alcuna persistenza su database. |
+| Documentazione ed esempi | Completo per lo scheletro generico | Il consumer NATS in forma di processo compone routing versionato delle capability, worker, health/readiness HTTP, heartbeat e drain coordinato; un template separato, compilato nei test, definisce il contratto del futuro adapter verso una libreria concreta. |
+| Common Runtime Binding 1.0 | Percorso di richiesta/discovery/successo implementato | Vettori pinnati verificano routing e discovery REST. I risultati confermati conservano versione dell'operazione, contratto di output, content type e correlazione. La pubblicazione dell'errore terminale tipizzato dopo il settlement dei retry resta un gate di rilascio aperto. |
+| Audit e policy delle dipendenze | Completo in locale | `cargo-audit 0.22.2` e `cargo-deny 0.20.2` pinnati passano; gli avvisi ammessi sulle versioni duplicate restano da rivedere. |
+| Revisione di sicurezza | Tecnicamente completa, approvazione di rilascio in attesa | Vedi [`security-review.md`](security-review.md). L'approvazione organizzativa deve riferirsi al commit esatto. |
+| CI su Windows, Linux e macOS | Gira a ogni push e pull request; Linux e Windows obbligatori, macOS informativo | Il dispatch di `ci.yml` sullo stesso SHA su `main` a `9972954` (2026-10-10) ha passato ogni job tranne la policy delle dipendenze: `cargo audit` ha segnalato RUSTSEC-2026-0285 in `rustls 0.23.43` e il `chacha20 0.10.1` ritirato (yanked), entrambi risolti da un aggiornamento del lockfile. Nessun candidato al rilascio è stato ancora qualificato; resta il gate 6 del congelamento dell'API. |
 
-## Mandatory scenario matrix
+## Matrice degli scenari obbligatori
 
-| Scenario | Fake/in-process | Real infrastructure |
+| Scenario | Finto/in-process | Infrastruttura reale |
 |---|---:|---:|
-| Worker success and ACK | Yes | Yes, through NATS, typed capability routing, worker and ACK |
-| Retry, redelivery, success, ACK | Yes | Yes, including fail-once capability handling |
-| Permanent failure and confirmed DLQ | Yes | Yes |
-| Duplicate delivery and deduplicated effect | Yes | Persistence-backed deduplication waits for the database adapter |
-| Graceful shutdown and drain | Yes | Yes |
-| Forced shutdown and requeue | Yes | Yes, with a replacement worker on the same durable |
-| Disconnect, `NotReady`, reconnect, `Ready` | N/A | Yes |
-| Publish `OutcomeUnknown` without blind retry | Yes | Fault injection; a real network cannot deterministically prove the remote effect |
+| Successo del worker e ACK | Sì | Sì, attraverso NATS, routing tipizzato delle capability, worker e ACK |
+| Retry, riconsegna, successo, ACK | Sì | Sì, compresa la gestione di una capability che fallisce una volta |
+| Fallimento permanente e DLQ confermata | Sì | Sì |
+| Consegna duplicata ed effetto deduplicato | Sì | La deduplicazione persistente attende l'adapter del database |
+| Shutdown ordinato e drain | Sì | Sì |
+| Shutdown forzato e rimessa in coda | Sì | Sì, con un worker sostitutivo sullo stesso durable |
+| Disconnessione, `NotReady`, riconnessione, `Ready` | N/A | Sì |
+| Pubblicazione `OutcomeUnknown` senza retry alla cieca | Sì | Iniezione di guasti; una rete reale non può provare in modo deterministico l'effetto remoto |
 
-## API freeze gates
+## Gate del congelamento dell'API
 
-The public API remains pre-1.0. These gates from the implementation specification are still open:
+L'API pubblica resta pre-1.0. Questi gate della specifica di implementazione sono ancora aperti:
 
-1. a real Plenora consumer using the Rust API (the generic process-shaped example still registers a placeholder capability adapter);
-2. a PFM microservice proof of concept;
-3. transactional outbox/inbox persistence through `database-tools`;
-4. cancellation bridges into `data-tools`, `database-tools`, and `IO-tools`;
-5. durable schedule definitions/cursors and lifecycle observations through `database-tools`;
-6. same-SHA CI and security approval for the release candidate.
-7. Runtime Binding 1.0 terminal-error publication coordinated with retry exhaustion and
-   settlement.
+1. un vero consumer Plenora che usi l'API Rust (l'esempio generico in forma di processo registra
+   ancora un adapter di capability segnaposto);
+2. un proof of concept di microservizio PFM;
+3. la persistenza transazionale di outbox/inbox attraverso `database-tools`;
+4. i ponti di cancellazione verso `data-tools`, `database-tools` e `IO-tools`;
+5. definizioni e cursori durevoli delle pianificazioni e osservazioni del ciclo di vita attraverso
+   `database-tools`;
+6. CI sullo stesso SHA e approvazione di sicurezza per il candidato al rilascio.
+7. la pubblicazione dell'errore terminale di Runtime Binding 1.0, coordinata con l'esaurimento dei
+   retry e il settlement.
 
-None of these open gates should be hidden by marking the generic skeleton complete.
+Nessuno di questi gate aperti va nascosto segnando come completo lo scheletro generico.
 
-## Local qualification commands
+## Comandi di qualifica locale
 
 ```text
 cargo fmt --all -- --check
@@ -68,9 +71,10 @@ cargo audit
 cargo deny check
 ```
 
-Real NATS qualification additionally runs both ignored JetStream suites against the pinned,
-ephemeral container from `scripts/nats-docker.ps1`.
+La qualifica su NATS reale esegue in più entrambe le suite JetStream ignorate contro il container
+effimero e pinnato di `scripts/nats-docker.ps1`.
 
-The CI coverage job merges normal workspace, real NATS, and NATS-to-Apalis profiles before applying
-`cargo llvm-cov report --fail-under-lines 90`. The fuzz smoke job runs every corpus with the pinned
-`nightly-2026-08-01` toolchain. See [`testing.md`](testing.md) for scope and local commands.
+Il job di coverage della CI unisce i profili del workspace normale, di NATS reale e di NATS verso
+Apalis prima di applicare `cargo llvm-cov report --fail-under-lines 90`. Il job di fuzz smoke esegue
+ogni corpus con la toolchain pinnata `nightly-2026-08-01`. Vedi [`testing.md`](testing.md) per
+ambito e comandi locali.

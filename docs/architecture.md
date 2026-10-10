@@ -1,9 +1,9 @@
-# Architecture
+# Architettura
 
-`plenora-runtime-tools` provides reusable process and service foundations. It does not orchestrate
-Plenora data, database, or I/O libraries and contains no business logic.
+`plenora-runtime-tools` fornisce fondamenta riutilizzabili per processi e servizi. Non orchestra le
+librerie Plenora di dati, database o I/O e non contiene logica di business.
 
-The implemented layering is:
+La stratificazione implementata è:
 
 ```text
 runtime-worker  ----> runtime-core
@@ -46,30 +46,36 @@ runtime-control ----> runtime-messaging
 runtime-control-http ----> runtime-control + Axum
 ```
 
-The outbox relay publishes through the messaging producer contract and does not depend on the
-worker. The testkit depends on core, messaging, and outbox so it can provide all first-class fakes.
-It also depends on capabilities and worker to provide the payload-free generic adapter fake.
+Il relay dell'outbox pubblica attraverso il contratto di producer di messaging e non dipende dal
+worker. Il testkit dipende da core, messaging e outbox per poter fornire tutti i fake di prima
+classe. Dipende anche da capabilities e worker per fornire il fake generico di adapter privo di
+payload.
 
-The capabilities crate is an application integration layer above worker and messaging. It owns a
-bounded startup registry, portable versioned routing, and an engine-neutral dispatcher. Concrete
-Rust libraries remain dependencies of the embedding Plenora consumer and are wrapped by small
-application-owned adapters; they never become dependencies of runtime crates.
+Il crate capabilities è un livello di integrazione applicativa sopra worker e messaging. Possiede un
+registro di avvio limitato, un instradamento portabile e versionato e un dispatcher neutrale
+rispetto al motore. Le librerie Rust concrete restano dipendenze del consumer Plenora che le
+incorpora e sono avvolte da piccoli adapter posseduti dall'applicazione; non diventano mai
+dipendenze dei crate di runtime.
 
-The resources crate observes process pressure and controls only the worker's reversible admission
-gate. The scheduler depends only on time and shutdown contracts plus backend-neutral cron/timezone
-calculation; dispatch side effects and persistence remain application-owned boundaries. The
-subprocess crate owns containment but no application protocol. The control crate is an inward-only
-aggregation layer; its separate HTTP adapter owns transport and requires application authorization.
+Il crate resources osserva la pressione sul processo e controlla solo il cancello di ammissione
+reversibile del worker. Lo scheduler dipende solo dai contratti di tempo e di arresto, più il
+calcolo cron/fuso orario neutrale rispetto al backend; effetti collaterali del dispatch e
+persistenza restano confini posseduti dall'applicazione. Il crate subprocess possiede il
+contenimento ma nessun protocollo applicativo. Il crate control è un livello di aggregazione solo
+verso l'interno; il suo adapter HTTP separato possiede il trasporto e richiede un'autorizzazione
+dell'applicazione.
 
-The HTTP package is an inbound adapter despite living with the reusable crates: Axum and Tower
-types stop at that package boundary. The observability package defines stable span, propagation,
-metric, and redaction conventions. Applications install concrete subscribers and exporters.
+Il package HTTP è un adapter in ingresso pur vivendo insieme ai crate riutilizzabili: i tipi Axum e
+Tower si fermano al confine di quel package. Il package observability definisce convenzioni stabili
+per span, propagazione, metriche e oscuramento. Le applicazioni installano subscriber ed exporter
+concreti.
 
-Tokio, Tower, Apalis, NATS JetStream, Axum, and database drivers are implementation choices rather
-than consumer API concepts. Material decisions that are not settled by the specification require
-an ADR.
+Tokio, Tower, Apalis, NATS JetStream, Axum e i driver di database sono scelte implementative, non
+concetti dell'API del consumer. Le decisioni rilevanti non stabilite dalla specifica richiedono un
+ADR.
 
-The Apalis adapter also provides a broker-neutral `BrokerWorkerRunner`. Applications compose a
-`MessageConsumer` such as `JetStreamConsumer` with that runner at startup. This keeps the NATS
-adapter independent of worker mechanics while allowing Apalis readiness to apply backpressure
-before the next broker delivery is pulled.
+L'adapter Apalis fornisce anche un `BrokerWorkerRunner` neutrale rispetto al broker. Le
+applicazioni compongono all'avvio un `MessageConsumer` come `JetStreamConsumer` con quel runner.
+Questo mantiene l'adapter NATS indipendente dalla meccanica del worker, permettendo al tempo stesso
+alla readiness di Apalis di applicare backpressure prima che venga prelevata la consegna successiva
+dal broker.

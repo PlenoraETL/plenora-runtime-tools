@@ -1,60 +1,61 @@
 # plenora-runtime-tools
 
-Reusable Rust foundations for asynchronous services and workers in the Plenora ecosystem.
-The project is infrastructure-agnostic at its public boundaries: concrete HTTP, worker, broker,
-and persistence technologies live behind adapters.
+Fondamenta Rust riusabili per servizi e worker asincroni dell'ecosistema Plenora.
+Il progetto è agnostico rispetto all'infrastruttura ai propri confini pubblici: le tecnologie
+concrete di HTTP, worker, broker e persistenza stanno dietro gli adapter.
 
-## Status
+## Stato
 
-The repository contains the version 0.1 core contracts, a bounded generic capability registry and
-dispatcher, deterministic testkit, outbox fakes, Apalis and NATS JetStream adapters, and
-backend-neutral HTTP, observability, scheduling, subprocess containment, and operational control
-foundations. Public APIs are not stable yet.
-The executable specification is
+Il repository contiene i contratti core della versione 0.1, un registro e un dispatcher generici
+e limitati di capability, un testkit deterministico, fake dell'outbox, gli adapter Apalis e
+NATS JetStream, e le fondamenta indipendenti dal backend per HTTP, osservabilità, schedulazione,
+contenimento dei sottoprocessi e controllo operativo. Le API pubbliche non sono ancora stabili.
+La specifica eseguibile è
 [`plenora-runtime-tools_Agent_Implementation_Spec_v0.1.md`](plenora-runtime-tools_Agent_Implementation_Spec_v0.1.md).
 
 ## Workspace
 
-Core crates live under `crates/`, concrete integrations under `adapters/`, and runnable consumers
-under `examples/`. See [`docs/architecture.md`](docs/architecture.md) and
-[`docs/boundaries.md`](docs/boundaries.md) before adding dependencies. HTTP composition and telemetry
-ownership are described in [`docs/http.md`](docs/http.md) and
-[`docs/observability.md`](docs/observability.md). Per-task state, progress, deadlines, and
-cancellation are specified in [`docs/task-lifecycle.md`](docs/task-lifecycle.md); worker capacity
-and instance heartbeats are described in [`docs/worker.md`](docs/worker.md).
-Generic process-memory pressure and reversible admission are described in
-[`docs/resources.md`](docs/resources.md). Bounded one-shot, interval, timezone-aware cron,
-pause/resume/manual scheduling and restart cursors are described in
+I crate core stanno sotto `crates/`, le integrazioni concrete sotto `adapters/` e i consumer
+eseguibili sotto `examples/`. Leggere [`docs/architecture.md`](docs/architecture.md) e
+[`docs/boundaries.md`](docs/boundaries.md) prima di aggiungere dipendenze. La composizione HTTP e
+la responsabilità della telemetria sono descritte in [`docs/http.md`](docs/http.md) e
+[`docs/observability.md`](docs/observability.md). Stato, avanzamento, scadenze e cancellazione
+per task sono specificati in [`docs/task-lifecycle.md`](docs/task-lifecycle.md); la capacità dei
+worker e gli heartbeat di istanza sono descritti in [`docs/worker.md`](docs/worker.md).
+La pressione generica sulla memoria di processo e l'ammissione reversibile sono descritte in
+[`docs/resources.md`](docs/resources.md). La schedulazione limitata one-shot, a intervallo, cron
+con fuso orario, con pausa/ripresa/avvio manuale e i cursori di ripartenza sono descritti in
 [`docs/scheduler.md`](docs/scheduler.md).
-Application-owned integration adapters and versioned generic routing are described in
-[`docs/capabilities.md`](docs/capabilities.md); the compile-tested adapter template and its required
-contract tests are in [`docs/integrating-a-library.md`](docs/integrating-a-library.md). Worker
-capacity sizing, startup, runtime signals, and shutdown operations are covered by
+Gli adapter di integrazione di proprietà dell'applicazione e il routing generico versionato sono
+descritti in [`docs/capabilities.md`](docs/capabilities.md); il modello di adapter verificato in
+compilazione e i test di contratto richiesti stanno in
+[`docs/integrating-a-library.md`](docs/integrating-a-library.md). Il dimensionamento della capacità
+dei worker, l'avvio, i segnali di runtime e le operazioni di arresto sono trattati in
 [`docs/operations.md`](docs/operations.md).
-Current qualification gates and residual security risks are tracked in
-[`docs/qualification.md`](docs/qualification.md) and
+I gate di qualificazione attuali e i rischi di sicurezza residui sono tracciati in
+[`docs/qualification.md`](docs/qualification.md) e
 [`docs/security-review.md`](docs/security-review.md).
-The immutable common-contract pin, implemented request boundary, and remaining
-Runtime Binding 1.0 gaps are tracked in
-[`docs/contract-alignment.md`](docs/contract-alignment.md) and
+Il pin immutabile dei contratti comuni, il confine di richiesta implementato e le lacune che
+restano rispetto a Runtime Binding 1.0 sono tracciati in
+[`docs/contract-alignment.md`](docs/contract-alignment.md) e
 [`contracts/source.json`](contracts/source.json).
-Bounded load, cancellation, lifecycle, and real JetStream soak coverage is described in
-[`docs/stability.md`](docs/stability.md). Coverage and fuzz qualification, including the enforced
-90% line gate and six fuzz targets, is documented in
+La copertura limitata di carico, cancellazione, ciclo di vita e soak su JetStream reale è
+descritta in [`docs/stability.md`](docs/stability.md). La qualificazione di coverage e fuzz,
+compresi il gate del 90% sulle righe applicato e i sei target di fuzz, è documentata in
 [`docs/testing.md`](docs/testing.md).
-The same testing guide documents the Docker-bounded synthetic memory-retention probe and its
-intentional leak control.
-Generic child-process containment is documented in
-[`docs/subprocess-execution.md`](docs/subprocess-execution.md); no concrete library is forced into
-that mode before its real memory and cancellation behavior is measured. Payload-free operational
-discovery and authorized HTTP control are described in
-[`docs/control-plane.md`](docs/control-plane.md).
+La stessa guida ai test documenta la sonda sintetica di ritenzione della memoria limitata da
+Docker e il suo controllo con leak intenzionale.
+Il contenimento generico dei processi figli è documentato in
+[`docs/subprocess-execution.md`](docs/subprocess-execution.md); nessuna libreria concreta viene
+forzata in quella modalità prima che ne siano misurati il comportamento reale di memoria e di
+cancellazione. La scoperta operativa senza payload e il controllo HTTP autorizzato sono descritti
+in [`docs/control-plane.md`](docs/control-plane.md).
 
-## Local validation
+## Validazione locale
 
-The pinned development toolchain is Rust 1.98.1 and the MSRV is Rust 1.98
-([ADR 0007](docs/adr/0007-toolchain-1-98-1-e-msrv-1-98.md)). When Rust is not
-installed on the host, use the Docker helper from PowerShell:
+La toolchain di sviluppo fissata è Rust 1.98.1 e la MSRV è Rust 1.98
+([ADR 0007](docs/adr/0007-toolchain-1-98-1-e-msrv-1-98.md)). Quando Rust non è
+installato sull'host, usare l'helper Docker da PowerShell:
 
 ```powershell
 ./scripts/cargo-docker.ps1 fmt --all --check
@@ -63,22 +64,24 @@ installed on the host, use the Docker helper from PowerShell:
 ./scripts/cargo-docker.ps1 test --workspace --all-features
 ```
 
-The NATS integration harness uses an ephemeral loopback-only container and emits connection data
-as JSON. See [`tests/architecture/README.md`](tests/architecture/README.md).
+L'harness di integrazione NATS usa un container effimero solo su loopback ed emette i dati di
+connessione in JSON. Vedere [`tests/architecture/README.md`](tests/architecture/README.md).
 
-Runnable compositions are under `examples/`: `worker-basic` demonstrates bounded engine-neutral
-execution and retry classification; `worker-nats` binds NATS JetStream to a frozen generic
-capability registry through Apalis, with dynamically admitted handler tasks, explicit maximum
-concurrency, redaction-safe configuration, TLS, ACK/NAK, confirmed dead-letter routing, HTTP
-health/readiness, and one coordinated drain path;
-`capability-adapter` is a compile-tested template for connecting any application-owned Rust
-library; `scheduler-basic` demonstrates bounded programmed dispatch and deterministic occurrence
-identity; `runtime-benchmark` emits reproducible JSON for bounded worker/scheduler coordination;
-`http-service` and `http-worker` demonstrate smaller HTTP-only compositions. A
-deterministic cross-crate acceptance test exercises the same process shape without external
-infrastructure.
+Le composizioni eseguibili stanno sotto `examples/`: `worker-basic` mostra l'esecuzione limitata
+indipendente dal motore e la classificazione dei retry; `worker-nats` collega NATS JetStream a un
+registro generico di capability congelato tramite Apalis, con task di handler ammessi
+dinamicamente, concorrenza massima esplicita, configurazione sicura rispetto alla redazione, TLS,
+ACK/NAK, instradamento dead-letter confermato, health/readiness HTTP e un unico percorso di drain
+coordinato;
+`capability-adapter` è un modello verificato in compilazione per collegare qualunque libreria Rust
+di proprietà dell'applicazione; `scheduler-basic` mostra il dispatch programmato limitato e
+l'identità deterministica delle occorrenze; `runtime-benchmark` emette JSON riproducibile per il
+coordinamento limitato di worker e scheduler;
+`http-service` e `http-worker` mostrano composizioni più piccole solo HTTP. Un
+test di accettazione deterministico fra crate esercita la stessa forma di processo senza
+infrastruttura esterna.
 
-## License
+## Licenza
 
-Proprietary, source available: the code is publicly visible for review only, and visibility
-grants no licence. See [`LICENSE`](LICENSE).
+Proprietaria, source available: il codice è visibile pubblicamente solo a fini di revisione, e la
+visibilità non concede alcuna licenza. Vedere [`LICENSE`](LICENSE).

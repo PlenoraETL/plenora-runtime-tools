@@ -1,34 +1,37 @@
-# ADR 0003: Broker-neutral messaging contracts and retry safety
+# ADR 0003: contratti di messaggistica indipendenti dal broker e sicurezza dei retry
 
-- Status: accepted
-- Date: 2026-08-15
+- Stato: accettato
+- Data: 2026-08-15
 
-## Context
+## Contesto
 
-The runtime needs portable message identity, propagation metadata, delivery acknowledgement,
-retry, dead-letter, and replay contracts. Concrete brokers differ in all of these areas. Payload
-serialization is also an application choice and must not become an accidental framework mandate.
+Il runtime ha bisogno di contratti portabili per identità dei messaggi, metadati di propagazione,
+conferma di consegna, retry, dead-letter e replay. I broker concreti differiscono in tutte queste
+aree. Anche la serializzazione del payload è una scelta dell'applicazione e non deve diventare un
+obbligo accidentale del framework.
 
-Publication can fail with an unknown remote outcome. Automatically retrying that state can
-duplicate an effect, while treating it as success can lose a message.
+La pubblicazione può fallire con un esito remoto sconosciuto. Ritentare automaticamente in quello
+stato può duplicare un effetto, mentre trattarlo come successo può perdere un messaggio.
 
-## Decision
+## Decisione
 
-The messaging crate:
+Il crate di messaggistica:
 
-- represents encoded payloads as media type plus opaque bytes and requires codecs at the boundary;
-- stores binary-safe metadata under validated portable namespaced keys;
-- owns the acknowledgement capability inside each delivery, so ACK or NACK consumes the delivery;
-- reports broker features through explicit capabilities rather than inferred guarantees;
-- classifies retryable, permanent, dead-letter, and unknown-outcome errors separately;
-- uses validated capped exponential backoff with optional seeded deterministic jitter;
-- refuses to retry unknown outcomes unless configuration explicitly opts in.
+- rappresenta i payload codificati come media type più byte opachi e richiede i codec al confine;
+- conserva metadati sicuri per i dati binari sotto chiavi portabili, con namespace e validate;
+- possiede la capability di acknowledgement dentro ogni consegna, così ACK o NACK consumano la
+  consegna;
+- dichiara le funzionalità del broker tramite capability esplicite anziché garanzie dedotte;
+- classifica separatamente gli errori ritentabili, permanenti, dead-letter e a esito sconosciuto;
+- usa un backoff esponenziale validato e con tetto, con jitter deterministico opzionale da seme;
+- rifiuta di ritentare gli esiti sconosciuti a meno che la configurazione non lo abiliti
+  esplicitamente.
 
-Debug output exposes identities, sizes, and keys, but redacts payload and metadata values.
+L'output Debug espone identità, dimensioni e chiavi, ma redige i valori di payload e metadati.
 
-## Consequences
+## Conseguenze
 
-Adapters translate their native semantics without leaking broker types into application code.
-Applications choose codecs and metadata namespaces. Deterministic jitter makes policy tests
-repeatable. A caller that enables retry for unknown outcomes owns the corresponding idempotency
-and duplication risk.
+Gli adapter traducono la propria semantica nativa senza far trapelare tipi del broker nel codice
+applicativo. Le applicazioni scelgono codec e namespace dei metadati. Il jitter deterministico
+rende ripetibili i test delle policy. Un chiamante che abilita il retry per gli esiti sconosciuti
+si assume il relativo rischio di idempotenza e duplicazione.

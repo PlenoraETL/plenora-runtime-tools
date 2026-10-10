@@ -1,14 +1,15 @@
-# Worker operations and capacity
+# Operazioni e capacità dei worker
 
-Plenora workers are asynchronous handler futures created on demand. They are not a fixed pool of
-operating-system processes. With `max_in_flight = 5`, zero handlers exist while idle, at most five
-messages execute concurrently, and additional work remains in JetStream until capacity is
-available. Tokio runtime threads execute those futures; blocking or CPU-heavy library calls must
-use a separately bounded blocking/compute facility.
+I worker di Plenora sono future asincrone di handler create su richiesta. Non sono un pool fisso di
+processi del sistema operativo. Con `max_in_flight = 5`, a riposo non esiste alcun handler, al più
+cinque messaggi vengono eseguiti in concorrenza, e il lavoro in più resta in JetStream finché non
+c'è capacità disponibile. I thread del runtime Tokio eseguono quelle future; le chiamate di libreria
+bloccanti o pesanti sulla CPU devono usare una struttura bloccante/di calcolo limitata a parte.
 
-## Choosing `max_in_flight`
+## Scegliere `max_in_flight`
 
-RAM alone cannot determine a safe worker count. Start from the tighter of these limits:
+La RAM da sola non basta a stabilire un numero sicuro di worker. Si parte dal più stretto di
+questi limiti:
 
 ```text
 memory_limit = floor((memory_budget - process_baseline) / peak_memory_per_task)
@@ -16,75 +17,88 @@ resource_limit = min(database_pool, remote_api_limit, file_handle_limit, subproc
 safe_max_in_flight = min(memory_limit, resource_limit, measured_stable_concurrency)
 ```
 
-Measure peak resident memory with representative payloads; do not use the encoded message size as
-a proxy for decoded dataframes or buffers. On a 32 GiB host, reserve memory for the OS, NATS,
-databases, caches, and allocator spikes. A task peaking at 500 MiB makes `5` materially different
-from a task peaking at 10 MiB. Begin conservatively, run the real consumer soak, then increase one
-step at a time while observing latency, memory, CPU, database pool wait, redelivery, and failures.
+Si misura il picco di memoria residente con payload rappresentativi; non si usa la dimensione del
+messaggio codificato come approssimazione di dataframe o buffer decodificati. Su un host da 32 GiB,
+si riserva memoria per il sistema operativo, NATS, i database, le cache e i picchi dell'allocatore.
+Un task con picco di 500 MiB rende `5` sostanzialmente diverso da un task con picco di 10 MiB. Si
+comincia in modo prudente, si esegue il soak del consumer reale, poi si aumenta un passo alla volta
+osservando latenza, memoria, CPU, attesa sul pool del database, riconsegne e fallimenti.
 
-Keep these bounds aligned:
+Questi limiti vanno tenuti allineati:
 
-- worker `max_in_flight` is the application execution ceiling;
-- JetStream `max_ack_pending` must be finite and normally equal to that ceiling per consumer;
-- database and HTTP client pools must not allow the worker to create a larger hidden queue;
-- request and message payload limits must reflect worst-case decoded memory, not available RAM;
-- shutdown grace must exceed normal cooperative cancellation time but remain operationally finite;
-- delivery heartbeat failure window must remain shorter than JetStream `ack_wait`.
+- `max_in_flight` del worker è il tetto di esecuzione dell'applicazione;
+- `max_ack_pending` di JetStream deve essere finito e di norma uguale a quel tetto per ogni
+  consumer;
+- i pool dei client di database e HTTP non devono permettere al worker di creare una coda nascosta
+  più grande;
+- i limiti di payload di richieste e messaggi devono riflettere la memoria decodificata nel caso
+  peggiore, non la RAM disponibile;
+- la grazia di shutdown deve superare il normale tempo di cancellazione cooperativa ma restare
+  finita sul piano operativo;
+- la finestra di fallimento dell'heartbeat di consegna deve restare più breve dell'`ack_wait` di
+  JetStream.
 
-## Startup readiness
+## Readiness all'avvio
 
-Provision streams and durable consumers outside the worker. At startup:
+Stream e consumer durable si predispongono fuori dal worker. All'avvio:
 
-1. validate every local bound and secret source;
-2. connect and probe NATS;
-3. bind the existing durable and verify its ACK, delivery, pending, and filter configuration;
-4. construct and freeze the capability registry;
-5. start the fail-closed resource monitor and obtain its first successful sample;
-6. restore scheduler definitions and cursors from the application persistence adapter;
-7. freeze the bounded runtime control registry and mount its router behind application
-   authorization, enabling mutation routes only when operationally required;
-8. start the worker runner, scheduler, and instance heartbeat as supervised tasks;
-9. report ready only after all required components are ready.
+1. validare ogni limite locale e ogni sorgente di segreti;
+2. connettersi a NATS e sondarlo;
+3. agganciare il durable esistente e verificarne la configurazione di ACK, consegna, pendenti e
+   filtro;
+4. costruire e congelare il registro delle capability;
+5. avviare il monitor delle risorse fail-closed e ottenerne il primo campione riuscito;
+6. ripristinare definizioni e cursori dello scheduler dall'adapter di persistenza
+   dell'applicazione;
+7. congelare il registro limitato di controllo del runtime e montarne il router dietro
+   l'autorizzazione dell'applicazione, abilitando le route di modifica solo quando servono sul
+   piano operativo;
+8. avviare il runner dei worker, lo scheduler e l'heartbeat dell'istanza come task supervisionati;
+9. dichiarare ready solo dopo che tutti i componenti richiesti sono pronti.
 
-A configuration mismatch is a startup failure, not a reason to mutate production infrastructure.
-Resource creation and plaintext transport remain explicit local-development opt-ins.
+Una configurazione non corrispondente è un fallimento all'avvio, non un motivo per modificare
+l'infrastruttura di produzione. La creazione di risorse e il trasporto in chiaro restano opt-in
+espliciti per lo sviluppo locale.
 
-## Runtime signals
+## Segnali a runtime
 
-Monitor at least:
+Monitorare almeno:
 
-| Signal | Operational meaning |
+| Segnale | Significato operativo |
 |---|---|
-| readiness | Whether the instance may accept traffic and continue consuming. |
-| worker heartbeat age | Whether the worker process and periodic monitor are alive. |
-| `in_flight / max_in_flight` | Current execution saturation. |
-| lifecycle queue depth/drops | Whether observational persistence or telemetry is falling behind. |
-| NATS reconnects and redelivery attempts | Broker instability or handlers exceeding ownership bounds. |
-| retry and DLQ dispositions | Application failure pressure; alert on changes in rate, not payload text. |
-| `OutcomeUnknown` count | Effects requiring reconciliation rather than blind retry. |
-| drain duration and forced stops | Whether shutdown bounds match real task behavior. |
-| process RSS and pressure state | Whether admission pauses before the container limit is reached. |
-| scheduler saturation/misfires/reconciliation | Whether programmed dispatch is keeping pace safely. |
-| subprocess in-flight/timeouts/RSS terminations | Whether isolated operations fit their explicit bounds. |
+| readiness | Se l'istanza può accettare traffico e continuare a consumare. |
+| età dell'heartbeat del worker | Se il processo del worker e il monitor periodico sono vivi. |
+| `in_flight / max_in_flight` | Saturazione corrente dell'esecuzione. |
+| profondità/scarti della coda del ciclo di vita | Se la persistenza osservativa o la telemetria restano indietro. |
+| riconnessioni NATS e tentativi di riconsegna | Instabilità del broker o handler che superano i limiti di possesso. |
+| disposizioni di retry e DLQ | Pressione dei fallimenti applicativi; allertare sulle variazioni di frequenza, non sul testo del payload. |
+| conteggio di `OutcomeUnknown` | Effetti che richiedono riconciliazione invece di un retry alla cieca. |
+| durata del drain e arresti forzati | Se i limiti di shutdown corrispondono al comportamento reale dei task. |
+| RSS del processo e stato di pressione | Se l'ammissione va in pausa prima di raggiungere il limite del container. |
+| saturazione/esecuzioni mancate/riconciliazione dello scheduler | Se il dispatch programmato tiene il passo in modo sicuro. |
+| sottoprocessi in corso/timeout/terminazioni per RSS | Se le operazioni isolate rientrano nei loro limiti espliciti. |
 
-Heartbeats and lifecycle events are observational. Their bounded handoff may drop observations under
-pressure, but it must never block handler execution or determine ACK/NAK behavior.
+Heartbeat ed eventi del ciclo di vita sono osservativi. Il loro passaggio di consegne limitato può
+scartare osservazioni sotto pressione, ma non deve mai bloccare l'esecuzione degli handler né
+determinare il comportamento di ACK/NAK.
 
-## Shutdown runbook
+## Procedura di shutdown
 
-One coordinated shutdown path must stop HTTP and worker admission first, then allow active handlers
-to observe cancellation and drain within the configured grace period. Broker deliveries are ACKed
-only after success; unfinished work is NAKed or left eligible for server redelivery according to the
-adapter outcome. Finally drain the NATS connection and runtime supervisor.
+Un unico percorso di shutdown coordinato deve fermare prima l'ammissione HTTP e dei worker, poi
+lasciare che gli handler attivi osservino la cancellazione e facciano il drain entro il periodo di
+grazia configurato. Le consegne del broker ricevono ACK solo dopo il successo; il lavoro non finito
+riceve NAK o resta idoneo alla riconsegna del server secondo l'esito dell'adapter. Infine si fa il
+drain della connessione NATS e del supervisore del runtime.
 
-If an instance repeatedly exceeds its drain bound, do not simply increase the timeout. Identify the
-specific library call that ignores cooperative cancellation, add a bounded bridge for it, and test
-the forced-stop/requeue path.
+Se un'istanza supera ripetutamente il suo limite di drain, non basta aumentare il timeout. Si
+individua la chiamata di libreria specifica che ignora la cancellazione cooperativa, le si aggiunge
+un ponte limitato, e si prova il percorso di arresto forzato/requeue.
 
-## Qualification cadence
+## Cadenza di qualifica
 
-Run the normal workspace suite on every change. Run real JetStream tests and the 2,048-message
-bounded stability suite before merging worker, broker, retry, or shutdown changes. Run longer fuzz
-and production-like soak campaigns before a release candidate and after changing any real library
-adapter. See [`testing.md`](testing.md), [`stability.md`](stability.md), and
-[`qualification.md`](qualification.md) for exact commands and release gates.
+La suite normale del workspace si esegue a ogni modifica. I test reali su JetStream e la suite di
+stabilità limitata da 2.048 messaggi si eseguono prima di fare il merge di modifiche a worker,
+broker, retry o shutdown. Campagne di fuzz più lunghe e soak simili alla produzione si eseguono
+prima di una release candidate e dopo aver cambiato un adapter verso una libreria reale. Vedi
+[`testing.md`](testing.md), [`stability.md`](stability.md) e
+[`qualification.md`](qualification.md) per i comandi esatti e i gate di rilascio.

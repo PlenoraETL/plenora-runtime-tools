@@ -1,63 +1,70 @@
-# Worker execution
+# Esecuzione dei worker
 
-Worker APIs expose Plenora-owned handler and context types. Concurrency and channels are bounded,
-retry policy is injected, and shutdown stops intake before draining in-flight work.
+Le API dei worker espongono tipi di handler e di contesto di proprietà di Plenora. Concorrenza e
+canali sono limitati, la policy di retry è iniettata, e lo shutdown ferma l'accettazione prima di
+fare il drain del lavoro in corso.
 
-WorkerExecutor owns no queue and starts no tasks. A semaphore bounds caller-driven handler futures.
-Jobs waiting for capacity observe both runtime shutdown and drain. Admitted work completes
-cooperatively until the configured grace period. A worker drain timeout reports the remaining count;
-because the engine-neutral executor owns no task handles, forced termination and delivery requeue
-remain the concrete engine adapter's responsibility. Tasks spawned through `RuntimeHandle` are
-aborted by the core supervisor after its own grace period expires.
+WorkerExecutor non possiede code e non avvia task. Un semaforo limita le future degli handler
+guidate dal chiamante. I job in attesa di capacità osservano sia lo shutdown del runtime sia il
+drain. Il lavoro ammesso termina in modo cooperativo entro il periodo di grazia configurato. Un
+timeout di drain del worker riporta il numero di task rimasti; poiché l'executor neutrale rispetto
+all'engine non possiede handle dei task, la terminazione forzata e il requeue delle consegne restano
+responsabilità dell'adapter concreto dell'engine. I task avviati tramite `RuntimeHandle` vengono
+interrotti dal supervisore del core allo scadere del suo periodo di grazia.
 
-Admission has three states: `Accepting`, reversible `Paused`, and terminal `Draining`. Resource
-pressure uses `Paused`: new jobs are rejected before handler invocation with a retryable adapter
-disposition, while active handlers continue. Recovery may reopen only a paused gate; drain can never
-be reversed.
+L'ammissione ha tre stati: `Accepting`, `Paused` reversibile e `Draining` terminale. La pressione
+sulle risorse usa `Paused`: i nuovi job sono rifiutati prima dell'invocazione dell'handler con una
+disposizione dell'adapter ritentabile, mentre gli handler attivi proseguono. Il recupero può
+riaprire solo un cancello in pausa; il drain non si può mai invertire.
 
-Handler failures preserve their source while exposing stable category, phase, remote-effect
-certainty, and retry decision. The engine adapter remains responsible for mapping those decisions
-to ACK, NACK, retry, or dead-letter behavior.
+I fallimenti degli handler conservano la loro sorgente ed espongono categoria, fase, certezza
+dell'effetto remoto e decisione di retry stabili. L'adapter dell'engine resta responsabile di
+tradurre queste decisioni in ACK, NACK, retry o dead-letter.
 
-`plenora-runtime-apalis` is the concrete engine bridge. It wraps a `WorkerExecutor` in a cloneable
-Tower service, configures Apalis concurrency and panic capture, and connects the Apalis monitor
-signal to Plenora's admission stop and bounded drain. Retry decisions remain explicit adapter
-outcomes: the bridge never clones an owned delivery.
+`plenora-runtime-apalis` è il ponte concreto verso l'engine. Avvolge un `WorkerExecutor` in un
+servizio Tower clonabile, configura la concorrenza di Apalis e la cattura dei panic, e collega il
+segnale del monitor di Apalis all'arresto dell'ammissione e al drain limitato di Plenora. Le
+decisioni di retry restano esiti espliciti dell'adapter: il ponte non clona mai una consegna
+posseduta.
 
-`BrokerWorkerRunner` composes that service with any broker-neutral `MessageConsumer`. The Apalis
-concurrency layer becomes ready before the consumer stream is polled. With `max_in_flight = 5`, no
-handler task exists while the queue is idle, at most five delivery futures run concurrently, and
-additional messages remain in the broker until a slot is released. A successful handler maps to
-ACK, `RetryAfter` to a broker-native delayed NAK, `DoNotRetry` to permanent NAK/TERM, and shutdown
-admission to shutdown NAK. `DeadLetter` requires an explicitly attached `DeadLetterSink`: the
-record is published first and the original receives TERM only after broker confirmation. Canonical
-metadata decoding requires stable message and
-correlation UUIDs before a handler can run. A terminal consumer polling failure stops the monitor
-and is returned with its concrete source rather than being treated as a clean queue shutdown.
+`BrokerWorkerRunner` compone quel servizio con qualsiasi `MessageConsumer` neutrale rispetto al
+broker. Il livello di concorrenza di Apalis diventa pronto prima che lo stream del consumer venga
+interrogato. Con `max_in_flight = 5`, quando la coda è inattiva non esiste alcun task di handler, al
+più cinque future di consegna girano in concorrenza, e i messaggi in più restano nel broker finché
+non si libera uno slot. Un handler riuscito diventa ACK, `RetryAfter` un NAK ritardato nativo del
+broker, `DoNotRetry` un NAK/TERM permanente, e l'ammissione in shutdown un NAK di shutdown.
+`DeadLetter` richiede un `DeadLetterSink` collegato esplicitamente: il record viene pubblicato per
+primo e l'originale riceve TERM solo dopo la conferma del broker. La decodifica dei metadati
+canonici richiede UUID stabili di messaggio e di
+correlazione prima che un handler possa girare. Un fallimento terminale nell'interrogazione del
+consumer ferma il monitor e viene restituito con la sua sorgente concreta, invece di essere trattato
+come uno shutdown pulito della coda.
 
-Deliveries may carry a validated heartbeat policy. While the handler future is active, the broker
-runner renews ownership without consuming the delivery. NATS maps renewal to JetStream `+WPI`.
-The heartbeat failure window must be shorter than the durable consumer's `ack_wait`. Successful
-renewals reset the consecutive-failure counter. Exhausting the failure budget drops the handler
-future, attempts a retryable NAK, and reports heartbeat and settlement failures separately. Dropping
-an async handler future does not stop detached work or an already-running blocking operation; those
-operations must use their own cooperative cancellation bridge.
+Le consegne possono portare una policy di heartbeat validata. Finché la future dell'handler è
+attiva, il runner del broker rinnova il possesso senza consumare la consegna. NATS traduce il
+rinnovo in JetStream `+WPI`. La finestra di fallimento dell'heartbeat deve essere più breve
+dell'`ack_wait` del consumer durable. I rinnovi riusciti azzerano il contatore dei fallimenti
+consecutivi. Esaurito il budget di fallimenti, la future dell'handler viene scartata, si tenta un
+NAK ritentabile, e i fallimenti di heartbeat e di settlement sono riportati separatamente. Scartare
+la future asincrona di un handler non ferma il lavoro staccato né un'operazione bloccante già in
+corso; quelle operazioni devono usare un proprio ponte di cancellazione cooperativa.
 
-Worker-instance heartbeat is a third, independent signal. `WorkerInstanceHeartbeatReporter`
-samples the executor's live bounded capacity and emits stable process/worker identity, monotonic
-sequence, `Starting/Ready/Draining/Stopped`, `max_in_flight`, `in_flight`, available slots, and
-observer time. The Apalis runner owns the validated periodic timer, emits transition snapshots, and
-drops the timer with the monitor; no detached heartbeat task remains after shutdown. The observer
-is synchronous and must be non-blocking. Future persistence adapters must use an explicitly bounded
-handoff rather than performing database or network I/O inside `record`.
+L'heartbeat dell'istanza di worker è un terzo segnale, indipendente. `WorkerInstanceHeartbeatReporter`
+campiona la capacità limitata viva dell'executor ed emette identità stabile di processo e worker,
+sequenza monotona, `Starting/Ready/Draining/Stopped`, `max_in_flight`, `in_flight`, slot disponibili
+e ora dell'osservatore. Il runner di Apalis possiede il timer periodico validato, emette snapshot
+di transizione, e scarta il timer insieme al monitor; dopo lo shutdown non resta alcun task di
+heartbeat staccato. L'osservatore è sincrono e non deve bloccare. I futuri adapter di persistenza
+devono usare un passaggio di consegne limitato in modo esplicito, invece di fare I/O su database o
+rete dentro `record`.
 
-## Active task control
+## Controllo dei task attivi
 
-Every `WorkerExecutor`, `ApalisWorkerService`, `BrokerDeliveryService`, and `BrokerWorkerRunner`
-exposes a cloneable `WorkerTaskControl`. The handle owns no handler, engine, or broker type and can
-therefore be retained by `plenora-runtime-control` or a Plenora CLI before the runner is moved into
-its async execution future. `WorkerAdmissionHandle` independently exposes payload-free capacity and
-pause/resume/drain operations.
+Ogni `WorkerExecutor`, `ApalisWorkerService`, `BrokerDeliveryService` e `BrokerWorkerRunner`
+espone un `WorkerTaskControl` clonabile. L'handle non possiede tipi di handler, engine o broker e
+può quindi essere trattenuto da `plenora-runtime-control` o da una CLI di Plenora prima che il
+runner venga spostato nella sua future di esecuzione asincrona. `WorkerAdmissionHandle` espone in
+modo indipendente la capacità, senza payload, e le operazioni di pause/resume/drain.
 
 ```rust,ignore
 let task_control = runner.task_control();
@@ -72,41 +79,45 @@ let report = task_control.request_message_cancellation(message_id);
 println!("matched={} requested={}", report.matched, report.requested);
 ```
 
-The registry contains admitted handlers only; messages still waiting in JetStream remain broker
-state and consume no registry entry. Its capacity is exactly `max_in_flight`, snapshots are
-payload-free and bounded, and entries are removed by an execution guard on success, failure,
-cancellation, timeout, or dropped futures. `WorkerTaskId` is local to one executor lifetime, so a
-remote control API must pair it with the worker `instance_id`; cancelling by canonical `MessageId`
-is also available and reaches every simultaneously active delivery attempt for that message.
+Il registro contiene solo gli handler ammessi; i messaggi ancora in attesa in JetStream restano
+stato del broker e non occupano voci del registro. La sua capacità è esattamente `max_in_flight`,
+gli snapshot sono senza payload e limitati, e le voci sono rimosse da una guardia di esecuzione in
+caso di successo, fallimento, cancellazione, timeout o future scartate. `WorkerTaskId` è locale alla
+vita di un singolo executor, quindi un'API di controllo remota deve accoppiarlo con l'`instance_id`
+del worker; è disponibile anche la cancellazione per `MessageId` canonico, che raggiunge ogni
+tentativo di consegna attivo contemporaneamente per quel messaggio.
 
-Cancellation is cooperative and preserves the first reason. Long-running handlers must await
-`WorkerContext::cancelled()` or bridge `context.cancellation` into the operation they invoke. The
-executor polls the handler for the configured bounded cleanup grace and then returns a typed
-cancelled outcome. In the current Apalis broker runner, an explicit `Requested` cancellation maps
-to `DoNotRetry`, then to permanent NAK/TERM. Process shutdown and lease loss retain their separate
-retryable settlement paths.
+La cancellazione è cooperativa e conserva il primo motivo. Gli handler di lunga durata devono
+attendere `WorkerContext::cancelled()` o collegare `context.cancellation` all'operazione che
+invocano. L'executor interroga l'handler per il periodo di grazia di pulizia configurato e limitato,
+poi restituisce un esito di cancellazione tipizzato. Nell'attuale runner del broker di Apalis, una
+cancellazione `Requested` esplicita diventa `DoNotRetry`, poi NAK/TERM permanente. Lo shutdown del
+processo e la perdita del lease mantengono i propri percorsi di settlement ritentabili, distinti.
 
-## Bounded lifecycle handoff
+## Passaggio di consegne limitato del ciclo di vita
 
-`WorkerLifecycleDispatcher::channel` connects both `TaskLifecycleObserver` and
-`WorkerInstanceHeartbeatObserver` to one explicitly bounded async receiver. Observer calls use
-`try_send` and never wait: when full, the newest observation is dropped and `dropped_full`
-advances; after receiver closure, `dropped_closed` advances. The snapshot also exposes current
-occupancy, accepted and delivered totals, and `Open/Saturated/Closed` state. Capacity defaults to
-1,024 and has a hard maximum of 65,536 observations.
+`WorkerLifecycleDispatcher::channel` collega sia `TaskLifecycleObserver` sia
+`WorkerInstanceHeartbeatObserver` a un unico ricevitore asincrono limitato in modo esplicito. Le
+chiamate dell'osservatore usano `try_send` e non attendono mai: quando il canale è pieno,
+l'osservazione più recente viene scartata e `dropped_full` avanza; dopo la chiusura del ricevitore,
+avanza `dropped_closed`. Lo snapshot espone anche l'occupazione corrente, i totali accettati e
+consegnati, e lo stato `Open/Saturated/Closed`. La capacità predefinita è 1.024, con un massimo
+rigido di 65.536 osservazioni.
 
-The dispatcher starts no task and performs no persistence. An embedding application owns the
-single receiver and may drive it as a supervised runtime task. This is the future connection point
-for a database or telemetry adapter; neither the worker crate nor its broker adapter imports those
-unfinished libraries. Saturation affects observation freshness only and never changes handler
-execution or broker settlement.
+Il dispatcher non avvia task e non fa persistenza. Un'applicazione ospite possiede l'unico
+ricevitore e può guidarlo come task di runtime supervisionato. È questo il futuro punto di
+collegamento per un adapter di database o di telemetria; né il crate del worker né il suo adapter
+del broker importano quelle librerie non ancora complete. La saturazione influisce solo sulla
+freschezza delle osservazioni e non cambia mai l'esecuzione degli handler né il settlement del
+broker.
 
-`WorkerLifecycleHealthReporter` maps snapshots into the shared `HealthRegistry`. Optional handoff
-stays ready while degraded; required handoff becomes `NotReady` when saturated and unhealthy when
-the receiver closes. Applications call `refresh` from their supervised monitor, keeping registry
-locking out of observer callbacks. Observability exposes `worker_lifecycle_queue_depth` and
-`worker_lifecycle_dropped_total`; callers record queue depth and counter deltas from the same
-snapshot without introducing a worker dependency into the observability crate.
+`WorkerLifecycleHealthReporter` traduce gli snapshot nel `HealthRegistry` condiviso. Un passaggio
+di consegne opzionale resta pronto anche se degradato; uno obbligatorio diventa `NotReady` quando è
+saturo e non sano quando il ricevitore si chiude. Le applicazioni chiamano `refresh` dal loro
+monitor supervisionato, tenendo il lock del registro fuori dalle callback dell'osservatore.
+L'osservabilità espone `worker_lifecycle_queue_depth` e `worker_lifecycle_dropped_total`; i
+chiamanti registrano la profondità della coda e gli incrementi del contatore dallo stesso snapshot,
+senza introdurre una dipendenza dal worker nel crate di osservabilità.
 
-Apalis types remain confined to the adapter crate; `runtime-worker` exposes only Plenora-owned
-configuration, context, handler, execution, and drain types.
+I tipi di Apalis restano confinati nel crate dell'adapter; `runtime-worker` espone solo tipi di
+configurazione, contesto, handler, esecuzione e drain di proprietà di Plenora.

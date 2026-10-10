@@ -1,18 +1,20 @@
-# Coverage and fuzz qualification
+# Qualifica di coverage e fuzz
 
-The repository treats coverage as a failing qualification gate, not an informational badge. CI
-uses `cargo-llvm-cov 0.8.7` with Rust 1.98.1 and fails when merged line coverage is below 90%.
+Il repository tratta la coverage come un gate di qualifica che fallisce, non come un badge
+informativo. La CI usa `cargo-llvm-cov 0.8.7` con Rust 1.98.1 e fallisce quando la coverage di riga
+unita scende sotto il 90%.
 
-## Coverage scope
+## Ambito della coverage
 
-The measured profile includes all production crates and adapters, their normal test suites, the
-ignored tests against the pinned ephemeral NATS JetStream server, the NATS-to-Apalis dead-letter
-test, and the complete capability/crash-recovery worker test. Runnable examples and the
-architecture/integration harness packages
-are excluded from the normal workspace invocation; the relevant integration binary is then added
-explicitly. `cargo-llvm-cov` excludes standalone test-source files from the report by default.
+Il profilo misurato comprende tutti i crate di produzione e gli adapter, le loro suite di test
+normali, i test ignorati contro il server NATS JetStream effimero e pinnato, il test di dead-letter
+da NATS ad Apalis e il test completo del worker su capability e recupero dopo crash. Gli esempi
+eseguibili e i pacchetti di harness di architettura/integrazione
+sono esclusi dall'invocazione normale sul workspace; il binario di integrazione pertinente si
+aggiunge poi in modo esplicito. `cargo-llvm-cov` esclude per default dal report i file sorgente di
+test a sé stanti.
 
-CI builds the merged profile in this order:
+La CI costruisce il profilo unito in quest'ordine:
 
 ```text
 cargo llvm-cov clean --workspace
@@ -23,78 +25,80 @@ cargo llvm-cov -p plenora-runtime-integration-tests --test nats_capability_e2e -
 cargo llvm-cov report --summary-only --fail-under-lines 90
 ```
 
-The threshold is intentionally line coverage. Branch coverage is not claimed because the stable
-Rust instrumentation used by this workspace does not currently report it.
+La soglia è di proposito sulla coverage di riga. La coverage dei rami non si dichiara perché la
+strumentazione stabile di Rust usata da questo workspace oggi non la riporta.
 
-## Fuzz targets
+## Target di fuzz
 
-The independent `fuzz/` workspace pins `cargo-fuzz 0.13.2`, `libfuzzer-sys 0.4.13`, and
-`nightly-2026-08-01`. Its six targets exercise:
+Il workspace indipendente `fuzz/` pinna `cargo-fuzz 0.13.2`, `libfuzzer-sys 0.4.13` e
+`nightly-2026-08-01`. I suoi sei target esercitano:
 
-- message metadata bounds, validation, and atomic mutation;
-- capability routing codec inputs;
-- exponential retry calculations across extreme attempts and durations;
-- NATS connection, producer, consumer, and replay configuration validation;
-- W3C propagation carrier injection and extraction.
-- control component/schedule identifiers, cron/timezone plans, deterministic jitter, and subprocess
-  specification bounds.
+- limiti, validazione e mutazione atomica dei metadati dei messaggi;
+- gli input del codec di routing delle capability;
+- i calcoli del retry esponenziale su tentativi e durate estremi;
+- la validazione della configurazione NATS di connessione, producer, consumer e replay;
+- l'iniezione e l'estrazione del carrier di propagazione W3C.
+- identificatori di componente/pianificazione del controllo, piani cron/fuso orario, jitter
+  deterministico e limiti delle specifiche dei sottoprocessi.
 
-Seed corpora are versioned under `fuzz/corpus/`. Crashes and local build output remain ignored under
-`fuzz/artifacts/` and `fuzz/target/`.
+I corpus di partenza sono versionati sotto `fuzz/corpus/`. I crash e l'output di build locale
+restano ignorati sotto `fuzz/artifacts/` e `fuzz/target/`.
 
-On a Unix-like host with the pinned nightly and `cargo-fuzz` installed, run one target with:
+Su un host di tipo Unix con la nightly pinnata e `cargo-fuzz` installati, un target si esegue con:
 
 ```text
 cargo +nightly-2026-08-01 fuzz run retry_policy fuzz/corpus/retry_policy -- -max_total_time=60 -timeout=5 -max_len=32768
 ```
 
-On Windows, run the same command in a Linux container or WSL because libFuzzer requires a
-Unix-like environment. CI runs 2,000 smoke iterations for every target on every push and pull
-request. `.github/workflows/fuzz.yml` runs time-budgeted campaigns on a copy of each corpus: 60
-seconds per target on pull requests that touch `fuzz/`, 600 seconds per target every Sunday and on
-manual dispatch (`seconds` input). Crash inputs are kept as run artifacts; retain any minimized
-regression input in the corpus.
+Su Windows, si esegue lo stesso comando in un container Linux o in WSL, perché libFuzzer richiede
+un ambiente di tipo Unix. La CI esegue 2.000 iterazioni di smoke per ogni target a ogni push e pull
+request. `.github/workflows/fuzz.yml` esegue campagne con budget di tempo su una copia di ciascun
+corpus: 60 secondi per target sulle pull request che toccano `fuzz/`, 600 secondi per target ogni
+domenica e nel dispatch manuale (input `seconds`). Gli input che causano crash si conservano come
+artefatti dell'esecuzione; ogni input di regressione minimizzato va tenuto nel corpus.
 
-## Memory-retention qualification
+## Qualifica della ritenzione di memoria
 
-The normal workspace suite includes small deterministic contracts proving that success, handler
-failure, timeout, and bounded concurrent execution release task-owned synthetic allocations. The
-Linux RSS probe is intentionally opt-in because allocator behavior and process memory accounting are
-environment-sensitive.
+La suite normale del workspace include piccoli contratti deterministici che provano che successo,
+fallimento dell'handler, timeout ed esecuzione concorrente limitata rilasciano le allocazioni
+sintetiche possedute dai task. La sonda dell'RSS su Linux è di proposito opzionale, perché il
+comportamento dell'allocatore e la contabilità della memoria di processo dipendono dall'ambiente.
 
-Run the complete probe from PowerShell:
+La sonda completa si esegue da PowerShell:
 
 ```powershell
 ./scripts/memory-soak.ps1
 ```
 
-It builds the long-lived probe once, then runs plateau, fragmentation, concurrency, error,
-cancellation, and intentional-leak scenarios in network-disabled Docker containers with a hard
-memory limit. CSV samples and one JSON run manifest are written below `target/memory-soak/`.
+Costruisce una volta la sonda a lunga vita, poi esegue gli scenari di plateau, frammentazione,
+concorrenza, errore, cancellazione e leak voluto in container Docker senza rete e con un limite di
+memoria rigido. I campioni CSV e un manifesto JSON dell'esecuzione si scrivono sotto
+`target/memory-soak/`.
 
-The classifier compares median RSS in the first and last quartiles after warm-up. A high but stable
-allocator plateau passes; monotonic retained growth above the configured tolerance fails. The
-intentional leak must fail with the dedicated growing exit code, otherwise the wrapper rejects the
-run. This qualifies the runtime and detector only. Every concrete library adapter must later repeat
-the same process-long workload with representative library operations.
+Il classificatore confronta l'RSS mediano del primo e dell'ultimo quartile dopo il riscaldamento. Un
+plateau dell'allocatore alto ma stabile passa; una crescita trattenuta monotona oltre la tolleranza
+configurata fallisce. Il leak voluto deve fallire con il codice d'uscita dedicato alla crescita,
+altrimenti il wrapper rifiuta l'esecuzione. Questo qualifica solo il runtime e il rilevatore. Ogni
+adapter verso una libreria concreta dovrà poi ripetere lo stesso carico di lunga durata con
+operazioni rappresentative della libreria.
 
-## Resource and scheduler resilience
+## Resilienza delle risorse e dello scheduler
 
-The always-on suite exercises fail-closed sampling, admission hysteresis, 1,000 pressure/recovery
-cycles, bounded catch-up of a 10,001-occurrence backlog, dispatch timeout, safe retry after a
-not-started crash, unknown-outcome reconciliation, cursor restoration after restart, and scheduler
-shutdown:
+La suite sempre attiva esercita campionamento fail-closed, isteresi dell'ammissione, 1.000 cicli di
+pressione/recupero, recupero limitato di un arretrato di 10.001 occorrenze, timeout del dispatch,
+retry sicuro dopo un crash prima dell'avvio, riconciliazione dell'esito sconosciuto, ripristino del
+cursore dopo il riavvio e shutdown dello scheduler:
 
 ```text
 cargo test -p plenora-runtime-resources --all-targets --locked
 cargo test -p plenora-runtime-scheduler --all-targets --locked
 ```
 
-These are backend-neutral tests. Durable scheduler and lifecycle recovery must be repeated through
-the future `database-tools` adapter before the consumer API is frozen.
+Sono test indipendenti dal backend. Il recupero durevole dello scheduler e del ciclo di vita va
+ripetuto attraverso il futuro adapter di `database-tools` prima che l'API del consumer si congeli.
 
-Cron/timezone, pause/resume, manual-trigger saturation, subprocess lifecycle, and authorized
-control-plane routing are covered by their normal crate suites:
+Cron/fuso orario, pausa/ripresa, saturazione del trigger manuale, ciclo di vita dei sottoprocessi e
+routing autorizzato del piano di controllo sono coperti dalle suite normali dei rispettivi crate:
 
 ```text
 cargo test -p plenora-runtime-subprocess --all-targets --locked

@@ -1,17 +1,17 @@
-# Pinned public contracts
+# Contratti pubblici fissati
 
-`source.json` pins the immutable `plenora-contracts` revision consumed by this
-repository. The files under `runtime-v1/` and `capabilities-v2/` are
-byte-independent JSON copies of the complete runtime conformance matrix at
-that revision. `plenora-contracts` is a public repository; the copies keep CI
-offline and reproducible at the pinned revision.
+`source.json` fissa la revisione immutabile di `plenora-contracts` consumata da questo
+repository. I file sotto `runtime-v1/` e `capabilities-v2/` sono copie JSON
+identiche byte per byte della matrice completa di conformità del runtime a
+quella revisione. `plenora-contracts` è un repository pubblico; le copie tengono la CI
+offline e riproducibile alla revisione fissata.
 
-`runtime-tools` is the transport consumer described by the common repository,
-not one of the five domain component profiles. It therefore does not claim a
-domain adoption manifest. Conformance evidence is owned by the public
-capability codec tests and is reported in
+`runtime-tools` è il consumer di trasporto descritto dal repository comune,
+non uno dei cinque profili di componente di dominio. Per questo non dichiara un
+manifesto di adozione di dominio. Le prove di conformità appartengono ai test
+pubblici del codec delle capability e sono riportate in
 [`docs/contract-alignment.md`](../docs/contract-alignment.md).
 
-Do not edit a vendored vector in place. Update `source.json` to a reviewed full
-commit SHA, replace the vector copies from that revision, and rerun the complete
-qualification suite.
+Non modificare sul posto un vettore copiato. Aggiornare `source.json` a uno SHA di commit
+completo e revisionato, sostituire le copie dei vettori da quella revisione e rieseguire l'intera
+suite di qualificazione.

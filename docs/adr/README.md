@@ -1,6 +1,6 @@
-# Architecture decision records
+# Registro delle decisioni architetturali
 
-ADRs record material choices not fixed by the implementation specification. Use sequential file
-numbers, include status and consequences, and supersede prior decisions instead of rewriting their
-history.
+Gli ADR registrano le scelte rilevanti non fissate dalla specifica di implementazione. Usare numeri
+di file sequenziali, includere stato e conseguenze, e sostituire le decisioni precedenti invece di
+riscriverne la storia.
 
