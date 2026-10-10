@@ -1,6 +1,6 @@
 # ADR 0001: Rust development toolchain and MSRV
 
-- Status: Accepted
+- Status: Superseded by [ADR 0007](0007-toolchain-1-98-1-e-msrv-1-98.md)
 - Date: 2026-08-15
 
 ## Context

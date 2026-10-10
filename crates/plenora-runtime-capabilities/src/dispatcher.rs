@@ -176,6 +176,10 @@ impl CapabilityDispatcher {
         self.config
     }
 
+    #[allow(
+        clippy::result_large_err,
+        reason = "CapabilityDispatchError porta per valore identità e motivo del rifiuto; percorso di errore freddo, inscatolarlo cambierebbe l'API pubblica senza beneficio misurato"
+    )]
     async fn complete_response(
         &self,
         capability: CapabilityId,

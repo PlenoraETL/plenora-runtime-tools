@@ -3,6 +3,8 @@ all-features = true
 
 [advisories]
 unmaintained = "workspace"
+# Una versione ritirata dal registro è un errore, non un avviso.
+yanked = "deny"
 
 [licenses]
 unused-allowed-license = "allow"
@@ -19,6 +21,12 @@ allow = [
     "Zlib",
 ]
 private = { ignore = true }
+exceptions = [
+    # `libfuzzer-sys` incorpora libFuzzer di LLVM sotto NCSA, licenza
+    # permissiva con obbligo di attribuzione. L'eccezione vale solo per il
+    # crate del lock separato di `fuzz/`, invece di ampliare la allowlist.
+    { allow = ["MIT", "Apache-2.0", "NCSA"], crate = "libfuzzer-sys" },
+]
 
 [bans]
 multiple-versions = "warn"

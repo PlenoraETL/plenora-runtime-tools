@@ -239,7 +239,7 @@ impl WorkerTaskControl {
             WorkerTaskCancellationOutcome::AlreadyRequested(
                 task.cancellation
                     .reason()
-                    .map_or(TaskCancellationReason::Requested, std::convert::identity),
+                    .unwrap_or(TaskCancellationReason::Requested),
             )
         }
     }

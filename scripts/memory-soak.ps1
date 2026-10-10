@@ -31,11 +31,11 @@ $DockerExecutable = (Get-Command docker -ErrorAction Stop).Source
 $WorkspacePath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $WorkspaceMount = "type=bind,source=$WorkspacePath,target=/workspace"
 $RegistryVolume = "runtime-tools-cargo-registry"
-$TargetVolume = "runtime-tools-target-rust-1-97-1-bookworm"
+$TargetVolume = "runtime-tools-target-rust-1-98-1-bookworm"
 # Images are content-pinned by multi-architecture index digest, matching nats-docker.ps1, so the
 # same commit always qualifies against the same base files. The build layer still installs
 # build-essential from mutable Debian repositories; that remains a known reproducibility gap.
-$BuildImage = "rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97"
+$BuildImage = "rust:1.98.1-bookworm@sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a285fc83971e"
 $RunImage = "debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241"
 $ProbeBinary = "/workspace/target/release/plenora-memory-probe"
 

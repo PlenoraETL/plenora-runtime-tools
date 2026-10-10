@@ -1,7 +1,7 @@
 # Coverage and fuzz qualification
 
 The repository treats coverage as a failing qualification gate, not an informational badge. CI
-uses `cargo-llvm-cov 0.8.7` with Rust 1.97.1 and fails when merged line coverage is below 90%.
+uses `cargo-llvm-cov 0.8.7` with Rust 1.98.1 and fails when merged line coverage is below 90%.
 
 ## Coverage scope
 
@@ -49,8 +49,11 @@ cargo +nightly-2026-08-01 fuzz run retry_policy fuzz/corpus/retry_policy -- -max
 ```
 
 On Windows, run the same command in a Linux container or WSL because libFuzzer requires a
-Unix-like environment. CI runs 2,000 deterministic smoke iterations for every target; longer local
-or scheduled campaigns should increase `-max_total_time` and retain any minimized regression input.
+Unix-like environment. CI runs 2,000 smoke iterations for every target on every push and pull
+request. `.github/workflows/fuzz.yml` runs time-budgeted campaigns on a copy of each corpus: 60
+seconds per target on pull requests that touch `fuzz/`, 600 seconds per target every Sunday and on
+manual dispatch (`seconds` input). Crash inputs are kept as run artifacts; retain any minimized
+regression input in the corpus.
 
 ## Memory-retention qualification
 
