@@ -79,4 +79,5 @@ infrastructure.
 
 ## License
 
-Proprietary and confidential. See [`LICENSE`](LICENSE).
+Proprietary, source available: the code is publicly visible for review only, and visibility
+grants no licence. See [`LICENSE`](LICENSE).

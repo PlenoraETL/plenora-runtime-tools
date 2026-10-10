@@ -652,7 +652,7 @@ fn qualification_docs_preserve_open_release_and_security_gates() -> Result<(), B
 
     for required in [
         "CI on Windows, Linux, and macOS",
-        "Pending commit",
+        "No release candidate has been qualified yet",
         "a real Plenora consumer",
         "a PFM microservice proof of concept",
         "transactional outbox/inbox persistence",

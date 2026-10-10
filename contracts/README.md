@@ -3,7 +3,8 @@
 `source.json` pins the immutable `plenora-contracts` revision consumed by this
 repository. The files under `runtime-v1/` and `capabilities-v2/` are
 byte-independent JSON copies of the complete runtime conformance matrix at
-that revision so private-repository network access is not required during CI.
+that revision. `plenora-contracts` is a public repository; the copies keep CI
+offline and reproducible at the pinned revision.
 
 `runtime-tools` is the transport consumer described by the common repository,
 not one of the five domain component profiles. It therefore does not claim a

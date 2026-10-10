@@ -3,9 +3,9 @@
 This repository consumes the public runtime boundary defined by
 `plenora-contracts`; it is not one of the five domain component profiles. The
 immutable source revision and vendored conformance vectors are recorded in
-[`contracts/source.json`](../contracts/source.json). CI uses the vendored copies
-so validation does not require credentials for the private contracts
-repository.
+[`contracts/source.json`](../contracts/source.json). `plenora-contracts` is a
+public repository; CI uses the vendored copies so validation stays offline and
+reproducible at the pinned revision.
 
 ## Current Runtime Binding 1.0 coverage
 

@@ -1,7 +1,9 @@
 # Security policy
 
-This is an internal, pre-release project. Report suspected vulnerabilities through the approved
-internal Plenora security channel. Do not disclose vulnerabilities in a public issue.
+This repository is public and pre-release. Report suspected vulnerabilities privately through
+GitHub private vulnerability reporting: open the repository's **Security** tab and choose
+**Report a vulnerability**. Do not open a public issue, pull request, or discussion for a
+suspected vulnerability.
 
 Reports should include the affected revision, a minimal reproduction, the expected impact, and
 whether secrets or production data may have been exposed. Never include live credentials or

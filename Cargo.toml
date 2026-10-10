@@ -14,6 +14,9 @@ members = [
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.97.1"
+# Licenza proprietaria source-available del repository (LICENSE): non esiste
+# un identificatore SPDX, quindi si usa `license-file`. Tutti i crate sono
+# `publish = false`.
 license-file = "LICENSE"
 
 [workspace.dependencies]
