@@ -5,6 +5,11 @@ use std::{
     time::SystemTime,
 };
 
+// Adoption deviations RT-007/010/013/016/019/020/023/026/027 are tracked in
+// docs/contract-alignment.md: legacy dispatch/settlement is not an integrated
+// negotiated transport, durable acceptance store, domain payload validator,
+// or terminal public-error publisher. A green model test does not close them.
+
 use async_trait::async_trait;
 use chrono::DateTime;
 use plenora_runtime_core::{Clock, SystemClock};
@@ -673,6 +678,21 @@ impl CapabilityDispatchError {
                 PlenoraErrorRemoteEffect::Unknown,
                 PlenoraErrorRetry::RequiresRecovery,
                 "Capability deadline elapsed after invocation may have begun.",
+            ),
+            // RT-024: exceeding a bound is never a truncated success or a
+            // protocol error. The opaque handler may already have committed;
+            // preserve uncertainty (ERR-016), never infer `none` from size.
+            // Deviation: proven effect/phase are not carried by CapabilityResponse;
+            // see docs/contract-alignment.md (RT-024, ERR-015).
+            Self::IncompatibleResponse {
+                reason: CapabilityResponseRejection::OutputTooLarge,
+                ..
+            } => (
+                PlenoraErrorCategory::ResourceLimit,
+                PlenoraErrorPhase::Finalize,
+                PlenoraErrorRemoteEffect::Unknown,
+                PlenoraErrorRetry::RequiresRecovery,
+                "Capability result exceeds the configured runtime bound.",
             ),
             Self::IncompatibleResponse { .. } | Self::ResultMetadata { .. } => (
                 PlenoraErrorCategory::Protocol,

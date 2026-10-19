@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/plan-budget-v1.schema.json",
+  "title": "Plenora plan budget fragment v1",
+  "description": "Validates only the fragment governed by plenora-plan-budget-v1: the plan format version and the two budget members of limits. Members this contract does not govern are permitted, because a conforming plan carries many more. The comparison between the two budgets is NOT expressible here — JSON Schema cannot compare sibling values — and is enforced as a semantic check instead.",
+  "type": "object",
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": {"type": "integer", "enum": [4, 5, 6]},
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_governed_memory_bytes": {"$ref": "#/$defs/positive_u64"},
+        "max_domain_memory_bytes": {"$ref": "#/$defs/positive_u64"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$comment": "PLAN-007: the field exists only in plan format version 6.",
+      "if": {
+        "properties": {"schema_version": {"enum": [4, 5]}},
+        "required": ["schema_version"]
+      },
+      "then": {
+        "properties": {
+          "limits": {"not": {"required": ["max_domain_memory_bytes"]}}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "positive_u64": {
+      "$comment": "PLAN-008: positive integer representable in an unsigned 64-bit integer.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 18446744073709551615
+    }
+  }
+}

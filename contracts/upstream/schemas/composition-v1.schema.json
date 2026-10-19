@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/composition-v1.schema.json",
+  "title": "Plenora cross-component composition matrix v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "contract", "edges"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "contract": {"const": "plenora-composition-v1"},
+    "edges": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "mode", "interchange_contract", "content_type"],
+        "properties": {
+          "from": {"$ref": "#/$defs/endpoint"},
+          "to": {"$ref": "#/$defs/endpoint"},
+          "mode": {"enum": ["direct", "adapter_required", "provisional"]},
+          "interchange_contract": {
+            "type": "string",
+            "pattern": "^plenora-[a-z0-9-]+-v[1-9][0-9]*$"
+          },
+          "content_type": {"type": "string", "minLength": 3},
+          "constraints": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1, "maxLength": 300}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "operation", "version"],
+      "properties": {
+        "component": {
+          "type": "string",
+          "pattern": "^plenora-[a-z][a-z0-9-]+-tools$"
+        },
+        "operation": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        },
+        "version": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

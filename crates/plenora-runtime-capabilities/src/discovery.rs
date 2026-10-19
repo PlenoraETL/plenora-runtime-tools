@@ -5,7 +5,10 @@ use std::{
     sync::Arc,
 };
 
-use serde::Deserialize;
+use serde::{
+    Deserialize,
+    de::{DeserializeSeed, MapAccess, SeqAccess, Visitor},
+};
 use serde_json::{Map, Value};
 
 use crate::{
@@ -33,7 +36,6 @@ const MAX_ATTRIBUTE_NODES: usize = 1_024;
 const MAX_ATTRIBUTE_COLLECTION_ITEMS: usize = 64;
 const MAX_ATTRIBUTE_KEY_BYTES: usize = 64;
 const MAX_ATTRIBUTE_STRING_BYTES: usize = 512;
-const RUNTIME_BINDING_CONTRACT: &str = "plenora-runtime-binding-v1";
 
 /// Public surface advertised by Capability Discovery 2.0.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
@@ -239,6 +241,32 @@ impl CapabilityOperation {
         self.side_effect
     }
 
+    /// Effective effect on an advertised surface, including SB-001 overrides.
+    /// Returns `None` for a surface the artifact does not expose.
+    #[must_use]
+    pub fn surface_side_effect(&self, surface: CapabilitySurface) -> Option<CapabilitySideEffect> {
+        if !self.surfaces.contains(&surface) {
+            return None;
+        }
+        let name = match surface {
+            CapabilitySurface::Rust => "rust",
+            CapabilitySurface::Cli => "cli",
+            CapabilitySurface::PythonSdk => "python_sdk",
+            CapabilitySurface::Runtime => "runtime",
+        };
+        match self
+            .attributes
+            .0
+            .get("plenora.surface_side_effects")
+            .and_then(|effects| effects.get(name))
+            .and_then(Value::as_str)
+        {
+            Some("local") => Some(CapabilitySideEffect::Local),
+            Some("remote") => Some(CapabilitySideEffect::Remote),
+            _ => Some(self.side_effect),
+        }
+    }
+
     /// Returns the execution controls supported by the component.
     #[must_use]
     pub const fn controls(&self) -> CapabilityControls {
@@ -274,6 +302,18 @@ impl CapabilityDiscovery {
                 CapabilityDiscoveryErrorKind::DocumentTooLarge,
             ));
         }
+        let mut duplicate = false;
+        let mut parser = serde_json::Deserializer::from_slice(bytes);
+        UniqueJson(&mut duplicate)
+            .deserialize(&mut parser)
+            .and_then(|()| parser.end())
+            .map_err(|_error| {
+                CapabilityDiscoveryError::new(if duplicate {
+                    CapabilityDiscoveryErrorKind::DuplicateJsonMember
+                } else {
+                    CapabilityDiscoveryErrorKind::InvalidJson
+                })
+            })?;
         let raw: RawDiscovery = serde_json::from_slice(bytes).map_err(|_error| {
             CapabilityDiscoveryError::new(CapabilityDiscoveryErrorKind::InvalidJson)
         })?;
@@ -337,7 +377,10 @@ impl CapabilityDiscovery {
                 CapabilityDiscoveryErrorKind::DuplicateRuntimeInterface,
             ));
         }
-        if interface.contract.as_str() != RUNTIME_BINDING_CONTRACT {
+        if !matches!(
+            (interface.contract.as_str(), interface.version),
+            ("plenora-runtime-binding-v1", 1) | ("plenora-runtime-binding-v2", 2)
+        ) {
             return Err(CapabilityDiscoveryError::new(
                 CapabilityDiscoveryErrorKind::UnsupportedRuntimeBinding,
             ));
@@ -345,7 +388,8 @@ impl CapabilityDiscovery {
         let artifact = interface.artifact().ok_or_else(|| {
             CapabilityDiscoveryError::new(CapabilityDiscoveryErrorKind::MissingRuntimeArtifact)
         })?;
-        CapabilityId::new(artifact, interface.version).map_err(|_error| {
+        // RT-025: both contract versions use wire version 1.
+        CapabilityId::new(artifact, 1).map_err(|_error| {
             CapabilityDiscoveryError::new(CapabilityDiscoveryErrorKind::InvalidRuntimeCapability)
         })
     }
@@ -443,6 +487,9 @@ impl CapabilityDiscovery {
         }
 
         let mut operations = BTreeMap::new();
+        // Deviation CAP-004 (docs/contract-alignment.md): distinct versions of
+        // one name are currently rejected. Never claim multi-version discovery
+        // until every public lookup and dispatch is keyed by (name, version).
         for operation in raw.operations {
             let operation = CapabilityOperation::try_from(operation)?;
             if operations
@@ -470,6 +517,8 @@ pub enum CapabilityDiscoveryErrorKind {
     DocumentTooLarge,
     /// JSON syntax or shape is invalid.
     InvalidJson,
+    /// A JSON object repeats a member name, at any depth.
+    DuplicateJsonMember,
     /// The schema version is not Capability Discovery 2.0.
     UnsupportedSchemaVersion,
     /// The component identifier is invalid.
@@ -496,7 +545,7 @@ pub enum CapabilityDiscoveryErrorKind {
     MissingRuntimeInterface,
     /// More than one runtime interface was advertised.
     DuplicateRuntimeInterface,
-    /// The runtime interface does not use Runtime Binding 1.0.
+    /// The runtime interface has an unsupported contract/version pair.
     UnsupportedRuntimeBinding,
     /// The runtime interface omitted its artifact identifier.
     MissingRuntimeArtifact,
@@ -555,6 +604,67 @@ pub enum CapabilityRequestRejection {
     IdempotencyKeyUnsupported,
     /// The deadline is not a valid absolute RFC 3339 UTC timestamp.
     InvalidDeadline,
+}
+
+// Validate the original bytes before any Map can silently overwrite a member.
+// A separate pass preserves RawDiscovery's exact numeric/shape conversion rules.
+struct UniqueJson<'a>(&'a mut bool);
+
+impl<'de> DeserializeSeed<'de> for UniqueJson<'_> {
+    type Value = ();
+
+    fn deserialize<D: serde::Deserializer<'de>>(self, deserializer: D) -> Result<(), D::Error> {
+        deserializer.deserialize_any(self)
+    }
+}
+
+impl<'de> Visitor<'de> for UniqueJson<'_> {
+    type Value = ();
+
+    fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str("JSON with unique object members")
+    }
+
+    fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<(), M::Error> {
+        let mut keys = BTreeSet::new();
+        while let Some(key) = map.next_key::<String>()? {
+            if !keys.insert(key) {
+                *self.0 = true;
+                return Err(serde::de::Error::custom("duplicate JSON member"));
+            }
+            map.next_value_seed(UniqueJson(self.0))?;
+        }
+        Ok(())
+    }
+
+    fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<(), S::Error> {
+        while seq.next_element_seed(UniqueJson(self.0))?.is_some() {}
+        Ok(())
+    }
+
+    fn visit_bool<E: serde::de::Error>(self, _value: bool) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_i64<E: serde::de::Error>(self, _value: i64) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_u64<E: serde::de::Error>(self, _value: u64) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_f64<E: serde::de::Error>(self, _value: f64) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_str<E: serde::de::Error>(self, _value: &str) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_unit<E: serde::de::Error>(self) -> Result<(), E> {
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]
@@ -692,6 +802,7 @@ impl TryFrom<RawOperation> for CapabilityOperation {
             ));
         }
         validate_attributes(&raw.attributes)?;
+        validate_surface_effects(&raw.attributes, &surfaces, raw.side_effect)?;
         Ok(Self {
             name,
             version,
@@ -705,6 +816,34 @@ impl TryFrom<RawOperation> for CapabilityOperation {
             attributes: CapabilityAttributes(raw.attributes),
         })
     }
+}
+
+fn validate_surface_effects(
+    attributes: &Map<String, Value>,
+    surfaces: &BTreeSet<CapabilitySurface>,
+    base: CapabilitySideEffect,
+) -> Result<(), CapabilityDiscoveryError> {
+    let invalid = || CapabilityDiscoveryError::new(CapabilityDiscoveryErrorKind::InvalidOperation);
+    if let Some(effects) = attributes.get("plenora.surface_side_effects") {
+        for (name, value) in effects.as_object().ok_or_else(invalid)? {
+            let surface = match name.as_str() {
+                "rust" => CapabilitySurface::Rust,
+                "cli" => CapabilitySurface::Cli,
+                "python_sdk" => CapabilitySurface::PythonSdk,
+                "runtime" => CapabilitySurface::Runtime,
+                _ => return Err(invalid()),
+            };
+            let stricter = matches!(
+                (base, value.as_str()),
+                (CapabilitySideEffect::None, Some("local" | "remote"))
+                    | (CapabilitySideEffect::Local, Some("remote"))
+            );
+            if !surfaces.contains(&surface) || !stricter {
+                return Err(invalid());
+            }
+        }
+    }
+    Ok(())
 }
 
 fn is_component(value: &str) -> bool {

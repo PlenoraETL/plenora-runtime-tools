@@ -118,3 +118,35 @@ su instradamento, identità, tentativo e conteggio dei byte. La cronologia delle
 esiti scriptati FIFO sono entrambi limitati. I consumer possono provare nuovi adapter e
 l'instradamento senza NATS né alcuna libreria concreta non ancora completa. La checklist di rilascio
 per ogni adapter è in [`integrating-a-library.md`](integrating-a-library.md).
+
+## Adozione del binding 2.0 dal lato host
+
+La discovery accetta le coppie `plenora-runtime-binding-v1`/`1` e
+`plenora-runtime-binding-v2`/`2`; `runtime_capability()` restituisce wire `1`
+in entrambi i casi. Un contratto e una versione incoerenti sono rifiutati.
+
+`NegotiationContext::from_headers` legge esattamente i due valori esterni
+`plenora.negotiation.requires` e `plenora.negotiation.accepts_downgrade`.
+Non inserirli nel payload o nei metadati riservati del messaggio runtime.
+Il contesto passa ad `accept_runtime_request` con l'identita del messaggio,
+la provenienza esterna/interna, il minimo di ingresso e la capacita dello
+hop di portarlo al successivo. `AcceptanceStore::accept` deve essere una
+lettura autorevole con creazione atomica e durevole: un errore o una scrittura
+non confermata rifiuta la richiesta. Dopo la finestra dichiarata dal deploy,
+uno store conserva tombstone per impedire che un'identita scaduta torni nuova.
+
+`select_runtime_destination` decide dal documento capability della destinazione
+reale: la 2.0 verso la 1.0 richiede downgrade esplicito, una discovery
+illeggibile rifiuta. L'API non autorizza da sola una specifica operazione:
+restano obbligatori i controlli discovered su operazione, versione, superficie,
+contratto, content type e controlli.
+
+Queste API non sono ancora collegate a NATS/Apalis: nessuno store durevole,
+minimo 2.0 o finestra di retention e configurato nei trasporti esistenti.
+Le deviazioni RT-026/027 sono nel [registro](contract-alignment.md).
+I test con store in memoria provano la policy, non la durabilita.
+
+`CapabilityOperation::surface_side_effect` restituisce l'effetto effettivo
+della superficie (SB-001), oppure `None` se non annunciata. Gli override
+`plenora.surface_side_effects` devono essere strettamente maggiori dell'effetto
+dell'operazione e nominare solo superfici effettivamente annunciate.

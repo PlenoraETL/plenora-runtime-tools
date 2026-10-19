@@ -38,6 +38,58 @@ use serde_json::Value;
 
 const REST_DISCOVERY: &str = include_str!("../../../contracts/capabilities-v2/rest-tools-v1.json");
 
+#[test]
+fn discovery_rejects_duplicate_json_members_recursively() -> Result<(), Box<dyn Error>> {
+    let base = REST_DISCOVERY.replace(r#""side_effect": "remote""#, r#""side_effect": "none""#);
+    let attributes = r#""attributes": {"contract": "plenora-rest-capability-attributes-v1"}"#;
+    for members in [
+        r#""plenora.surface_side_effects":{"runtime":"remote","runtime":"local"}"#,
+        r#""nested":[{"SENTINEL_PRIVATE":"secret","SENTINEL_PRIVATE":null}]"#,
+        r#""nested":{"runtime":true,"\u0072untime":false}"#,
+    ] {
+        // Inject raw JSON: a Value would erase the defect before the test runs.
+        let document = base.replacen(attributes, &format!(r#""attributes":{{{members}}}"#), 1);
+        let error = CapabilityDiscovery::from_json(document.as_bytes())
+            .err()
+            .ok_or("duplicate member accepted")?;
+        assert_eq!(
+            error.kind(),
+            CapabilityDiscoveryErrorKind::DuplicateJsonMember
+        );
+        assert_eq!(
+            error.to_string(),
+            "capability discovery document is invalid: DuplicateJsonMember"
+        );
+        assert_eq!(
+            format!("{error:?}"),
+            "CapabilityDiscoveryError { kind: DuplicateJsonMember }"
+        );
+    }
+    let root_duplicate = base.replacen(
+        r#""schema_version": 2"#,
+        r#""schema_version": 2,"schema_version": 2"#,
+        1,
+    );
+    assert_eq!(
+        CapabilityDiscovery::from_json(root_duplicate.as_bytes())
+            .err()
+            .ok_or("root duplicate accepted")?
+            .kind(),
+        CapabilityDiscoveryErrorKind::DuplicateJsonMember
+    );
+    let clean = base.replacen(attributes,
+        r#""attributes":{"plenora.surface_side_effects":{"runtime":"local"},"nested":[{"runtime":null},{"runtime":[true,false,-1,1,1.5,"text"]}]}"#, 1);
+    CapabilityDiscovery::from_json(clean.as_bytes())?;
+    assert_eq!(
+        CapabilityDiscovery::from_json(format!("{clean} null").as_bytes())
+            .err()
+            .ok_or("trailing JSON accepted")?
+            .kind(),
+        CapabilityDiscoveryErrorKind::InvalidJson
+    );
+    Ok(())
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Invocation {
     operation: OperationName,
@@ -466,6 +518,13 @@ async fn discovery_rejects_incompatible_rest_outputs_and_unconfigured_publicatio
 -> Result<(), Box<dyn Error>> {
     let cases = [
         (
+            CapabilityResponse::new(
+                ContractId::new(REST_EXECUTION_RESULT_CONTRACT)?,
+                SerializedMessage::new("application/json", vec![b' '; 1024 * 1024 + 1]),
+            ),
+            CapabilityResponseRejection::OutputTooLarge,
+        ),
+        (
             CapabilityResponse::acknowledged(),
             CapabilityResponseRejection::MissingOutput,
         ),
@@ -486,6 +545,7 @@ async fn discovery_rejects_incompatible_rest_outputs_and_unconfigured_publicatio
     ];
 
     for (response, expected) in cases {
+        let published = Arc::new(Mutex::new(Vec::new()));
         let mut builder = CapabilityRegistryBuilder::default();
         builder.register_discovered(
             CapabilityDiscovery::from_json(REST_DISCOVERY.as_bytes())?,
@@ -495,7 +555,7 @@ async fn discovery_rejects_incompatible_rest_outputs_and_unconfigured_publicatio
             builder.build(),
             CapabilityDispatcherConfig::default(),
             CapturingResultSink {
-                results: Arc::new(Mutex::new(Vec::new())),
+                results: Arc::clone(&published),
             },
         )?;
         let error = dispatcher
@@ -516,10 +576,23 @@ async fn discovery_rejects_incompatible_rest_outputs_and_unconfigured_publicatio
             CapabilityDispatchErrorCategory::IncompatibleResponse
         );
         assert_eq!(error.response_rejection(), Some(expected));
+        assert!(lock(&published).is_empty());
+        if expected == CapabilityResponseRejection::OutputTooLarge {
+            let public = serde_json::to_value(error.public_error()?)?;
+            assert_eq!(public["category"], "resource_limit");
+            assert_eq!(public["phase"], "finalize");
+            assert_eq!(public["remote_effect"], "unknown");
+            assert_eq!(public["retry"]["kind"], "requires_recovery");
+        }
         assert_eq!(error.retry_class(), RetryErrorClass::OutcomeUnknown);
         assert_eq!(error.remote_effect(), CapabilityRemoteEffect::Unknown);
     }
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn discovery_rejects_unconfigured_result_publication() -> Result<(), Box<dyn Error>> {
     let invocations = Arc::new(Mutex::new(Vec::new()));
     let mut builder = CapabilityRegistryBuilder::default();
     builder.register_discovered(
@@ -600,17 +673,17 @@ async fn absolute_deadlines_and_unsupported_controls_fail_closed() -> Result<(),
 
     let mut idempotency = MessageMetadata::new();
     idempotency.insert_text(IDEMPOTENCY_KEY_METADATA_KEY, "opaque-key")?;
-    let error = dispatcher
-        .handle(
-            worker_context(CorrelationId::random()),
-            rest_request_with_metadata("rest.test", REST_EXECUTION_REQUEST_CONTRACT, idempotency)?,
-        )
-        .await
-        .err()
-        .ok_or("unsupported idempotency key was accepted")?;
+    let request =
+        rest_request_with_metadata("rest.test", REST_EXECUTION_REQUEST_CONTRACT, idempotency)?;
+    let discovery = CapabilityDiscovery::from_json(REST_DISCOVERY.as_bytes())?;
+    assert!(discovery.validate_request(&request).is_ok());
+    let mut unsupported: Value = serde_json::from_str(REST_DISCOVERY)?;
+    operation_mut(&mut unsupported, "rest.test")?["controls"]["idempotency_key"] =
+        serde_json::json!(false);
+    let discovery = CapabilityDiscovery::from_json(&serde_json::to_vec(&unsupported)?)?;
     assert_eq!(
-        error.request_rejection(),
-        Some(CapabilityRequestRejection::IdempotencyKeyUnsupported)
+        discovery.validate_request(&request),
+        Err(CapabilityRequestRejection::IdempotencyKeyUnsupported)
     );
     assert!(lock(&invocations).is_empty());
 

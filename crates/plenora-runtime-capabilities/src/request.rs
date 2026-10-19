@@ -3,6 +3,11 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
 };
 
+// Adoption deviations RT-012/016..023 (docs/contract-alignment.md): this
+// capability codec does not yet implement the entire canonical transport
+// admission/rejection boundary. Generic integer parsing below is not evidence
+// of RT-017 lexical conformance. Do not advertise full Runtime Binding 2.0.
+
 use plenora_runtime_messaging::{MessageCodec, MetadataKeyError, SerializedMessage};
 
 use crate::{

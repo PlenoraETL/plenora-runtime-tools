@@ -165,7 +165,7 @@ fn validate_operation(
         ));
     }
     let controls = operation.controls();
-    if !controls.cancellation || !controls.deadline || controls.idempotency_key {
+    if !controls.cancellation || !controls.deadline || !controls.idempotency_key {
         return Err(RestProfileError::new(
             RestProfileErrorKind::ControlsMismatch,
             Some(expected.name),

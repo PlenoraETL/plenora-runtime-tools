@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/arrow-data-vector-v1.schema.json",
+  "title": "Plenora Arrow data conformance vector v1",
+  "description": "An Arrow schema fixture with row values (Arrow Geometry Semantics 1.0, section 9). Binary values are lowercase hexadecimal.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract",
+    "expect",
+    "schema_metadata",
+    "fields",
+    "rows"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-arrow-data-vector-v1"
+    },
+    "expect": {
+      "enum": [
+        "valid",
+        "invalid"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "category": {
+      "enum": [
+        "schema",
+        "data_mapping",
+        "crs",
+        "unsupported"
+      ]
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]+(-[A-Z]+)*-[0-9]{3}$|^VOCABULARY-[1-9][0-9]?$"
+      },
+      "description": "Rule identifiers; VOCABULARY-<n> names a section of Arrow Vocabulary 1.0 whose rules carry no identifier."
+    },
+    "computation": {
+      "description": "Verdict of a consumer that computes with the coordinates (GEO-015): accepted, or the rejection.",
+      "oneOf": [
+        {
+          "const": "accepted"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "category",
+            "rules"
+          ],
+          "properties": {
+            "category": {
+              "const": "crs"
+            },
+            "rules": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z]+(-[A-Z]+)*-[0-9]{3}$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "schema_metadata": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "type",
+          "nullable",
+          "metadata"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "bool",
+              "int32",
+              "int64",
+              "float64",
+              "utf8",
+              "large_utf8",
+              "binary",
+              "large_binary"
+            ]
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": {
+          "type": [
+            "null",
+            "boolean",
+            "integer",
+            "number",
+            "string"
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "expect": {
+            "const": "invalid"
+          }
+        },
+        "required": [
+          "expect"
+        ]
+      },
+      "then": {
+        "required": [
+          "reason",
+          "category",
+          "rules"
+        ],
+        "not": {
+          "required": [
+            "computation"
+          ]
+        }
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "category"
+              ]
+            },
+            {
+              "required": [
+                "rules"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

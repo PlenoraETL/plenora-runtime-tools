@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/runtime-negotiation-vector-v1.schema.json",
+  "title": "Plenora runtime negotiation vector v1 (Runtime Binding 2.0, RT-026 and RT-027)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract",
+    "description",
+    "request",
+    "ingress",
+    "hops",
+    "destination",
+    "expect"
+  ],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "contract": {"const": "plenora-runtime-negotiation-vector-v1"},
+    "description": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "request": {
+      "type": "string",
+      "pattern": "^\\.\\./runtime-v1/[a-z0-9-]+\\.json$"
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum"],
+      "properties": {
+        "minimum": {
+          "description": "The minimum requirement configured at the ingress, or null (RT-027 item 4).",
+          "oneOf": [{"type": "null"}, {"const": "plenora-runtime-binding-v2"}]
+        }
+      }
+    },
+    "hops": {
+      "description": "The hops that receive the request, in order. The last one selects the destination or refuses the request; no hop follows a refusal, and the last hop forwards nothing (RT-027).",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {"$ref": "#/$defs/hop"}
+    },
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["interface"],
+      "properties": {
+        "interface": {
+          "description": "The runtime interface of the destination's capability document (CAP-003); null when the document cannot be read.",
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "contract", "version"],
+              "properties": {
+                "kind": {"const": "runtime"},
+                "contract": {"type": "string", "pattern": "^plenora-[a-z0-9-]+-v[1-9][0-9]*$"},
+                "version": {"type": "integer", "minimum": 1}
+              }
+            }
+          ]
+        }
+      }
+    },
+    "expect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision", "governed_by"],
+          "properties": {
+            "decision": {"const": "send"},
+            "governed_by": {"enum": ["plenora-runtime-binding-v1", "plenora-runtime-binding-v2"]}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision", "at_hop", "category", "phase", "remote_effect", "retry"],
+          "properties": {
+            "decision": {"const": "refuse"},
+            "at_hop": {"type": "integer", "minimum": 0},
+            "category": {"const": "unsupported"},
+            "phase": {"const": "validate"},
+            "remote_effect": {"const": "none"},
+            "retry": {"const": "never"}
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "context": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requires", "accepts_downgrade"],
+          "properties": {
+            "requires": {"enum": ["plenora-runtime-binding-v1", "plenora-runtime-binding-v2"]},
+            "accepts_downgrade": {"type": "boolean"}
+          }
+        }
+      ]
+    },
+    "hop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "record", "carries", "receives", "forwards"],
+      "properties": {
+        "from": {
+          "description": "sender: the request arrives from outside the transport (a sender, or a republication such as a redrive); hop: from another hop of the transport.",
+          "enum": ["sender", "hop"]
+        },
+        "record": {
+          "description": "Whether the hop can read the acceptance record of the request (RT-027 item 2).",
+          "enum": ["readable", "unreadable"]
+        },
+        "carries": {"type": "boolean"},
+        "receives": {"$ref": "#/$defs/context"},
+        "forwards": {"$ref": "#/$defs/context"}
+      }
+    }
+  }
+}

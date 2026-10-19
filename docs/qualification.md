@@ -78,3 +78,61 @@ Il job di coverage della CI unisce i profili del workspace normale, di NATS real
 Apalis prima di applicare `cargo llvm-cov report --fail-under-lines 90`. Il job di fuzz smoke esegue
 ogni corpus con la toolchain pinnata `nightly-2026-08-01`. Vedi [`testing.md`](testing.md) per
 ambito e comandi locali.
+
+## Adozione 3aec9f7: gate aperti
+
+- Regola RT-007; ambito runtime; hazard: Retry di mutazioni senza prova di deduplicazione. Rientro: Qualificare adapter e almeno-un-solo-avvio per identita senza chiave.
+- Regola RT-010; ambito runtime; hazard: Caller senza risultato terminale. Rientro: Collegare error sink dopo esaurimento retry con pubblicazione confermata.
+- Regola RT-012; ambito runtime; hazard: Identita non canoniche possono attraversare un adapter. Rientro: Eseguire tutti i probe sulle vere frontiere codec/trasporto.
+- Regola RT-013; ambito runtime; hazard: Percorsi o segreti presenti in input di adapter non qualificati. Rientro: Qualificare adapter con schemi di proprieta del componente.
+- Regola RT-016; ambito runtime; hazard: Semantica pubblica del rifiuto diversa da RT-016. Rientro: Uniformare codec, dispatcher e settlement e provare tutti i probe.
+- Regola RT-017; ambito runtime; hazard: Normalizzazione di valori come 01. Rientro: Validazione lessicale esatta prima della conversione in tutto il workspace.
+- Regola RT-018; ambito runtime; hazard: Categoria dipende dal percorso adapter. Rientro: Applicare un unico ordine e provare difetti multipli.
+- Regola RT-019; ambito runtime; hazard: Metadati mancanti o impropri nel risultato. Rientro: Costruire rifiuti al confine del trasporto con probe neri.
+- Regola RT-020; ambito runtime; hazard: Caller non puo correlare ogni rifiuto al messaggio. Rientro: Verificare successi e rifiuti sui trasporti reali.
+- Regola RT-021; ambito runtime; hazard: Deadline non UTC accettata. Rientro: Parser esatto UTC e prova ManualClock su <= now.
+- Regola RT-022; ambito runtime; hazard: Deduplicazione non garantita. Rientro: Qualificare grammatica, limiti e store deduplicazione del componente.
+- Regola RT-023; ambito runtime; hazard: Doppio canale deadline. Rientro: Adapter rifiuta campo payload e metadata insieme.
+- Regola RT-024; ambito runtime; hazard: Garanzia indebolita: perduta fase/certezza dopo pubblicazione; sink puo avere un limite inferiore. Rientro: Trasportare fase/effetto provati e tradurre tutti i limiti del sink; qualificare trasporto reale.
+- Regola RT-026; ambito runtime; hazard: Downgrade implicito possibile nel routing legacy. Rientro: Collegare policy a ogni destinazione scelta prima dell invio.
+- Regola RT-027; ambito runtime; hazard: Contesto perso su retry/redrive/resend; nessuna finestra durevole garantita. Rientro: Store atomico autorevole con tombstone e finestra dichiarata; cablare ogni hop e testare riavvio/race.
+- Regola ADOPTION-v4; ambito release; hazard: Nessuna evidenza immutabile di release o endpoint conforme. Rientro: Produrre e verificare artefatti con digest reali e manifesto v4, senza claim per contratti con deviazioni.
+
+Stato dettagliato e comportamento osservato: [registro contratti](contract-alignment.md). Nessuna conformita runtime end-to-end o release v4 attestata da queste prove locali.
+
+- Regola CAP-004; ambito discovery con versioni simultanee; hazard: Un documento valido con piu versioni simultanee, come data.run, non e registrabile. Rientro: Indicizzare per coppia e rendere ogni lookup e dispatch esplicitamente versionato; provare cataloghi multi-versione.
+
+## Esiti locali dell'adozione (2026-10-18)
+
+Esecuzione offline su Windows, Rust/Cargo 1.98.1, Python 3.11.15.
+
+| Gate | Esito |
+|---|---|
+| `cargo test --workspace --all-targets --all-features --offline --locked` | 357 passati, 8 ignorati; nessun fallimento |
+| `cargo test -p plenora-runtime-capabilities --offline --locked` | 43 passati, incluso controllo pin finale |
+| `cargo fmt --all --check` | Passato |
+| Clippy workspace/all-targets/all-features, `-D warnings`, offline/locked | Passato |
+| Clippy workspace/lib/all-features, `-D warnings` e unwrap/expect/panic/unreachable, offline/locked | Passato |
+| `python scripts/check-contract-adoption.py --upstream C:/pg/contracts-main` | Passato: 128 copie, hash e registri; confrontate anche con i blob Git del pin |
+| `python -m unittest discover -s scripts -p 'test_contract_adoption.py'` | 5 passati, inclusi diagnostica senza dati e controlli di fallimento |
+| `python C:/pg/contracts-main/tools/validate_specs.py` | Passato: 26 schemi, 10 cataloghi, 3 binding, 18 archi, 236 vettori |
+| Regressioni upstream mirate | 136 passate; moduli elencati sotto |
+| Regressioni upstream complete `test_*.py` | Interrotte dopo circa 7 minuti durante prove estese: nessun esito complessivo positivo attribuito |
+| Budget dimensione | Nessun budget aggregato locale trovato; nessun tetto alzato. Il limite Clippy di 100 righe/funzione resta attivo |
+| Seconda lettura Codex | Completata su codice critico e test, nessun rilievo bloccante |
+
+Moduli upstream eseguiti: `test_conformance_checks`, `test_runtime_vectors`,
+`test_runtime_negotiation`, `test_runtime_probes`, `test_surface_side_effects`,
+`test_unknown_commit`, `test_intentional_absences`, `test_interop_vectors`,
+`test_messages`, `test_gate_fuzz`. Con `PYTHONDONTWRITEBYTECODE=1` e il percorso
+`C:/pg/contracts-main/tools` in `sys.path`, si caricano con
+`unittest.defaultTestLoader.loadTestsFromNames` e si eseguono con
+`unittest.TextTestRunner`; l'uscita e non zero se `wasSuccessful()` e falso.
+Il validatore normative e questi test non attestano il comportamento di un
+endpoint runtime-tools: i relativi limiti restano registrati sopra.
+
+Non eseguiti: CI Linux/macOS e remota Windows, NATS reale (test ignorati),
+coverage, campagne libFuzzer, cargo audit/deny, build rustdoc e guardia upstream
+di immutabilita con verifica di origin/main remoto (vietata la rete).
+Il manifesto v4 di artefatti rilasciati non e stato prodotto: e una deviazione,
+non un gate passato. Nessun commit o push.

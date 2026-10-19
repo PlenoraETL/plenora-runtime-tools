@@ -1,0 +1,46 @@
+{
+  "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-negotiation-vector-v1",
+  "description": "The router cannot read the destination's capability document: refused before sending, even with a declared downgrade.",
+  "request": "../runtime-v1/database-read-request.json",
+  "ingress": {
+    "minimum": null
+  },
+  "hops": [
+    {
+      "from": "sender",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": true
+      },
+      "forwards": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": true
+      }
+    },
+    {
+      "from": "hop",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": true
+      },
+      "forwards": null
+    }
+  ],
+  "destination": {
+    "interface": null
+  },
+  "expect": {
+    "decision": "refuse",
+    "at_hop": 1,
+    "category": "unsupported",
+    "phase": "validate",
+    "remote_effect": "none",
+    "retry": "never"
+  }
+}

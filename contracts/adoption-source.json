@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "component": "plenora-runtime-tools",
+  "contracts_source": {
+    "repository": "https://github.com/PlenoraETL/plenora-contracts.git",
+    "revision": "3aec9f724f5a0ad21366f293895b4d0dbcd0aad1"
+  },
+  "profile": "plenora-runtime-tools-profile-v1",
+  "catalog": null,
+  "catalog_policy": "plenora-public-catalog-v2 applicato al consumer; nessun catalogo runtime-tools esiste in 3aec9f7. I cataloghi di dominio restano quelli pubblicati.",
+  "contracts": [
+    {
+      "id": "plenora-runtime-binding-v1",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-runtime-vector-v1",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-rest-execution-request-v1",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-rest-execution-result-v1",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-rest-file-transfer-input-v1",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-rest-file-transfer-result-v1",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-rest-capability-attributes-v1",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-runtime-binding-v2",
+      "status": "adopted_with_deviations"
+    },
+    {
+      "id": "plenora-public-catalog-v2",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-capabilities-v2",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-error-v1",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-surface-bindings-v1",
+      "status": "selected"
+    },
+    {
+      "id": "plenora-public-security-v1",
+      "status": "adopted_with_deviations"
+    }
+  ],
+  "requirements": [
+    {
+      "rule": "RT-001",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Identita runtime dal documento discovery."
+    },
+    {
+      "rule": "RT-002",
+      "status": "not_applicable",
+      "scope": "runtime",
+      "evidence": "Sostituito da RT-025 per la 2.0; wire resta 1."
+    },
+    {
+      "rule": "RT-003",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Selettori completi e versioni operazione preservati."
+    },
+    {
+      "rule": "RT-004",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Registro discovered controlla operazione, disponibilita e superficie runtime."
+    },
+    {
+      "rule": "RT-005",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Content type verificato prima di invocare."
+    },
+    {
+      "rule": "RT-006",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Controlli non annunciati rifiutati; REST ora richiede idempotency_key come catalogo."
+    },
+    {
+      "rule": "RT-007",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Il runtime propaga deadline/cancellazione ma non verifica deduplicazione del componente.",
+      "hazard": "Retry di mutazioni senza prova di deduplicazione.",
+      "closure": "Qualificare adapter e almeno-un-solo-avvio per identita senza chiave."
+    },
+    {
+      "rule": "RT-008",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "CapabilityResponse e sink confermato; nessun successo senza output per le operazioni discovered."
+    },
+    {
+      "rule": "RT-009",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Contratto, content type e correlazione preservati nel risultato."
+    },
+    {
+      "rule": "RT-010",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Modello pubblico e mappature presenti; settlement non pubblica ogni errore terminale.",
+      "hazard": "Caller senza risultato terminale.",
+      "closure": "Collegare error sink dopo esaurimento retry con pubblicazione confermata."
+    },
+    {
+      "rule": "RT-011",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Routing incompatibile rifiutato prima di chiamare handler."
+    },
+    {
+      "rule": "RT-012",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Il codec capability non verifica tutte le identita dell envelope.",
+      "hazard": "Identita non canoniche possono attraversare un adapter.",
+      "closure": "Eseguire tutti i probe sulle vere frontiere codec/trasporto."
+    },
+    {
+      "rule": "RT-013",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Payload di dominio opachi; nessuna risoluzione autorizzata comune di riferimenti/credenziali.",
+      "hazard": "Percorsi o segreti presenti in input di adapter non qualificati.",
+      "closure": "Qualificare adapter con schemi di proprieta del componente."
+    },
+    {
+      "rule": "RT-014",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Payload artefatto opaco e metadati risultato preservati, senza reinterpretazione."
+    },
+    {
+      "rule": "RT-015",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Resolver e adapter appartengono all applicazione; nessuna dipendenza di dominio."
+    },
+    {
+      "rule": "RT-016",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Rifiuti preesistenti usano quarantine o prepare anziche validate/none/never.",
+      "hazard": "Semantica pubblica del rifiuto diversa da RT-016.",
+      "closure": "Uniformare codec, dispatcher e settlement e provare tutti i probe."
+    },
+    {
+      "rule": "RT-017",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Parsing u16 e UUID generici non garantisce tutta la grammatica canonica.",
+      "hazard": "Normalizzazione di valori come 01.",
+      "closure": "Validazione lessicale esatta prima della conversione in tutto il workspace."
+    },
+    {
+      "rule": "RT-018",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Ordine globale protocol/unsupported/timeout non qualificato su tutti i probe.",
+      "hazard": "Categoria dipende dal percorso adapter.",
+      "closure": "Applicare un unico ordine e provare difetti multipli."
+    },
+    {
+      "rule": "RT-019",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Serializzazione del rifiuto e riflessione selettiva non integrate nel settlement.",
+      "hazard": "Metadati mancanti o impropri nel risultato.",
+      "closure": "Costruire rifiuti al confine del trasporto con probe neri."
+    },
+    {
+      "rule": "RT-020",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Identita nuova e causation dei risultati non qualificate end-to-end.",
+      "hazard": "Caller non puo correlare ogni rifiuto al messaggio.",
+      "closure": "Verificare successi e rifiuti sui trasporti reali."
+    },
+    {
+      "rule": "RT-021",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Il parser RFC3339 esistente non rifiuta tutti gli offset vietati.",
+      "hazard": "Deadline non UTC accettata.",
+      "closure": "Parser esatto UTC e prova ManualClock su <= now."
+    },
+    {
+      "rule": "RT-022",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Supporto controllo verificato, ma chiave vuota/limite specifico/conflitto input non qualificati.",
+      "hazard": "Deduplicazione non garantita.",
+      "closure": "Qualificare grammatica, limiti e store deduplicazione del componente."
+    },
+    {
+      "rule": "RT-023",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Input opaco: il runtime non riconosce un secondo campo deadline di dominio.",
+      "hazard": "Doppio canale deadline.",
+      "closure": "Adapter rifiuta campo payload e metadata insieme."
+    },
+    {
+      "rule": "RT-024",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "OutputTooLarge e resource_limit e mai troncato; fase finalize ed effetto unknown conservativi, non quelli provati dal componente.",
+      "hazard": "Garanzia indebolita: perduta fase/certezza dopo pubblicazione; sink puo avere un limite inferiore.",
+      "closure": "Trasportare fase/effetto provati e tradurre tutti i limiti del sink; qualificare trasporto reale."
+    },
+    {
+      "rule": "RT-025",
+      "status": "implemented",
+      "scope": "API Rust discovered",
+      "evidence": "Coppie binding v1/1 e v2/2 ammesse; capability wire sempre 1."
+    },
+    {
+      "rule": "RT-026",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "Policy pubblica select_runtime_destination implementata; i percorsi legacy non la chiamano.",
+      "hazard": "Downgrade implicito possibile nel routing legacy.",
+      "closure": "Collegare policy a ogni destinazione scelta prima dell invio."
+    },
+    {
+      "rule": "RT-027",
+      "status": "deviation",
+      "scope": "runtime",
+      "evidence": "API AcceptanceStore e confronto contesto implementati; nessuno store durevole o header esterni NATS/Apalis installati.",
+      "hazard": "Contesto perso su retry/redrive/resend; nessuna finestra durevole garantita.",
+      "closure": "Store atomico autorevole con tombstone e finestra dichiarata; cablare ogni hop e testare riavvio/race."
+    },
+    {
+      "rule": "CAT-001",
+      "status": "implemented",
+      "scope": "consumer discovered",
+      "evidence": "Selezione dalle capability reali, mai dalle superfici target del catalogo."
+    },
+    {
+      "rule": "CAT-002",
+      "status": "not_applicable",
+      "scope": "catalogo runtime-tools",
+      "evidence": "Nessun catalogo runtime-tools pubblicato al pin; non si inventa un catalogo nuovo."
+    },
+    {
+      "rule": "CAT-003",
+      "status": "not_applicable",
+      "scope": "catalogo runtime-tools",
+      "evidence": "Nessuna operazione di dominio posseduta. Cataloghi nuovi database-v2/data-v3/io-v3 vendorizzati senza modificarli."
+    },
+    {
+      "rule": "SB-001",
+      "status": "implemented",
+      "scope": "discovery",
+      "evidence": "Valida superficie e incremento stretto; surface_side_effect restituisce effetto effettivo o None se assente."
+    },
+    {
+      "rule": "ERR-015",
+      "status": "implemented",
+      "scope": "modello errore pubblico",
+      "evidence": "Vettori storage cleanup locale/remoto conservano cleanup/committed e never/requires_recovery. Non prova settlement."
+    },
+    {
+      "rule": "ERR-016",
+      "status": "implemented",
+      "scope": "modello errore pubblico",
+      "evidence": "Vettori commit io/timeout/internal conservano categoria causale separata da unknown. Non prova settlement."
+    },
+    {
+      "rule": "INTEROP-001..005",
+      "status": "not_applicable",
+      "scope": "payload Arrow",
+      "evidence": "Runtime non interpreta Arrow Geometry; nessun claim plenora-interop-vectors-v1."
+    },
+    {
+      "rule": "RA-001..010",
+      "status": "not_applicable",
+      "scope": "adapter REST/Arrow",
+      "evidence": "Adapter di conversione posseduto dall applicazione; runtime trasporta byte opachi."
+    },
+    {
+      "rule": "contracts#39",
+      "status": "implemented",
+      "scope": "gate locale",
+      "evidence": "Diagnostica del gate solo testo fisso; eccezioni non stampate. Nessun valore di manifest o fixture in output."
+    },
+    {
+      "rule": "contracts#40",
+      "status": "not_applicable",
+      "scope": "cache fuzz upstream",
+      "evidence": "Correzione cache del harness Python dei contratti, non del libFuzzer Rust; gate eseguito dalla copia locale aggiornata."
+    },
+    {
+      "rule": "ADOPTION-v4",
+      "status": "deviation",
+      "scope": "release",
+      "evidence": "Registro sorgente locale, non manifesto v4 di artefatti rilasciati: nessun digest inventato per un checkout.",
+      "hazard": "Nessuna evidenza immutabile di release o endpoint conforme.",
+      "closure": "Produrre e verificare artefatti con digest reali e manifesto v4, senza claim per contratti con deviazioni."
+    },
+    {
+      "rule": "CAP-004",
+      "status": "deviation",
+      "scope": "discovery con versioni simultanee",
+      "evidence": "La mappa locale e indicizzata per nome, non per coppia nome/versione: due versioni dello stesso nome sono rifiutate, mai sovrascritte silenziosamente.",
+      "hazard": "Un documento valido con piu versioni simultanee, come data.run, non e registrabile.",
+      "closure": "Indicizzare per coppia e rendere ogni lookup e dispatch esplicitamente versionato; provare cataloghi multi-versione."
+    }
+  ],
+  "runtime": {
+    "wire_version": 1,
+    "ingress_minimum": "not_configured_in_transports",
+    "acceptance_retention_window": "not_available_no_durable_store",
+    "result_bound_bytes": {
+      "default": 1048576,
+      "hard_maximum": 67108864,
+      "note": "CapabilityDispatcherConfig.max_payload_bytes limita input e output; il sink deve dichiarare eventuali limiti inferiori."
+    }
+  },
+  "verification": [
+    "python scripts/check-contract-adoption.py",
+    "cargo test -p plenora-runtime-capabilities --offline --locked",
+    "cargo clippy --workspace --all-targets --all-features --offline --locked -- -D warnings"
+  ]
+}
