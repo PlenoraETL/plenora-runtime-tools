@@ -5,7 +5,10 @@ use std::{
     sync::Arc,
 };
 
-use serde::Deserialize;
+use serde::{
+    Deserialize,
+    de::{DeserializeSeed, MapAccess, SeqAccess, Visitor},
+};
 use serde_json::{Map, Value};
 
 use crate::{
@@ -299,6 +302,18 @@ impl CapabilityDiscovery {
                 CapabilityDiscoveryErrorKind::DocumentTooLarge,
             ));
         }
+        let mut duplicate = false;
+        let mut parser = serde_json::Deserializer::from_slice(bytes);
+        UniqueJson(&mut duplicate)
+            .deserialize(&mut parser)
+            .and_then(|()| parser.end())
+            .map_err(|_error| {
+                CapabilityDiscoveryError::new(if duplicate {
+                    CapabilityDiscoveryErrorKind::DuplicateJsonMember
+                } else {
+                    CapabilityDiscoveryErrorKind::InvalidJson
+                })
+            })?;
         let raw: RawDiscovery = serde_json::from_slice(bytes).map_err(|_error| {
             CapabilityDiscoveryError::new(CapabilityDiscoveryErrorKind::InvalidJson)
         })?;
@@ -502,6 +517,8 @@ pub enum CapabilityDiscoveryErrorKind {
     DocumentTooLarge,
     /// JSON syntax or shape is invalid.
     InvalidJson,
+    /// A JSON object repeats a member name, at any depth.
+    DuplicateJsonMember,
     /// The schema version is not Capability Discovery 2.0.
     UnsupportedSchemaVersion,
     /// The component identifier is invalid.
@@ -587,6 +604,67 @@ pub enum CapabilityRequestRejection {
     IdempotencyKeyUnsupported,
     /// The deadline is not a valid absolute RFC 3339 UTC timestamp.
     InvalidDeadline,
+}
+
+// Validate the original bytes before any Map can silently overwrite a member.
+// A separate pass preserves RawDiscovery's exact numeric/shape conversion rules.
+struct UniqueJson<'a>(&'a mut bool);
+
+impl<'de> DeserializeSeed<'de> for UniqueJson<'_> {
+    type Value = ();
+
+    fn deserialize<D: serde::Deserializer<'de>>(self, deserializer: D) -> Result<(), D::Error> {
+        deserializer.deserialize_any(self)
+    }
+}
+
+impl<'de> Visitor<'de> for UniqueJson<'_> {
+    type Value = ();
+
+    fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str("JSON with unique object members")
+    }
+
+    fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<(), M::Error> {
+        let mut keys = BTreeSet::new();
+        while let Some(key) = map.next_key::<String>()? {
+            if !keys.insert(key) {
+                *self.0 = true;
+                return Err(serde::de::Error::custom("duplicate JSON member"));
+            }
+            map.next_value_seed(UniqueJson(self.0))?;
+        }
+        Ok(())
+    }
+
+    fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<(), S::Error> {
+        while seq.next_element_seed(UniqueJson(self.0))?.is_some() {}
+        Ok(())
+    }
+
+    fn visit_bool<E: serde::de::Error>(self, _value: bool) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_i64<E: serde::de::Error>(self, _value: i64) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_u64<E: serde::de::Error>(self, _value: u64) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_f64<E: serde::de::Error>(self, _value: f64) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_str<E: serde::de::Error>(self, _value: &str) -> Result<(), E> {
+        Ok(())
+    }
+
+    fn visit_unit<E: serde::de::Error>(self) -> Result<(), E> {
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]

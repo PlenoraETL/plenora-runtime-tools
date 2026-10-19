@@ -30,9 +30,39 @@ class AdoptionGateTests(unittest.TestCase):
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
                 status = GATE.main()
         self.assertNotIn("SENTINEL_PRIVATE", output.getvalue())
+        if status == 1:
+            self.assertEqual(output.getvalue(),
+                             "FAIL: contract adoption, inventory or deviation registry invalid\n")
         return status
 
     def test_valid_source_register(self):
+        self.assertEqual(self.run_gate(), 0)
+
+    def test_deviation_registry_requires_exact_set(self):
+        path = self.root / "contracts/adoption-source.json"
+        original = path.read_text(encoding="utf-8")
+        for mutation in ("removed", "added", "promoted", "reclassified"):
+            with self.subTest(mutation=mutation):
+                manifest = json.loads(original)
+                requirements = manifest["requirements"]
+                deviation = next(item for item in requirements if item["rule"] == "CAP-004")
+                if mutation == "removed":
+                    requirements.remove(deviation)
+                elif mutation == "added":
+                    requirements.append(dict(deviation, rule="SENTINEL_PRIVATE"))
+                    # Isolate set equality from the documentation-presence checks.
+                    for name in ("contract-alignment.md", "security-review.md", "qualification.md"):
+                        with (self.root / "docs" / name).open("a", encoding="utf-8") as doc:
+                            doc.write("\nSENTINEL_PRIVATE\n")
+                elif mutation == "promoted":
+                    # All other checks pass: this rule already occurs in all docs.
+                    added = next(item for item in requirements if item["rule"] == "RT-001")
+                    added.update(status="deviation", hazard="test", closure="test")
+                else:
+                    deviation["status"] = "implemented"
+                path.write_text(json.dumps(manifest), encoding="utf-8")
+                self.assertEqual(self.run_gate(), 1)
+        path.write_text(original, encoding="utf-8")
         self.assertEqual(self.run_gate(), 0)
 
     def test_modified_fixture_and_uninventoried_file_fail(self):

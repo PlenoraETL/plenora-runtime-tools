@@ -38,6 +38,58 @@ use serde_json::Value;
 
 const REST_DISCOVERY: &str = include_str!("../../../contracts/capabilities-v2/rest-tools-v1.json");
 
+#[test]
+fn discovery_rejects_duplicate_json_members_recursively() -> Result<(), Box<dyn Error>> {
+    let base = REST_DISCOVERY.replace(r#""side_effect": "remote""#, r#""side_effect": "none""#);
+    let attributes = r#""attributes": {"contract": "plenora-rest-capability-attributes-v1"}"#;
+    for members in [
+        r#""plenora.surface_side_effects":{"runtime":"remote","runtime":"local"}"#,
+        r#""nested":[{"SENTINEL_PRIVATE":"secret","SENTINEL_PRIVATE":null}]"#,
+        r#""nested":{"runtime":true,"\u0072untime":false}"#,
+    ] {
+        // Inject raw JSON: a Value would erase the defect before the test runs.
+        let document = base.replacen(attributes, &format!(r#""attributes":{{{members}}}"#), 1);
+        let error = CapabilityDiscovery::from_json(document.as_bytes())
+            .err()
+            .ok_or("duplicate member accepted")?;
+        assert_eq!(
+            error.kind(),
+            CapabilityDiscoveryErrorKind::DuplicateJsonMember
+        );
+        assert_eq!(
+            error.to_string(),
+            "capability discovery document is invalid: DuplicateJsonMember"
+        );
+        assert_eq!(
+            format!("{error:?}"),
+            "CapabilityDiscoveryError { kind: DuplicateJsonMember }"
+        );
+    }
+    let root_duplicate = base.replacen(
+        r#""schema_version": 2"#,
+        r#""schema_version": 2,"schema_version": 2"#,
+        1,
+    );
+    assert_eq!(
+        CapabilityDiscovery::from_json(root_duplicate.as_bytes())
+            .err()
+            .ok_or("root duplicate accepted")?
+            .kind(),
+        CapabilityDiscoveryErrorKind::DuplicateJsonMember
+    );
+    let clean = base.replacen(attributes,
+        r#""attributes":{"plenora.surface_side_effects":{"runtime":"local"},"nested":[{"runtime":null},{"runtime":[true,false,-1,1,1.5,"text"]}]}"#, 1);
+    CapabilityDiscovery::from_json(clean.as_bytes())?;
+    assert_eq!(
+        CapabilityDiscovery::from_json(format!("{clean} null").as_bytes())
+            .err()
+            .ok_or("trailing JSON accepted")?
+            .kind(),
+        CapabilityDiscoveryErrorKind::InvalidJson
+    );
+    Ok(())
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Invocation {
     operation: OperationName,

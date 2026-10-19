@@ -7,6 +7,12 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "3aec9f724f5a0ad21366f293895b4d0dbcd0aad1"
+# Changes to the declared deviations require an explicit gate update as well.
+EXPECTED_DEVIATIONS = {
+    "RT-007", "RT-010", "RT-012", "RT-013", "RT-016", "RT-017",
+    "RT-018", "RT-019", "RT-020", "RT-021", "RT-022", "RT-023",
+    "RT-024", "RT-026", "RT-027", "ADOPTION-v4", "CAP-004",
+}
 
 
 def unique_object(pairs):
@@ -69,6 +75,8 @@ def check(upstream=None):
     requirements = adoption["requirements"]
     rules = [item["rule"] for item in requirements]
     require(len(rules) == len(set(rules)))
+    require({item["rule"] for item in requirements if item["status"] == "deviation"}
+            == EXPECTED_DEVIATIONS)
     require({f"RT-{n:03}" for n in range(1, 28)} <= set(rules))
     require({"CAT-001", "CAT-002", "CAT-003", "SB-001", "ERR-015", "ERR-016",
              "ADOPTION-v4", "contracts#39", "contracts#40", "INTEROP-001..005"} <= set(rules))
