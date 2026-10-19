@@ -16,7 +16,7 @@
       "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"]},
       "output": {"contract": "plenora-rest-execution-result-v1", "content_types": ["application/json"]},
       "side_effect": "remote",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": true},
       "attributes": {"contract": "plenora-rest-capability-attributes-v1"}
     },
     {
@@ -27,7 +27,7 @@
       "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"]},
       "output": {"contract": "plenora-rest-execution-result-v1", "content_types": ["application/json"]},
       "side_effect": "remote",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": true},
       "attributes": {"contract": "plenora-rest-capability-attributes-v1"}
     },
     {
@@ -38,7 +38,7 @@
       "input": {"contract": "plenora-rest-execution-request-v1", "content_types": ["application/json"]},
       "output": {"contract": "plenora-rest-execution-result-v1", "content_types": ["application/json"]},
       "side_effect": "remote",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": true},
       "attributes": {"contract": "plenora-rest-capability-attributes-v1"}
     },
     {
@@ -49,7 +49,7 @@
       "input": {"contract": "plenora-rest-file-transfer-input-v1", "content_types": ["application/json"]},
       "output": {"contract": "plenora-rest-file-transfer-result-v1", "content_types": ["application/json"]},
       "side_effect": "remote",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": true},
       "attributes": {"contract": "plenora-rest-capability-attributes-v1", "direction": "download", "integrity": "sha256"}
     },
     {
@@ -60,7 +60,7 @@
       "input": {"contract": "plenora-rest-file-transfer-input-v1", "content_types": ["application/json"]},
       "output": {"contract": "plenora-rest-file-transfer-result-v1", "content_types": ["application/json"]},
       "side_effect": "remote",
-      "controls": {"cancellation": true, "deadline": true, "idempotency_key": false},
+      "controls": {"cancellation": true, "deadline": true, "idempotency_key": true},
       "attributes": {"contract": "plenora-rest-capability-attributes-v1", "direction": "upload", "integrity": "sha256"}
     }
   ]

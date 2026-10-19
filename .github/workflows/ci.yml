@@ -57,6 +57,12 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all --check
 
+      - name: Check offline contract adoption and registries
+        run: python scripts/check-contract-adoption.py
+
+      - name: Test adoption gate failures and data-free diagnostics
+        run: python -m unittest discover -s scripts -p 'test_contract_adoption.py'
+
       - name: Check workspace
         run: cargo check --workspace --all-targets --locked
 

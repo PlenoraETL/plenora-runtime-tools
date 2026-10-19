@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/arrow-metadata-vector-v1.schema.json",
+  "title": "Plenora Arrow metadata conformance vector v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "contract", "expect", "schema_metadata", "fields"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "contract": {"const": "plenora-arrow-metadata-vector-v1"},
+    "expect": {"enum": ["valid", "invalid"]},
+    "reason": {"type": "string", "minLength": 1, "maxLength": 300},
+    "schema_metadata": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "type", "nullable", "metadata"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "type": {"type": "string", "minLength": 1},
+          "nullable": {"type": "boolean"},
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"expect": {"const": "invalid"}}, "required": ["expect"]},
+      "then": {"required": ["reason"]}
+    }
+  ]
+}

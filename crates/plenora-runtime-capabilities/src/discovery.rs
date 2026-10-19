@@ -33,7 +33,6 @@ const MAX_ATTRIBUTE_NODES: usize = 1_024;
 const MAX_ATTRIBUTE_COLLECTION_ITEMS: usize = 64;
 const MAX_ATTRIBUTE_KEY_BYTES: usize = 64;
 const MAX_ATTRIBUTE_STRING_BYTES: usize = 512;
-const RUNTIME_BINDING_CONTRACT: &str = "plenora-runtime-binding-v1";
 
 /// Public surface advertised by Capability Discovery 2.0.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
@@ -239,6 +238,32 @@ impl CapabilityOperation {
         self.side_effect
     }
 
+    /// Effective effect on an advertised surface, including SB-001 overrides.
+    /// Returns `None` for a surface the artifact does not expose.
+    #[must_use]
+    pub fn surface_side_effect(&self, surface: CapabilitySurface) -> Option<CapabilitySideEffect> {
+        if !self.surfaces.contains(&surface) {
+            return None;
+        }
+        let name = match surface {
+            CapabilitySurface::Rust => "rust",
+            CapabilitySurface::Cli => "cli",
+            CapabilitySurface::PythonSdk => "python_sdk",
+            CapabilitySurface::Runtime => "runtime",
+        };
+        match self
+            .attributes
+            .0
+            .get("plenora.surface_side_effects")
+            .and_then(|effects| effects.get(name))
+            .and_then(Value::as_str)
+        {
+            Some("local") => Some(CapabilitySideEffect::Local),
+            Some("remote") => Some(CapabilitySideEffect::Remote),
+            _ => Some(self.side_effect),
+        }
+    }
+
     /// Returns the execution controls supported by the component.
     #[must_use]
     pub const fn controls(&self) -> CapabilityControls {
@@ -337,7 +362,10 @@ impl CapabilityDiscovery {
                 CapabilityDiscoveryErrorKind::DuplicateRuntimeInterface,
             ));
         }
-        if interface.contract.as_str() != RUNTIME_BINDING_CONTRACT {
+        if !matches!(
+            (interface.contract.as_str(), interface.version),
+            ("plenora-runtime-binding-v1", 1) | ("plenora-runtime-binding-v2", 2)
+        ) {
             return Err(CapabilityDiscoveryError::new(
                 CapabilityDiscoveryErrorKind::UnsupportedRuntimeBinding,
             ));
@@ -345,7 +373,8 @@ impl CapabilityDiscovery {
         let artifact = interface.artifact().ok_or_else(|| {
             CapabilityDiscoveryError::new(CapabilityDiscoveryErrorKind::MissingRuntimeArtifact)
         })?;
-        CapabilityId::new(artifact, interface.version).map_err(|_error| {
+        // RT-025: both contract versions use wire version 1.
+        CapabilityId::new(artifact, 1).map_err(|_error| {
             CapabilityDiscoveryError::new(CapabilityDiscoveryErrorKind::InvalidRuntimeCapability)
         })
     }
@@ -443,6 +472,9 @@ impl CapabilityDiscovery {
         }
 
         let mut operations = BTreeMap::new();
+        // Deviation CAP-004 (docs/contract-alignment.md): distinct versions of
+        // one name are currently rejected. Never claim multi-version discovery
+        // until every public lookup and dispatch is keyed by (name, version).
         for operation in raw.operations {
             let operation = CapabilityOperation::try_from(operation)?;
             if operations
@@ -496,7 +528,7 @@ pub enum CapabilityDiscoveryErrorKind {
     MissingRuntimeInterface,
     /// More than one runtime interface was advertised.
     DuplicateRuntimeInterface,
-    /// The runtime interface does not use Runtime Binding 1.0.
+    /// The runtime interface has an unsupported contract/version pair.
     UnsupportedRuntimeBinding,
     /// The runtime interface omitted its artifact identifier.
     MissingRuntimeArtifact,
@@ -692,6 +724,7 @@ impl TryFrom<RawOperation> for CapabilityOperation {
             ));
         }
         validate_attributes(&raw.attributes)?;
+        validate_surface_effects(&raw.attributes, &surfaces, raw.side_effect)?;
         Ok(Self {
             name,
             version,
@@ -705,6 +738,34 @@ impl TryFrom<RawOperation> for CapabilityOperation {
             attributes: CapabilityAttributes(raw.attributes),
         })
     }
+}
+
+fn validate_surface_effects(
+    attributes: &Map<String, Value>,
+    surfaces: &BTreeSet<CapabilitySurface>,
+    base: CapabilitySideEffect,
+) -> Result<(), CapabilityDiscoveryError> {
+    let invalid = || CapabilityDiscoveryError::new(CapabilityDiscoveryErrorKind::InvalidOperation);
+    if let Some(effects) = attributes.get("plenora.surface_side_effects") {
+        for (name, value) in effects.as_object().ok_or_else(invalid)? {
+            let surface = match name.as_str() {
+                "rust" => CapabilitySurface::Rust,
+                "cli" => CapabilitySurface::Cli,
+                "python_sdk" => CapabilitySurface::PythonSdk,
+                "runtime" => CapabilitySurface::Runtime,
+                _ => return Err(invalid()),
+            };
+            let stricter = matches!(
+                (base, value.as_str()),
+                (CapabilitySideEffect::None, Some("local" | "remote"))
+                    | (CapabilitySideEffect::Local, Some("remote"))
+            );
+            if !surfaces.contains(&surface) || !stricter {
+                return Err(invalid());
+            }
+        }
+    }
+    Ok(())
 }
 
 fn is_component(value: &str) -> bool {

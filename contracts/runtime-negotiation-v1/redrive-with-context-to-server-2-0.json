@@ -1,0 +1,72 @@
+{
+  "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-negotiation-vector-v1",
+  "description": "A request moved to a dead-letter queue is redriven with its context: a forwarding, checked against the acceptance record, and sent.",
+  "request": "../runtime-v1/database-read-request.json",
+  "ingress": {
+    "minimum": null
+  },
+  "hops": [
+    {
+      "from": "sender",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      },
+      "forwards": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      }
+    },
+    {
+      "from": "hop",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      },
+      "forwards": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      }
+    },
+    {
+      "from": "hop",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      },
+      "forwards": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      }
+    },
+    {
+      "from": "hop",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      },
+      "forwards": null
+    }
+  ],
+  "destination": {
+    "interface": {
+      "kind": "runtime",
+      "contract": "plenora-runtime-binding-v2",
+      "version": 2
+    }
+  },
+  "expect": {
+    "decision": "send",
+    "governed_by": "plenora-runtime-binding-v2"
+  }
+}

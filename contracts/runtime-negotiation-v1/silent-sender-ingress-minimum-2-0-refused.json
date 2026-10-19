@@ -1,0 +1,34 @@
+{
+  "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-negotiation-vector-v1",
+  "description": "A sender states nothing at an ingress configured with a minimum requirement of 2.0: refused at the ingress.",
+  "request": "../runtime-v1/database-read-request.json",
+  "ingress": {
+    "minimum": "plenora-runtime-binding-v2"
+  },
+  "hops": [
+    {
+      "from": "sender",
+      "record": "readable",
+      "carries": true,
+      "receives": null,
+      "forwards": null
+    }
+  ],
+  "destination": {
+    "interface": {
+      "kind": "runtime",
+      "contract": "plenora-runtime-binding-v2",
+      "version": 2
+    }
+  },
+  "expect": {
+    "decision": "refuse",
+    "at_hop": 0,
+    "category": "unsupported",
+    "phase": "validate",
+    "remote_effect": "none",
+    "retry": "never"
+  }
+}

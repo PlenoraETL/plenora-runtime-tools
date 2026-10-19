@@ -36,7 +36,7 @@ I gate di qualificazione attuali e i rischi di sicurezza residui sono tracciati 
 [`docs/qualification.md`](docs/qualification.md) e
 [`docs/security-review.md`](docs/security-review.md).
 Il pin immutabile dei contratti comuni, il confine di richiesta implementato e le lacune che
-restano rispetto a Runtime Binding 1.0 sono tracciati in
+restano rispetto a Runtime Binding 2.0 sono tracciati in
 [`docs/contract-alignment.md`](docs/contract-alignment.md) e
 [`contracts/source.json`](contracts/source.json).
 La copertura limitata di carico, cancellazione, ciclo di vita e soak su JetStream reale è

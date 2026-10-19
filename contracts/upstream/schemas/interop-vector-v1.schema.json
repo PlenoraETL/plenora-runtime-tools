@@ -1,0 +1,409 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/interop-vector-v1.schema.json",
+  "title": "Plenora interoperability vector v1",
+  "description": "A chain of public operations and its exact expectation (Interoperability Vectors 1.0).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract",
+    "kind",
+    "description"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-interop-vector-v1"
+    },
+    "kind": {
+      "enum": [
+        "handoff",
+        "rejection",
+        "source"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "input": {
+      "description": "Path of an arrow-data-v1 vector, relative to this file.",
+      "type": "string",
+      "pattern": "^\\.\\./arrow-data-v1/[a-z0-9-]+\\.json$"
+    },
+    "chain": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    },
+    "expected_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_metadata",
+        "fields",
+        "rows"
+      ],
+      "properties": {
+        "schema_metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "delegated_metadata": {
+          "description": "Prefixes of provider keys that steps add and that the provider's own vectors verify; the harness removes keys under them before the exact comparison (INTEROP-003).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^plenora\\.[a-z][a-z0-9_]*\\.$"
+          }
+        }
+      }
+    },
+    "expected_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class",
+        "category",
+        "phases",
+        "remote_effects",
+        "retry",
+        "exit_code",
+        "rules"
+      ],
+      "properties": {
+        "class": {
+          "enum": [
+            "input",
+            "support",
+            "crs"
+          ]
+        },
+        "category": {
+          "enum": [
+            "schema",
+            "data_mapping",
+            "crs",
+            "unsupported"
+          ]
+        },
+        "phases": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "validate",
+              "read",
+              "write"
+            ]
+          }
+        },
+        "remote_effects": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "none",
+              "rolled_back"
+            ]
+          }
+        },
+        "retry": {
+          "const": "never"
+        },
+        "exit_code": {
+          "const": 3
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]+(-[A-Z]+)*-[0-9]{3}$|^VOCABULARY-[1-9][0-9]?$"
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "text"
+      ],
+      "properties": {
+        "format": {
+          "enum": [
+            "geojson",
+            "wkt_csv"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        }
+      }
+    },
+    "expected_geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "crs_id",
+        "axis_order",
+        "coordinates"
+      ],
+      "properties": {
+        "crs_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "axis_order": {
+          "enum": [
+            "lon_lat",
+            "lat_lon",
+            "easting_northing",
+            "northing_easting",
+            "other",
+            "unknown"
+          ]
+        },
+        "coordinates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "handoff"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "input",
+          "chain",
+          "expected_output"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "expected_error"
+              ]
+            },
+            {
+              "required": [
+                "source"
+              ]
+            },
+            {
+              "required": [
+                "expected_geometry"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "rejection"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "input",
+          "chain",
+          "expected_error"
+        ],
+        "properties": {
+          "chain": {
+            "maxItems": 1
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "expected_output"
+              ]
+            },
+            {
+              "required": [
+                "source"
+              ]
+            },
+            {
+              "required": [
+                "expected_geometry"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "source"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "source",
+          "chain",
+          "expected_geometry"
+        ],
+        "properties": {
+          "chain": {
+            "maxItems": 1
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "input"
+              ]
+            },
+            {
+              "required": [
+                "expected_output"
+              ]
+            },
+            {
+              "required": [
+                "expected_error"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "operation",
+        "version",
+        "transformations"
+      ],
+      "properties": {
+        "component": {
+          "type": "string",
+          "pattern": "^plenora-[a-z][a-z0-9-]+-tools$"
+        },
+        "operation": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "via": {
+          "const": "target"
+        },
+        "params": {
+          "type": "object"
+        },
+        "transformations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "complete_missing_geometry_keys",
+              "assign_field_ids",
+              "large_to_standard",
+              "srid_from_epsg_identifier",
+              "ewkb_with_field_srid",
+              "axis_order_unknown",
+              "several_types_to_mixed",
+              "provider_metadata"
+            ]
+          }
+        },
+        "provider_prefix": {
+          "type": "string",
+          "pattern": "^plenora\\.[a-z][a-z0-9_]*\\.$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "transformations": {
+                "contains": {
+                  "const": "provider_metadata"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "provider_prefix"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "provider_prefix"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

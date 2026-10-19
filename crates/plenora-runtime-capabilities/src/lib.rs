@@ -11,6 +11,7 @@ mod discovery;
 mod dispatcher;
 mod handler;
 mod identifier;
+mod negotiation;
 mod public_error;
 mod registry;
 mod request;
@@ -37,6 +38,10 @@ pub use handler::{CapabilityFailure, CapabilityHandler, CapabilityRemoteEffect};
 pub use identifier::{
     CapabilityId, CapabilityIdentifierError, CapabilityIdentifierErrorKind,
     CapabilityIdentifierField, MAX_CAPABILITY_NAME_BYTES, MAX_OPERATION_NAME_BYTES, OperationName,
+};
+pub use negotiation::{
+    AcceptanceRecord, AcceptanceStore, NegotiationContext, NegotiationError, RuntimeBinding,
+    accept_runtime_request, select_runtime_destination,
 };
 pub use public_error::{
     PLENORA_ERROR_CONTENT_TYPE, PLENORA_ERROR_CONTRACT, PlenoraError, PlenoraErrorCategory,

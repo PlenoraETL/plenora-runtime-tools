@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/capabilities-v1.schema.json",
+  "title": "Plenora capability result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "interfaces", "features"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "interfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cli"],
+      "properties": {
+        "cli": {"const": 2},
+        "python_sdk": {
+          "oneOf": [
+            {"const": 1},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "build_features": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+      },
+      "uniqueItems": true
+    },
+    "features": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/feature"}
+    }
+  },
+  "$defs": {
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        },
+        "status": {
+          "enum": ["available", "unavailable", "experimental", "deprecated"]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "required_build_feature": {
+          "type": ["string", "null"],
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+        },
+        "attributes": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"const": "unavailable"}},
+            "required": ["status"]
+          },
+          "then": {"required": ["reason"]}
+        }
+      ]
+    }
+  }
+}

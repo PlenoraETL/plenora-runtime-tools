@@ -1,0 +1,57 @@
+{
+  "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-negotiation-vector-v1",
+  "description": "A redrive republishes the request through the gateway that also receives new requests, without its context. The acceptance record of its message identity exists, so the gateway acts as a forwarding, not as an ingress: the default of 1.0 does not apply and the lost context is refused.",
+  "request": "../runtime-v1/database-read-request.json",
+  "ingress": {
+    "minimum": null
+  },
+  "hops": [
+    {
+      "from": "sender",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      },
+      "forwards": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      }
+    },
+    {
+      "from": "hop",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      },
+      "forwards": null
+    },
+    {
+      "from": "sender",
+      "record": "readable",
+      "carries": true,
+      "receives": null,
+      "forwards": null
+    }
+  ],
+  "destination": {
+    "interface": {
+      "kind": "runtime",
+      "contract": "plenora-runtime-binding-v1",
+      "version": 1
+    }
+  },
+  "expect": {
+    "decision": "refuse",
+    "at_hop": 2,
+    "category": "unsupported",
+    "phase": "validate",
+    "remote_effect": "none",
+    "retry": "never"
+  }
+}

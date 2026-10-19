@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-negotiation-vector-v1",
+  "description": "A request reaches a hop of the transport from another hop without any acceptance record: it cannot be a new request, and no hop may supply the default; refused.",
+  "request": "../runtime-v1/database-read-request.json",
+  "ingress": {
+    "minimum": null
+  },
+  "hops": [
+    {
+      "from": "hop",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      },
+      "forwards": null
+    }
+  ],
+  "destination": {
+    "interface": {
+      "kind": "runtime",
+      "contract": "plenora-runtime-binding-v2",
+      "version": 2
+    }
+  },
+  "expect": {
+    "decision": "refuse",
+    "at_hop": 0,
+    "category": "unsupported",
+    "phase": "validate",
+    "remote_effect": "none",
+    "retry": "never"
+  }
+}

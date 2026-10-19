@@ -18,7 +18,7 @@ use plenora_runtime_messaging::{
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-const CONTRACTS_REVISION: &str = "90cffb2b78cace16edad352a19d86f674930c133";
+const CONTRACTS_REVISION: &str = "3aec9f724f5a0ad21366f293895b4d0dbcd0aad1";
 const SOURCE: &str = include_str!("../../../contracts/source.json");
 const REST_CAPABILITIES_VECTOR: &str =
     include_str!("../../../contracts/capabilities-v2/rest-tools-v1.json");
@@ -26,6 +26,14 @@ const REST_CAPABILITIES_VECTOR: &str =
 type VectorEntry = (&'static str, &'static str);
 
 const REQUEST_VECTORS: &[VectorEntry] = &[
+    (
+        "runtime-v1/data-run-request-v3.json",
+        include_str!("../../../contracts/runtime-v1/data-run-request-v3.json"),
+    ),
+    (
+        "runtime-v1/data-validate-request-v2.json",
+        include_str!("../../../contracts/runtime-v1/data-validate-request-v2.json"),
+    ),
     (
         "runtime-v1/data-validate-request.json",
         include_str!("../../../contracts/runtime-v1/data-validate-request.json"),
@@ -42,16 +50,48 @@ const REQUEST_VECTORS: &[VectorEntry] = &[
         "runtime-v1/rest-upload-request.json",
         include_str!("../../../contracts/runtime-v1/rest-upload-request.json"),
     ),
+    (
+        "runtime-v1/storage-copy-request.json",
+        include_str!("../../../contracts/runtime-v1/storage-copy-request.json"),
+    ),
+    (
+        "runtime-v1/storage-delete-request.json",
+        include_str!("../../../contracts/runtime-v1/storage-delete-request.json"),
+    ),
+    (
+        "runtime-v1/storage-get-request.json",
+        include_str!("../../../contracts/runtime-v1/storage-get-request.json"),
+    ),
+    (
+        "runtime-v1/storage-list-request.json",
+        include_str!("../../../contracts/runtime-v1/storage-list-request.json"),
+    ),
+    (
+        "runtime-v1/storage-put-request.json",
+        include_str!("../../../contracts/runtime-v1/storage-put-request.json"),
+    ),
+    (
+        "runtime-v1/storage-stat-request.json",
+        include_str!("../../../contracts/runtime-v1/storage-stat-request.json"),
+    ),
+    (
+        "runtime-v1/storage-test-request.json",
+        include_str!("../../../contracts/runtime-v1/storage-test-request.json"),
+    ),
 ];
 
 const SUCCESS_VECTORS: &[VectorEntry] = &[
+    (
+        "runtime-v1/data-run-success-v3.json",
+        include_str!("../../../contracts/runtime-v1/data-run-success-v3.json"),
+    ),
     (
         "runtime-v1/data-run-success.json",
         include_str!("../../../contracts/runtime-v1/data-run-success.json"),
     ),
     (
-        "runtime-v1/database-transaction-commit-success.json",
-        include_str!("../../../contracts/runtime-v1/database-transaction-commit-success.json"),
+        "runtime-v1/database-query-success.json",
+        include_str!("../../../contracts/runtime-v1/database-query-success.json"),
     ),
     (
         "runtime-v1/io-read-success.json",
@@ -61,12 +101,40 @@ const SUCCESS_VECTORS: &[VectorEntry] = &[
         "runtime-v1/rest-download-success.json",
         include_str!("../../../contracts/runtime-v1/rest-download-success.json"),
     ),
+    (
+        "runtime-v1/storage-get-success.json",
+        include_str!("../../../contracts/runtime-v1/storage-get-success.json"),
+    ),
+    (
+        "runtime-v1/storage-list-success.json",
+        include_str!("../../../contracts/runtime-v1/storage-list-success.json"),
+    ),
+    (
+        "runtime-v1/storage-put-success.json",
+        include_str!("../../../contracts/runtime-v1/storage-put-success.json"),
+    ),
 ];
 
 const ERROR_VECTORS: &[VectorEntry] = &[
     (
+        "runtime-v1/data-run-partial-error-v3.json",
+        include_str!("../../../contracts/runtime-v1/data-run-partial-error-v3.json"),
+    ),
+    (
         "runtime-v1/data-run-timeout-error.json",
         include_str!("../../../contracts/runtime-v1/data-run-timeout-error.json"),
+    ),
+    (
+        "runtime-v1/data-run-unknown-error-v3.json",
+        include_str!("../../../contracts/runtime-v1/data-run-unknown-error-v3.json"),
+    ),
+    (
+        "runtime-v1/database-write-commit-io-error.json",
+        include_str!("../../../contracts/runtime-v1/database-write-commit-io-error.json"),
+    ),
+    (
+        "runtime-v1/database-write-commit-timeout-error.json",
+        include_str!("../../../contracts/runtime-v1/database-write-commit-timeout-error.json"),
     ),
     (
         "runtime-v1/database-write-error.json",
@@ -80,15 +148,88 @@ const ERROR_VECTORS: &[VectorEntry] = &[
         "runtime-v1/rest-upload-unknown-error.json",
         include_str!("../../../contracts/runtime-v1/rest-upload-unknown-error.json"),
     ),
+    (
+        "runtime-v1/storage-get-partial-error.json",
+        include_str!("../../../contracts/runtime-v1/storage-get-partial-error.json"),
+    ),
+    (
+        "runtime-v1/storage-put-cleanup-local-error.json",
+        include_str!("../../../contracts/runtime-v1/storage-put-cleanup-local-error.json"),
+    ),
+    (
+        "runtime-v1/storage-put-cleanup-remote-error.json",
+        include_str!("../../../contracts/runtime-v1/storage-put-cleanup-remote-error.json"),
+    ),
+    (
+        "runtime-v1/storage-put-unknown-error.json",
+        include_str!("../../../contracts/runtime-v1/storage-put-unknown-error.json"),
+    ),
+    (
+        "runtime-v2/database-query-result-limit-error.json",
+        include_str!("../../../contracts/runtime-v2/database-query-result-limit-error.json"),
+    ),
+    (
+        "runtime-v2/database-query-transport-limit-error.json",
+        include_str!("../../../contracts/runtime-v2/database-query-transport-limit-error.json"),
+    ),
 ];
 
 const EXPECTED_VECTOR_PATHS: &[&str] = &[
     "capabilities-v2/rest-tools-v1.json",
+    "runtime-negotiation-v1/acceptance-record-unreadable-refused.json",
+    "runtime-negotiation-v1/capabilities-unreadable-refused.json",
+    "runtime-negotiation-v1/context-altered-on-the-route-refused.json",
+    "runtime-negotiation-v1/context-lost-on-the-route-refused.json",
+    "runtime-negotiation-v1/declared-1-0-ingress-minimum-2-0-refused.json",
+    "runtime-negotiation-v1/declared-1-0-to-server-1-0.json",
+    "runtime-negotiation-v1/declared-1-0-to-server-2-0.json",
+    "runtime-negotiation-v1/declared-2-0-downgrade-to-server-1-0.json",
+    "runtime-negotiation-v1/declared-2-0-ingress-minimum-2-0-to-server-2-0.json",
+    "runtime-negotiation-v1/declared-2-0-to-server-1-0-refused.json",
+    "runtime-negotiation-v1/declared-2-0-to-server-2-0.json",
+    "runtime-negotiation-v1/first-reception-from-a-hop-refused.json",
+    "runtime-negotiation-v1/intermediary-cannot-carry-refused.json",
+    "runtime-negotiation-v1/intermediary-preserves-context.json",
+    "runtime-negotiation-v1/mismatched-interface-refused.json",
+    "runtime-negotiation-v1/redrive-republished-without-context-refused.json",
+    "runtime-negotiation-v1/redrive-with-context-to-server-2-0.json",
+    "runtime-negotiation-v1/resend-by-sender-silent-refused.json",
+    "runtime-negotiation-v1/resend-by-sender-with-context.json",
+    "runtime-negotiation-v1/silent-sender-default-1-0.json",
+    "runtime-negotiation-v1/silent-sender-ingress-minimum-2-0-refused.json",
+    "runtime-probes-v1/data-run-input-contract-malformed.json",
+    "runtime-probes-v1/data-run-input-contract-mismatch.json",
+    "runtime-probes-v1/database-read-capability-name-other.json",
+    "runtime-probes-v1/database-read-correlation-uppercase.json",
+    "runtime-probes-v1/io-read-binding-version-leading-zero.json",
+    "runtime-probes-v1/io-read-binding-version-number.json",
+    "runtime-probes-v1/io-read-binding-version-unsupported.json",
+    "runtime-probes-v1/io-read-deadline-expired.json",
+    "runtime-probes-v1/io-read-deadline-negative-zero.json",
+    "runtime-probes-v1/io-read-deadline-offset.json",
+    "runtime-probes-v1/io-read-message-id-braces.json",
+    "runtime-probes-v1/io-read-message-id-missing.json",
+    "runtime-probes-v1/io-read-operation-version-leading-zero.json",
+    "runtime-probes-v1/io-read-operation-version-missing.json",
+    "runtime-probes-v1/io-read-operation-version-number.json",
+    "runtime-probes-v1/io-read-operation-version-unknown.json",
+    "runtime-probes-v1/rest-upload-idempotency-key-empty.json",
+    "runtime-probes-v1/rest-upload-idempotency-key-null.json",
+    "runtime-probes-v1/storage-get-idempotency-key-unsupported.json",
+    "runtime-probes-v1/storage-get-operation-malformed.json",
+    "runtime-probes-v1/storage-get-operation-unknown.json",
+    "runtime-v1/data-run-partial-error-v3.json",
+    "runtime-v1/data-run-request-v3.json",
+    "runtime-v1/data-run-success-v3.json",
     "runtime-v1/data-run-success.json",
     "runtime-v1/data-run-timeout-error.json",
+    "runtime-v1/data-run-unknown-error-v3.json",
+    "runtime-v1/data-validate-request-v2.json",
     "runtime-v1/data-validate-request.json",
+    "runtime-v1/database-query-success.json",
     "runtime-v1/database-read-request.json",
-    "runtime-v1/database-transaction-commit-success.json",
+    "runtime-v1/database-write-commit-io-error.json",
+    "runtime-v1/database-write-commit-timeout-error.json",
     "runtime-v1/database-write-error.json",
     "runtime-v1/io-read-cancelled-error.json",
     "runtime-v1/io-read-request.json",
@@ -96,6 +237,22 @@ const EXPECTED_VECTOR_PATHS: &[&str] = &[
     "runtime-v1/rest-download-success.json",
     "runtime-v1/rest-upload-request.json",
     "runtime-v1/rest-upload-unknown-error.json",
+    "runtime-v1/storage-copy-request.json",
+    "runtime-v1/storage-delete-request.json",
+    "runtime-v1/storage-get-partial-error.json",
+    "runtime-v1/storage-get-request.json",
+    "runtime-v1/storage-get-success.json",
+    "runtime-v1/storage-list-request.json",
+    "runtime-v1/storage-list-success.json",
+    "runtime-v1/storage-put-cleanup-local-error.json",
+    "runtime-v1/storage-put-cleanup-remote-error.json",
+    "runtime-v1/storage-put-request.json",
+    "runtime-v1/storage-put-success.json",
+    "runtime-v1/storage-put-unknown-error.json",
+    "runtime-v1/storage-stat-request.json",
+    "runtime-v1/storage-test-request.json",
+    "runtime-v2/database-query-result-limit-error.json",
+    "runtime-v2/database-query-transport-limit-error.json",
 ];
 
 #[derive(Debug, Deserialize)]
@@ -154,6 +311,12 @@ fn source_pin_is_immutable_and_inventory_is_complete() -> Result<(), Box<dyn Err
             "plenora-rest-file-transfer-input-v1",
             "plenora-rest-file-transfer-result-v1",
             "plenora-rest-capability-attributes-v1",
+            "plenora-runtime-binding-v2",
+            "plenora-public-catalog-v2",
+            "plenora-capabilities-v2",
+            "plenora-error-v1",
+            "plenora-surface-bindings-v1",
+            "plenora-public-security-v1",
         ]
     );
     assert_eq!(pin.vectors, EXPECTED_VECTOR_PATHS);
@@ -319,13 +482,27 @@ fn error_vectors_round_trip_through_the_bounded_public_model() -> Result<(), Box
         assert_result_metadata(&message, &vector)?;
 
         let public_error = public_error_from_fixture(&vector.payload)?;
+        // The optional details object may be omitted when empty (ERRORS-1.0).
+        // Compare the public model's documented serialization, without changing
+        // the pinned fixture or ignoring any nonempty diagnostic member.
+        let mut expected = vector.payload.clone();
+        if expected
+            .get("details")
+            .and_then(Value::as_object)
+            .is_some_and(Map::is_empty)
+        {
+            expected
+                .as_object_mut()
+                .ok_or("error object missing")?
+                .remove("details");
+        }
         let encoded: Value = serde_json::from_slice(&public_error.to_json()?)?;
-        assert_eq!(encoded, vector.payload, "{path}");
+        assert_eq!(encoded, expected, "{path}");
         let public_message = public_error.to_message()?;
         assert_eq!(public_message.content_type.as_ref(), vector.content_type);
         assert_eq!(
             serde_json::from_slice::<Value>(&public_message.bytes)?,
-            vector.payload,
+            expected,
             "{path}"
         );
     }

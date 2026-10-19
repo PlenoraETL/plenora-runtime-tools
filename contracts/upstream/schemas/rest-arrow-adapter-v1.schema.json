@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/rest-arrow-adapter-v1.schema.json",
+  "title": "Plenora REST-to-Arrow adapter declaration v1",
+  "description": "What an adapter from a REST execution result to an Arrow table declares (REST-to-Arrow Adapter 1.0, RA-003). Uniqueness of names and identifiers and the pointer grammar are checked semantically.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract",
+    "accept_status",
+    "on_record_error",
+    "undeclared_members",
+    "fields"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-rest-arrow-adapter-v1"
+    },
+    "accept_status": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "success",
+          "partial"
+        ]
+      }
+    },
+    "on_record_error": {
+      "enum": [
+        "fail",
+        "exclude"
+      ]
+    },
+    "undeclared_members": {
+      "enum": [
+        "ignore",
+        "reject"
+      ]
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "field_id",
+          "pointer",
+          "type",
+          "nullable"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "not": {
+              "const": "@undeclared"
+            }
+          },
+          "field_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pointer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "type": {
+            "enum": [
+              "bool",
+              "int64",
+              "float64",
+              "utf8"
+            ]
+          },
+          "nullable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

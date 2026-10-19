@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/rest-arrow-adapter-vector-v1.schema.json",
+  "title": "Plenora REST-to-Arrow adapter conformance vector v1",
+  "description": "A declaration, the members of a REST execution result the adapter reads, and the outcome REST-to-Arrow Adapter 1.0 gives.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract",
+    "description",
+    "declaration",
+    "result",
+    "expect"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "contract": {
+      "const": "plenora-rest-arrow-adapter-vector-v1"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "declaration": {
+      "$ref": "rest-arrow-adapter-v1.schema.json"
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "output",
+        "errors"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "status": {
+          "enum": [
+            "success",
+            "partial",
+            "failed"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "none",
+                "json",
+                "records"
+              ]
+            }
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "expect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "schema",
+            "rows",
+            "diagnostics",
+            "rest_status",
+            "rest_errors"
+          ],
+          "properties": {
+            "outcome": {
+              "const": "table"
+            },
+            "schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schema_metadata",
+                "fields"
+              ],
+              "properties": {
+                "schema_metadata": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "plenora.contract.version"
+                  ],
+                  "properties": {
+                    "plenora.contract.version": {
+                      "const": "1"
+                    }
+                  }
+                },
+                "fields": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "type",
+                      "nullable",
+                      "metadata"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "type": {
+                        "enum": [
+                          "bool",
+                          "int64",
+                          "float64",
+                          "utf8"
+                        ]
+                      },
+                      "nullable": {
+                        "type": "boolean"
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "plenora.field_id"
+                        ],
+                        "properties": {
+                          "plenora.field_id": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "null",
+                    "boolean",
+                    "integer",
+                    "number",
+                    "string"
+                  ]
+                }
+              }
+            },
+            "diagnostics": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "row-diagnostics-v1.schema.json"
+                }
+              ]
+            },
+            "rest_status": {
+              "enum": [
+                "success",
+                "partial"
+              ]
+            },
+            "rest_errors": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "category",
+            "phase",
+            "remote_effect",
+            "retry"
+          ],
+          "properties": {
+            "outcome": {
+              "const": "error"
+            },
+            "category": {
+              "enum": [
+                "invalid_configuration",
+                "schema",
+                "execution",
+                "data_mapping"
+              ]
+            },
+            "phase": {
+              "enum": [
+                "validate",
+                "read"
+              ]
+            },
+            "remote_effect": {
+              "const": "none"
+            },
+            "retry": {
+              "const": "never"
+            },
+            "record": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "field": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "description": "A declared field name, or @undeclared for an undeclared member, whose key is never reported."
+            },
+            "cause": {
+              "$ref": "#/$defs/cause"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "category": {
+                    "const": "data_mapping"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "record",
+                  "field",
+                  "cause"
+                ]
+              },
+              "else": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "record"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "field"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "cause"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "cause": {
+      "enum": [
+        "adapter.null_in_non_nullable",
+        "adapter.path_not_traversable",
+        "adapter.type_mismatch",
+        "adapter.not_representable",
+        "adapter.undeclared_member"
+      ]
+    }
+  }
+}

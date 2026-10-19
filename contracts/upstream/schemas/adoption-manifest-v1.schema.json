@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.plenora.dev/adoption-manifest-v1.schema.json",
+  "title": "Plenora interface-contract adoption manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "component", "contracts_source", "cli", "python_sdk"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "component": {
+      "type": "string",
+      "pattern": "^plenora-[a-z][a-z0-9-]{1,62}$"
+    },
+    "contracts_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision"],
+      "properties": {
+        "repository": {
+          "const": "https://github.com/PlenoraETL/plenora-contracts.git"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "cli": {"$ref": "#/$defs/cliAdoption"},
+    "python_sdk": {"$ref": "#/$defs/sdkAdoption"}
+  },
+  "$defs": {
+    "deviation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "reason", "tracking"],
+      "properties": {
+        "rule": {"type": "string", "minLength": 1, "maxLength": 128},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 512},
+        "tracking": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    },
+    "cliAdoption": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["applicable"],
+          "properties": {"applicable": {"const": false}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["applicable", "protocol_version", "binary", "verification", "deviations"],
+          "properties": {
+            "applicable": {"const": true},
+            "protocol_version": {"const": 2},
+            "binary": {
+              "type": "string",
+              "pattern": "^plenora-[a-z][a-z0-9-]{1,62}$"
+            },
+            "verification": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "deviations": {
+              "type": "array",
+              "items": {"$ref": "#/$defs/deviation"}
+            }
+          }
+        }
+      ]
+    },
+    "sdkAdoption": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["applicable"],
+          "properties": {"applicable": {"const": false}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "applicable",
+            "contract_version",
+            "distribution",
+            "import_package",
+            "requires_python",
+            "io_modes",
+            "typed",
+            "version_api",
+            "verification",
+            "deviations"
+          ],
+          "properties": {
+            "applicable": {"const": true},
+            "contract_version": {"const": 1},
+            "distribution": {
+              "type": "string",
+              "pattern": "^plenora-[a-z][a-z0-9-]{1,62}$"
+            },
+            "import_package": {
+              "type": "string",
+              "pattern": "^plenora_[a-z][a-z0-9_]{1,62}$"
+            },
+            "requires_python": {
+              "type": "string",
+              "pattern": "^>=3\\.(1[0-9]|[2-9][0-9])$"
+            },
+            "io_modes": {
+              "enum": ["sync", "async", "sync_and_async", "not_applicable"]
+            },
+            "typed": {"const": true},
+            "version_api": {"const": "version"},
+            "verification": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "deviations": {
+              "type": "array",
+              "items": {"$ref": "#/$defs/deviation"}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

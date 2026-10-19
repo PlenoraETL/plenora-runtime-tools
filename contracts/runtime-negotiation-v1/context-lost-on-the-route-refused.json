@@ -1,0 +1,57 @@
+{
+  "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-negotiation-vector-v1",
+  "description": "A queue drops the context and forwards only the envelope; the second router receives the same bytes as a request of 1.0 and no context, compares with the acceptance record and refuses, never routing it as 1.0.",
+  "request": "../runtime-v1/database-read-request.json",
+  "ingress": {
+    "minimum": null
+  },
+  "hops": [
+    {
+      "from": "sender",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      },
+      "forwards": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      }
+    },
+    {
+      "from": "hop",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": false
+      },
+      "forwards": null
+    },
+    {
+      "from": "hop",
+      "record": "readable",
+      "carries": true,
+      "receives": null,
+      "forwards": null
+    }
+  ],
+  "destination": {
+    "interface": {
+      "kind": "runtime",
+      "contract": "plenora-runtime-binding-v1",
+      "version": 1
+    }
+  },
+  "expect": {
+    "decision": "refuse",
+    "at_hop": 2,
+    "category": "unsupported",
+    "phase": "validate",
+    "remote_effect": "none",
+    "retry": "never"
+  }
+}

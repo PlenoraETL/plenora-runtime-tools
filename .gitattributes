@@ -6,3 +6,10 @@
 *.yaml text eol=lf
 *.sh text eol=lf
 *.ps1 text eol=crlf
+# Upstream bytes are hashed: checkout must not rewrite line endings.
+contracts/upstream/** -text
+contracts/runtime-v1/** -text
+contracts/runtime-v2/** -text
+contracts/runtime-negotiation-v1/** -text
+contracts/runtime-probes-v1/** -text
+contracts/capabilities-v2/** -text

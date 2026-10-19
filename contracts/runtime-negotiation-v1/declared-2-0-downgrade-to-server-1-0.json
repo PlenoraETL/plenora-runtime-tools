@@ -1,0 +1,46 @@
+{
+  "$schema": "../../schemas/runtime-negotiation-vector-v1.schema.json",
+  "schema_version": 1,
+  "contract": "plenora-runtime-negotiation-vector-v1",
+  "description": "A sender states 2.0 and accepts the downgrade; the destination advertises 1.0: sent, governed by 1.0, without RT-024.",
+  "request": "../runtime-v1/database-read-request.json",
+  "ingress": {
+    "minimum": null
+  },
+  "hops": [
+    {
+      "from": "sender",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": true
+      },
+      "forwards": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": true
+      }
+    },
+    {
+      "from": "hop",
+      "record": "readable",
+      "carries": true,
+      "receives": {
+        "requires": "plenora-runtime-binding-v2",
+        "accepts_downgrade": true
+      },
+      "forwards": null
+    }
+  ],
+  "destination": {
+    "interface": {
+      "kind": "runtime",
+      "contract": "plenora-runtime-binding-v1",
+      "version": 1
+    }
+  },
+  "expect": {
+    "decision": "send",
+    "governed_by": "plenora-runtime-binding-v1"
+  }
+}
