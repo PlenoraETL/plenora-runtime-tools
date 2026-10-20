@@ -22,14 +22,15 @@ Ambiente:
 | `PLENORA_HTTP_BIND` | No | Indirizzo di bind HTTP; predefinito `127.0.0.1:3001`. |
 
 L'esempio congela all'avvio una capability segnaposto: `plenora.example-tools@v1`, operazione
-`execute`. Oltre agli UUID canonici di messaggio e di correlazione, ogni consegna contiene quindi
+`example.execute@1`. Altre versioni vengono rifiutate prima dell'elaborazione. Oltre agli UUID canonici di messaggio e di correlazione, ogni consegna contiene quindi
 queste chiavi di routing portabili:
 
 | Chiave di metadati | Valore d'esempio |
 |---|---|
 | `plenora.capability.name` | `plenora.example-tools` |
 | `plenora.capability.version` | `1` |
-| `plenora.capability.operation` | `execute` |
+| `plenora.capability.operation` | `example.execute` |
+| `plenora.operation.version` | `1` |
 
 Lo stream esistente deve conservare sia il subject operativo sia il subject dead-letter
 configurato. Il consumer durevole esistente deve usare ACK esplicito, `max_deliver=5`,

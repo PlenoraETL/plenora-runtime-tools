@@ -286,7 +286,7 @@ pub struct CapabilityDiscovery {
     component: Arc<str>,
     component_version: Arc<str>,
     interfaces: Vec<CapabilityInterface>,
-    operations: BTreeMap<OperationName, CapabilityOperation>,
+    operations: BTreeMap<(OperationName, OperationVersion), CapabilityOperation>,
 }
 
 impl CapabilityDiscovery {
@@ -338,24 +338,32 @@ impl CapabilityDiscovery {
         &self.interfaces
     }
 
-    /// Returns all operations in stable name order.
+    /// Returns all operations in stable name/version order.
     #[must_use]
     pub fn operations(&self) -> impl ExactSizeIterator<Item = &CapabilityOperation> {
         self.operations.values()
     }
 
-    /// Looks up a complete namespaced operation.
+    /// Looks up an exact namespaced operation/version pair.
     #[must_use]
-    pub fn operation(&self, operation: &OperationName) -> Option<&CapabilityOperation> {
-        self.operations.get(operation)
+    pub fn operation(
+        &self,
+        operation: &OperationName,
+        version: OperationVersion,
+    ) -> Option<&CapabilityOperation> {
+        self.operations.get(&(operation.clone(), version))
     }
 
-    /// Looks up an operation by its already-known public name.
+    /// Looks up an exact pair by its already-known public name and version.
     #[must_use]
-    pub fn operation_named(&self, operation: &str) -> Option<&CapabilityOperation> {
-        self.operations
-            .values()
-            .find(|candidate| candidate.name().as_str() == operation)
+    pub fn operation_named(
+        &self,
+        operation: &str,
+        version: OperationVersion,
+    ) -> Option<&CapabilityOperation> {
+        self.operations.values().find(|candidate| {
+            candidate.name().as_str() == operation && candidate.version() == version
+        })
     }
 
     /// Resolves the single compatible runtime interface to a versioned capability identity.
@@ -404,11 +412,18 @@ impl CapabilityDiscovery {
         request: &CapabilityRequest,
     ) -> Result<(), CapabilityRequestRejection> {
         let operation = self
-            .operation(request.operation())
-            .ok_or(CapabilityRequestRejection::UnknownOperation)?;
-        if operation.version != request.operation_version() {
-            return Err(CapabilityRequestRejection::OperationVersionMismatch);
-        }
+            .operation(request.operation(), request.operation_version())
+            .ok_or_else(|| {
+                if self
+                    .operations
+                    .keys()
+                    .any(|(name, _)| name == request.operation())
+                {
+                    CapabilityRequestRejection::OperationVersionMismatch
+                } else {
+                    CapabilityRequestRejection::UnknownOperation
+                }
+            })?;
         if operation.status != CapabilityStatus::Available {
             return Err(CapabilityRequestRejection::OperationUnavailable);
         }
@@ -487,13 +502,10 @@ impl CapabilityDiscovery {
         }
 
         let mut operations = BTreeMap::new();
-        // Deviation CAP-004 (docs/contract-alignment.md): distinct versions of
-        // one name are currently rejected. Never claim multi-version discovery
-        // until every public lookup and dispatch is keyed by (name, version).
         for operation in raw.operations {
             let operation = CapabilityOperation::try_from(operation)?;
             if operations
-                .insert(operation.name.clone(), operation)
+                .insert((operation.name.clone(), operation.version), operation)
                 .is_some()
             {
                 return Err(CapabilityDiscoveryError::new(
@@ -537,7 +549,7 @@ pub enum CapabilityDiscoveryErrorKind {
     TooManyOperations,
     /// An operation descriptor is invalid.
     InvalidOperation,
-    /// An operation identifier was repeated.
+    /// An operation name/version pair was repeated.
     DuplicateOperation,
     /// Component-owned attributes exceed structural bounds.
     InvalidAttributes,

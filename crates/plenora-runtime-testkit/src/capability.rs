@@ -8,7 +8,7 @@ use std::{
 use async_trait::async_trait;
 use plenora_runtime_capabilities::{
     CapabilityFailure, CapabilityHandler, CapabilityId, CapabilityRemoteEffect, CapabilityRequest,
-    CapabilityResponse, OperationName,
+    CapabilityResponse, OperationName, OperationVersion,
 };
 use plenora_runtime_messaging::{CorrelationId, MessageId, RetryErrorClass};
 use plenora_runtime_worker::WorkerContext;
@@ -86,6 +86,8 @@ pub struct FakeCapabilityInvocation {
     pub capability: CapabilityId,
     /// Routed capability-local operation.
     pub operation: OperationName,
+    /// Routed public operation-contract version.
+    pub operation_version: OperationVersion,
     /// Canonical worker message identity.
     pub message_id: MessageId,
     /// Canonical correlation identity.
@@ -213,6 +215,7 @@ impl CapabilityHandler for FakeCapabilityHandler {
             state.invocations.push(FakeCapabilityInvocation {
                 capability: request.capability().clone(),
                 operation: request.operation().clone(),
+                operation_version: request.operation_version(),
                 message_id: context.message_id,
                 correlation_id: context.correlation_id,
                 attempt: context.attempt,

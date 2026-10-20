@@ -3,7 +3,10 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 
-use crate::{CapabilityDiscovery, CapabilitySideEffect, CapabilityStatus, CapabilitySurface};
+use crate::{
+    CapabilityDiscovery, CapabilitySideEffect, CapabilityStatus, CapabilitySurface,
+    OperationVersion,
+};
 
 /// Capability Discovery component identifier for the REST black box.
 pub const REST_COMPONENT: &str = "plenora-rest-tools";
@@ -116,18 +119,28 @@ fn validate_operation(
     discovery: &CapabilityDiscovery,
     expected: &ExpectedOperation,
 ) -> Result<(), RestProfileError> {
-    let operation = discovery.operation_named(expected.name).ok_or_else(|| {
+    let mismatch = || {
         RestProfileError::new(
-            RestProfileErrorKind::RequiredOperationMissing,
-            Some(expected.name),
-        )
-    })?;
-    if operation.version().get() != 1 {
-        return Err(RestProfileError::new(
             RestProfileErrorKind::OperationVersionMismatch,
             Some(expected.name),
-        ));
-    }
+        )
+    };
+    let version = OperationVersion::new(1).map_err(|_| mismatch())?;
+    let operation = discovery
+        .operation_named(expected.name, version)
+        .ok_or_else(|| {
+            if discovery
+                .operations()
+                .any(|operation| operation.name().as_str() == expected.name)
+            {
+                mismatch()
+            } else {
+                RestProfileError::new(
+                    RestProfileErrorKind::RequiredOperationMissing,
+                    Some(expected.name),
+                )
+            }
+        })?;
     if operation.status() != CapabilityStatus::Available {
         return Err(RestProfileError::new(
             RestProfileErrorKind::OperationUnavailable,

@@ -235,7 +235,7 @@ impl Debug for CapabilityRegistry {
 }
 
 /// Failure while configuring or populating a registry.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum CapabilityRegistryError {
     /// Zero capacity would reject every adapter.
     ZeroCapacity,
@@ -283,6 +283,12 @@ impl Display for CapabilityRegistryError {
                 formatter.write_str("capability registry capacity has been reached")
             }
         }
+    }
+}
+
+impl Debug for CapabilityRegistryError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(self, formatter)
     }
 }
 

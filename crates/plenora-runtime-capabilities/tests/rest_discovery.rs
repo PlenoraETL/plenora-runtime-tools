@@ -229,7 +229,7 @@ fn pinned_rest_discovery_resolves_the_complete_required_profile() -> Result<(), 
     assert_eq!(identity.version(), REST_RUNTIME_VERSION);
 
     let download = discovery
-        .operation_named(REST_DOWNLOAD_OPERATION)
+        .operation_named(REST_DOWNLOAD_OPERATION, OperationVersion::new(1)?)
         .ok_or("rest.download is missing")?;
     assert_eq!(download.side_effect(), CapabilitySideEffect::Remote);
     assert_eq!(
@@ -243,7 +243,7 @@ fn pinned_rest_discovery_resolves_the_complete_required_profile() -> Result<(), 
     assert_eq!(download.attributes().string("direction"), Some("download"));
 
     let upload = discovery
-        .operation_named(REST_UPLOAD_OPERATION)
+        .operation_named(REST_UPLOAD_OPERATION, OperationVersion::new(1)?)
         .ok_or("rest.upload is missing")?;
     assert_eq!(upload.input().contract(), download.input().contract());
     assert!(upload.input().supports_content_type("application/json"));
@@ -1084,7 +1084,7 @@ fn discovery_accessors_and_request_controls_are_complete() -> Result<(), Box<dyn
     assert_eq!(rust.artifact(), Some("plenora-rest-core"));
 
     let operation = discovery
-        .operation_named("rest.test")
+        .operation_named("rest.test", OperationVersion::new(1)?)
         .ok_or("rest.test is missing")?;
     assert_eq!(operation.attributes().len(), 1);
     assert!(!operation.attributes().is_empty());
@@ -1095,7 +1095,7 @@ fn discovery_accessors_and_request_controls_are_complete() -> Result<(), Box<dyn
     let no_attributes = CapabilityDiscovery::from_json(&serde_json::to_vec(&no_attributes)?)?;
     assert!(
         no_attributes
-            .operation_named("rest.test")
+            .operation_named("rest.test", OperationVersion::new(1)?)
             .ok_or("rest.test is missing")?
             .attributes()
             .is_empty()
@@ -1108,7 +1108,7 @@ fn discovery_accessors_and_request_controls_are_complete() -> Result<(), Box<dyn
         Ok(())
     })?;
     let unavailable_operation = unavailable
-        .operation_named("rest.test")
+        .operation_named("rest.test", OperationVersion::new(1)?)
         .ok_or("rest.test is missing")?;
     assert_eq!(unavailable_operation.reason(), Some("maintenance"));
     assert_eq!(
@@ -1389,4 +1389,205 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     }
+}
+
+// Build test discovery from catalog descriptors, explicitly announcing artifact surfaces.
+fn data_discovery_document() -> Result<Value, Box<dyn Error>> {
+    let catalog: Value = serde_json::from_str(include_str!(
+        "../../../contracts/upstream/catalogs/data-tools-v3.json"
+    ))?;
+    let mut operations = catalog["operations"]
+        .as_array()
+        .ok_or("operations missing")?
+        .clone();
+    for operation in &mut operations {
+        let object = operation.as_object_mut().ok_or("operation missing")?;
+        object.remove("requirement");
+        object.remove("summary");
+        object.insert("status".into(), serde_json::json!("available"));
+        for payload in ["input", "output"] {
+            object
+                .get_mut(payload)
+                .and_then(Value::as_object_mut)
+                .ok_or("payload missing")?
+                .remove("interchange_contracts");
+        }
+    }
+    Ok(serde_json::json!({
+        "schema_version": 2, "component": "plenora-data-tools", "component_version": "3.0.0",
+        "interfaces": [{"kind": "runtime", "contract": "plenora-runtime-binding-v2",
+            "version": 2, "artifact": "plenora.data-tools"}],
+        "operations": operations
+    }))
+}
+
+#[tokio::test]
+async fn catalog_versions_coexist_and_dispatch_uses_exact_descriptor() -> Result<(), Box<dyn Error>>
+{
+    let mut document = data_discovery_document()?;
+    let discovery = CapabilityDiscovery::from_json(&serde_json::to_vec(&document)?)?;
+    let name = OperationName::new("data.run")?;
+    let request = |version, contract| -> Result<CapabilityRequest, Box<dyn Error>> {
+        Ok(CapabilityRequest::new(
+            CapabilityId::new("plenora.data-tools", 1)?,
+            name.clone(),
+            OperationVersion::new(version)?,
+            ContractId::new(contract)?,
+            SerializedMessage::new("application/json", "{}"),
+        ))
+    };
+    let versions: Vec<_> = discovery
+        .operations()
+        .filter(|operation| operation.name() == &name)
+        .map(|operation| operation.version().get())
+        .collect();
+    assert_eq!(versions, vec![2, 3]);
+    assert_eq!(
+        discovery.validate_request(&request(2, "plenora-data-execution-input-v2")?),
+        Err(CapabilityRequestRejection::RuntimeSurfaceUnsupported)
+    );
+    assert_eq!(
+        discovery.validate_request(&request(4, "plenora-data-execution-input-v3")?),
+        Err(CapabilityRequestRejection::OperationVersionMismatch)
+    );
+    assert_eq!(
+        discovery.validate_request(&request(3, "plenora-data-execution-input-v2")?),
+        Err(CapabilityRequestRejection::InputContractMismatch)
+    );
+    let results = Arc::new(Mutex::new(Vec::new()));
+    let handler = StaticResponseHandler {
+        response: CapabilityResponse::new(
+            ContractId::new("plenora-data-execution-result-v3")?,
+            SerializedMessage::new("application/json", "{}"),
+        ),
+    };
+    let mut builder = CapabilityRegistryBuilder::default();
+    let id = builder.register_discovered(discovery.clone(), handler.clone())?;
+    assert_eq!(
+        builder.register_discovered(discovery, handler),
+        Err(CapabilityRegistryError::Duplicate(id.clone()))
+    );
+    let registry = builder.build();
+    assert_eq!(
+        registry
+            .discovery(&id)
+            .ok_or("discovery missing")?
+            .operations()
+            .len(),
+        5
+    );
+    let dispatcher = CapabilityDispatcher::with_result_sink(
+        registry,
+        CapabilityDispatcherConfig::default(),
+        CapturingResultSink {
+            results: Arc::clone(&results),
+        },
+    )?;
+    dispatcher
+        .handle(
+            worker_context(CorrelationId::random()),
+            request(3, "plenora-data-execution-input-v3")?,
+        )
+        .await?;
+    assert_eq!(lock(&results)[0].operation_version().get(), 3);
+    let error = dispatcher
+        .handle(
+            worker_context(CorrelationId::random()),
+            request(2, "plenora-data-execution-input-v2")?,
+        )
+        .await
+        .err()
+        .ok_or("surface rejected")?;
+    assert_eq!(
+        error.request_rejection(),
+        Some(CapabilityRequestRejection::RuntimeSurfaceUnsupported)
+    );
+    assert_eq!(lock(&results).len(), 1);
+    assert!(!format!("{error} {error:?}").contains("data.run"));
+    let duplicate = document["operations"][4].clone();
+    document["operations"]
+        .as_array_mut()
+        .ok_or("operations missing")?
+        .push(duplicate);
+    let error = CapabilityDiscovery::from_json(&serde_json::to_vec(&document)?)
+        .err()
+        .ok_or("duplicate rejected")?;
+    assert_eq!(
+        error.kind(),
+        CapabilityDiscoveryErrorKind::DuplicateOperation
+    );
+    assert!(!format!("{error} {error:?}").contains("data.run"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn both_runtime_versions_select_their_own_input_and_output() -> Result<(), Box<dyn Error>> {
+    let mut document = data_discovery_document()?;
+    // Synthetic artifact announces both versions on runtime; the catalog above does not.
+    document["operations"][3]["surfaces"] = serde_json::json!(["runtime"]);
+    document["operations"][3]["output"]["content_types"] = serde_json::json!(["application/json"]);
+    let discovery = CapabilityDiscovery::from_json(&serde_json::to_vec(&document)?)?;
+    for version in [3, 2] {
+        let results = Arc::new(Mutex::new(Vec::new()));
+        let mut builder = CapabilityRegistryBuilder::default();
+        builder.register_discovered(
+            discovery.clone(),
+            StaticResponseHandler {
+                response: CapabilityResponse::new(
+                    ContractId::new(format!("plenora-data-execution-result-v{version}"))?,
+                    SerializedMessage::new("application/json", "{}"),
+                ),
+            },
+        )?;
+        let dispatcher = CapabilityDispatcher::with_result_sink(
+            builder.build(),
+            CapabilityDispatcherConfig::default(),
+            CapturingResultSink {
+                results: Arc::clone(&results),
+            },
+        )?;
+        for requested in [version, 5 - version] {
+            let request = CapabilityRequest::new(
+                CapabilityId::new("plenora.data-tools", 1)?,
+                OperationName::new("data.run")?,
+                OperationVersion::new(requested)?,
+                ContractId::new(format!("plenora-data-execution-input-v{requested}"))?,
+                SerializedMessage::new("application/json", "{}"),
+            );
+            let result = dispatcher
+                .handle(worker_context(CorrelationId::random()), request)
+                .await;
+            if requested == version {
+                result?;
+            } else {
+                assert_eq!(
+                    result
+                        .err()
+                        .ok_or("wrong output rejected")?
+                        .response_rejection(),
+                    Some(CapabilityResponseRejection::OutputContractMismatch)
+                );
+            }
+        }
+        assert_eq!(lock(&results).len(), 1);
+        assert_eq!(lock(&results)[0].operation_version().get(), version);
+    }
+    Ok(())
+}
+
+#[test]
+fn rest_profile_selects_v1_when_another_version_is_present() -> Result<(), Box<dyn Error>> {
+    let mut document: Value = serde_json::from_str(REST_DISCOVERY)?;
+    let mut extra = document["operations"][0].clone();
+    extra["version"] = serde_json::json!(2);
+    extra["input"]["contract"] = serde_json::json!("plenora-future-input-v2");
+    extra["output"]["contract"] = serde_json::json!("plenora-future-output-v2");
+    document["operations"]
+        .as_array_mut()
+        .ok_or("operations missing")?
+        .insert(0, extra);
+    let discovery = CapabilityDiscovery::from_json(&serde_json::to_vec(&document)?)?;
+    RestCapabilityProfile::validate(&discovery)?;
+    assert_eq!(discovery.operations().len(), 6);
+    Ok(())
 }

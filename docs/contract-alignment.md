@@ -48,7 +48,7 @@ Il profilo resta `plenora-runtime-tools-profile-v1`; al pin non esiste alcun cat
 | contracts#39 | implemented | gate locale: Diagnostica del gate solo testo fisso; eccezioni non stampate. Nessun valore di manifest o fixture in output. |
 | contracts#40 | not_applicable | cache fuzz upstream: Correzione cache del harness Python dei contratti, non del libFuzzer Rust; gate eseguito dalla copia locale aggiornata. |
 | ADOPTION-v4 | deviation | release: Registro sorgente locale, non manifesto v4 di artefatti rilasciati: nessun digest inventato per un checkout. |
-| CAP-004 | deviation | discovery con versioni simultanee: La mappa locale e indicizzata per nome, non per coppia nome/versione: due versioni dello stesso nome sono rifiutate, mai sovrascritte silenziosamente. |
+| CAP-004 | implemented | discovery con versioni simultanee: Rientrata il 2026-10-20: operazioni indicizzate per coppia nome/versione, lookup pubblici e dispatch esplicitamente versionati; duplicati della stessa coppia rifiutati. |
 
 ## Deviazioni e rientro
 
@@ -128,6 +128,7 @@ Il pin e ogni copia sono verificati da `python scripts/check-contract-adoption.p
 
 ### CAP-004
 
-Regola CAP-004; ambito discovery con versioni simultanee. La mappa locale e indicizzata per nome, non per coppia nome/versione: due versioni dello stesso nome sono rifiutate, mai sovrascritte silenziosamente. Hazard: Un documento valido con piu versioni simultanee, come data.run, non e registrabile. Rientro: Indicizzare per coppia e rendere ogni lookup e dispatch esplicitamente versionato; provare cataloghi multi-versione.
+Regola CAP-004; ambito discovery con versioni simultanee. Rientrata il 2026-10-20: operazioni indicizzate per coppia nome/versione, lookup pubblici e dispatch esplicitamente versionati; duplicati della stessa coppia rifiutati. Hazard precedente: un documento valido con piu versioni simultanee non era registrabile. Condizione di rientro soddisfatta dalle prove in `rest_discovery.rs` e `registry_dispatch.rs`: catalogo data-tools-v3 con data.run@2 e @3, superfici distinte, selezione dei contratti input/output per versione, nessun fallback e nessuna sovrascrittura. Il registro handler era gia indicizzato per CapabilityId (nome e versione wire); la correzione riguarda la mappa delle operazioni, la cui versione e indipendente dal wire. Il profilo REST seleziona esplicitamente v1. Le API operation e operation_named richiedono ora OperationVersion: cambiamento di firma intenzionale per eliminare lookup ambigui. Le prove sintetiche con entrambe le versioni su runtime non dichiarano quella superficie per data.run@2 nel catalogo reale. La chiusura locale non attesta una release o la CI Linux/Windows.
+
 
 Public Security 1.0 e selezionato dal profilo: la protezione del payload opaco e dei riferimenti resta delegata agli adapter (deviazione RT-013); nessun claim di conformita SEC complessiva.

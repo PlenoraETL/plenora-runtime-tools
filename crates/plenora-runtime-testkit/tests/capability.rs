@@ -241,3 +241,30 @@ fn worker_context(attempt: u32) -> WorkerContext {
         runtime.shutdown_signal(),
     )
 }
+
+#[tokio::test]
+async fn fake_preserves_simultaneous_operation_versions() -> Result<(), Box<dyn Error>> {
+    let fake = FakeCapabilityHandler::default();
+    let mut builder = CapabilityRegistryBuilder::default();
+    builder.register(CapabilityId::new("plenora.data-tools", 1)?, fake.clone())?;
+    let dispatcher =
+        CapabilityDispatcher::new(builder.build(), CapabilityDispatcherConfig::default())?;
+    for version in [2, 3] {
+        let request = CapabilityRequest::new(
+            CapabilityId::new("plenora.data-tools", 1)?,
+            OperationName::new("data.run")?,
+            OperationVersion::new(version)?,
+            ContractId::new(format!("plenora-data-execution-input-v{version}"))?,
+            SerializedMessage::new("application/json", "{}"),
+        );
+        dispatcher.handle(worker_context(1), request).await?;
+    }
+    assert_eq!(
+        fake.invocations()
+            .iter()
+            .map(|record| record.operation_version.get())
+            .collect::<Vec<_>>(),
+        vec![2, 3]
+    );
+    Ok(())
+}

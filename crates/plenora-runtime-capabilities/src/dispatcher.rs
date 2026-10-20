@@ -316,7 +316,7 @@ impl WorkerHandler<CapabilityRequest> for CapabilityDispatcher {
         }
         let expected_output = registration
             .discovery()
-            .and_then(|discovery| discovery.operation(&operation))
+            .and_then(|discovery| discovery.operation(&operation, operation_version))
             .map(|discovered| discovered.output().clone());
         let public_error_required = registration.discovery().is_some();
         let deadline = request_deadline(&request).map_err(|reason| {
@@ -797,8 +797,8 @@ impl Debug for CapabilityDispatchError {
         let mut debug = formatter.debug_struct("CapabilityDispatchError");
         debug
             .field("category", &self.category())
-            .field("capability", self.capability())
-            .field("operation", self.operation())
+            .field("capability", &"<redacted>")
+            .field("operation", &"<redacted>")
             .field("remote_effect", &self.remote_effect());
         if let Self::PayloadTooLarge { actual, limit, .. } = self {
             debug.field("actual", actual).field("limit", limit);
