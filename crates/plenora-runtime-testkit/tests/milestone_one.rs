@@ -1,4 +1,4 @@
-//! Fake end-to-end acceptance test for the first runtime milestone.
+//! Test di accettazione end-to-end del runtime con adapter finti.
 
 use std::{
     error::Error,

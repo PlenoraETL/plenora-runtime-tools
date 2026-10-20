@@ -60,8 +60,14 @@ jobs:
       - name: Check offline contract adoption and registries
         run: python scripts/check-contract-adoption.py
 
-      - name: Test adoption gate failures and data-free diagnostics
-        run: python -m unittest discover -s scripts -p 'test_contract_adoption.py'
+      - name: Test Python quality gates
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+
+      - name: Check comment quality
+        run: python scripts/check_comments.py
+
+      - name: Check documentation quality
+        run: python scripts/check_docs.py
 
       - name: Check workspace
         run: cargo check --workspace --all-targets --locked
