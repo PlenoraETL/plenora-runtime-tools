@@ -1,6 +1,6 @@
 # Outbox, inbox e idempotenza
 
-La prima milestone fornisce trait neutrali rispetto alla persistenza e store finti deterministici.
+Il runtime fornisce trait neutrali rispetto alla persistenza e store finti deterministici.
 Una scrittura di dominio e la sua aggiunta all'outbox devono alla fine condividere un'unica
 transazione; allo stesso modo, elaborazione e registrazione nell'inbox devono essere atomiche prima
 dell'acknowledgement.

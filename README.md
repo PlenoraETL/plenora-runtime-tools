@@ -64,6 +64,26 @@ installato sull'host, usare l'helper Docker da PowerShell:
 ./scripts/cargo-docker.ps1 test --workspace --all-features
 ```
 
+I gate Python richiedono Python 3.10 o successivo, senza dipendenze esterne.
+La CI li esegue su Linux, Windows e macOS come passi bloccanti:
+
+```sh
+python -m unittest discover -s scripts -p 'test_*.py'
+python scripts/check-contract-adoption.py
+python scripts/check_comments.py
+python scripts/check_docs.py
+```
+
+Il gate commenti controlla Rust, Python, PowerShell, shell, TOML e YAML,
+compresi adapter, esempi e workflow; esclude contratti vendorizzati, documenti
+e artefatti generati. Rifiuta marcatori di debito anonimo e cronaca di sviluppo:
+i limiti aperti devono avere riferimenti risolvibili ai registri di qualifica,
+sicurezza o allineamento contrattuale. I riferimenti alle decisioni usano il
+percorso del documento sotto `docs/adr/`.
+Il gate documentale verifica i Markdown locali (README, guide e ADR inclusi),
+link e ancore locali, comandi Python ed esempi Python; esclude i contratti
+upstream. Non verifica URL remoti né la correttezza semantica degli esempi.
+
 L'harness di integrazione NATS usa un container effimero solo su loopback ed emette i dati di
 connessione in JSON. Vedere [`tests/integration/README.md`](tests/integration/README.md).
 

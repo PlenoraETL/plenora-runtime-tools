@@ -6,3 +6,5 @@
 *.swp
 *.tmp
 *.profraw
+__pycache__/
+*.py[cod]

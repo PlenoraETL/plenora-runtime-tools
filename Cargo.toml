@@ -13,8 +13,8 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-# MSRV della famiglia Plenora (ADR 0007); la toolchain fissata è in
-# rust-toolchain.toml.
+# MSRV della famiglia Plenora; la toolchain fissata è in rust-toolchain.toml.
+# Decisione: docs/adr/0007-toolchain-1-98-1-e-msrv-1-98.md.
 rust-version = "1.98"
 # Licenza proprietaria source-available del repository (LICENSE): non esiste
 # un identificatore SPDX, quindi si usa `license-file`. Tutti i crate sono
@@ -25,20 +25,23 @@ license-file = "LICENSE"
 # Ogni pin è esatto (`=x.y.z`) e porta la sua motivazione; i crate del
 # workspace li ereditano con `workspace = true`. Politica in
 # docs/dependency-policy.md.
-# Motore worker dell'adapter apalis (ADR 0005): 0.7 stabile, non la 1.0
-# candidata; solo concorrenza limitata e cattura dei panic.
+# Motore worker dell'adapter apalis: 0.7 stabile, non la 1.0 candidata;
+# solo concorrenza limitata e cattura dei panic.
+# Decisione: docs/adr/0005-apalis-and-nats-adapter-baseline.md.
 apalis = { version = "=0.7.4", default-features = false, features = ["catch-panic", "limit"] }
 # Trait asincroni object-safe per i contratti dei crate core
 # (handler, sink, broker); nessuna feature.
 async-trait = { version = "=0.1.92" }
-# Client NATS JetStream dell'adapter nats (ADR 0005): solo JetStream, TLS
-# con ring, conversione chrono e credenziali NKey.
+# Client NATS dell'adapter nats: solo JetStream, TLS con ring,
+# conversione chrono e credenziali NKey.
+# Decisione: docs/adr/0005-apalis-and-nats-adapter-baseline.md.
 async-nats = { version = "=0.50.0", default-features = false, features = ["chrono", "jetstream", "nkeys", "ring"] }
-# Server HTTP di plenora-runtime-http e del control plane (ADR 0006): solo
+# Server HTTP di plenora-runtime-http e del control plane: solo
 # http1, json, tokio e tracing.
+# Decisione: docs/adr/0006-http-and-observability-baseline.md.
 axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio", "tracing"] }
 # Codifica reversibile dei metadati binari Plenora negli header riservati
-# NATS (ADR 0005).
+# NATS (docs/adr/0005-apalis-and-nats-adapter-baseline.md).
 base64 = { version = "=0.22.1" }
 # Payload dei messaggi senza copie fra broker, worker e codec.
 bytes = { version = "=1.12.1" }
@@ -52,8 +55,8 @@ cron = { version = "=0.17.0", default-features = false }
 # Combinatori di stream per i consumer NATS e per l'adapter apalis; solo
 # async-await e std.
 futures-util = { version = "=0.3.34", default-features = false, features = ["async-await", "std"] }
-# API OpenTelemetry per span e propagazione W3C (ADR 0006); solo trace,
-# nessun SDK né exporter.
+# API OpenTelemetry per span e propagazione W3C; solo trace, nessun SDK
+# né exporter. Decisione: docs/adr/0006-http-and-observability-baseline.md.
 opentelemetry = { version = "=0.32.0", default-features = false, features = ["trace"] }
 # (De)serializzazione dei documenti di capability, Discovery ed errori
 # pubblici; solo derive e std.
@@ -68,13 +71,14 @@ tokio = { version = "=1.53.1", default-features = false }
 # Limiti di concorrenza e servizi componibili per HTTP e apalis; solo
 # limit e util.
 tower = { version = "=0.5.3", default-features = false, features = ["limit", "util"] }
-# Request id, header sensibili e trace del servizio HTTP (ADR 0006).
+# Request id, header sensibili e trace del servizio HTTP.
+# Decisione: docs/adr/0006-http-and-observability-baseline.md.
 tower-http = { version = "=0.7.0", default-features = false, features = ["request-id", "sensitive-headers", "trace"] }
-# Diagnostica strutturata di HTTP e osservabilità (ADR 0006); nessun
-# subscriber globale installato.
+# Diagnostica strutturata di HTTP e osservabilità; nessun subscriber globale
+# installato. Decisione: docs/adr/0006-http-and-observability-baseline.md.
 tracing = { version = "=0.1.44", default-features = false, features = ["attributes", "std"] }
-# Ponte tracing → OpenTelemetry (ADR 0006), versione accoppiata a
-# opentelemetry 0.32.
+# Ponte tracing → OpenTelemetry, versione accoppiata a opentelemetry 0.32.
+# Decisione: docs/adr/0006-http-and-observability-baseline.md.
 tracing-opentelemetry = { version = "=0.33.0", default-features = false }
 # Identificatori di messaggio, correlazione, causazione e outbox (UUID v4).
 uuid = { version = "=1.24.1", features = ["v4"] }
