@@ -100,7 +100,7 @@ ambito e comandi locali.
 
 Stato dettagliato e comportamento osservato: [registro contratti](contract-alignment.md). Nessuna conformita runtime end-to-end o release v4 attestata da queste prove locali.
 
-- Regola CAP-004; ambito discovery con versioni simultanee; hazard: Un documento valido con piu versioni simultanee, come data.run, non e registrabile. Rientro: Indicizzare per coppia e rendere ogni lookup e dispatch esplicitamente versionato; provare cataloghi multi-versione.
+Regola CAP-004; ambito discovery con versioni simultanee. Rientrata il 2026-10-20: operazioni indicizzate per coppia nome/versione, lookup pubblici e dispatch esplicitamente versionati; duplicati della stessa coppia rifiutati. Rischio precedente: documento multi-versione non registrabile. Condizione di chiusura: lookup e dispatch esatti e prove multi-versione, ora presenti; dettagli nel [registro contratti](contract-alignment.md#cap-004).
 
 ## Esiti locali dell'adozione (2026-10-18)
 

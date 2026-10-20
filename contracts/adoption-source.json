@@ -325,11 +325,9 @@
     },
     {
       "rule": "CAP-004",
-      "status": "deviation",
+      "status": "implemented",
       "scope": "discovery con versioni simultanee",
-      "evidence": "La mappa locale e indicizzata per nome, non per coppia nome/versione: due versioni dello stesso nome sono rifiutate, mai sovrascritte silenziosamente.",
-      "hazard": "Un documento valido con piu versioni simultanee, come data.run, non e registrabile.",
-      "closure": "Indicizzare per coppia e rendere ogni lookup e dispatch esplicitamente versionato; provare cataloghi multi-versione."
+      "evidence": "Rientrata il 2026-10-20: operazioni indicizzate per coppia nome/versione, lookup pubblici e dispatch esplicitamente versionati; duplicati della stessa coppia rifiutati. Prove: rest_discovery.rs e registry_dispatch.rs, catalogo data-tools-v3 e fixture sintetica runtime."
     }
   ],
   "runtime": {

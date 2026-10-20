@@ -154,7 +154,9 @@ impl CapabilityHandler for ExampleCapabilityHandler {
         context: WorkerContext,
         request: CapabilityRequest,
     ) -> Result<CapabilityResponse, CapabilityFailure> {
-        if request.operation().as_str() != "execute" {
+        if request.operation().as_str() != "example.execute"
+            || request.operation_version().get() != 1
+        {
             return Err(CapabilityFailure::new(
                 RetryErrorClass::DeadLetter,
                 CapabilityRemoteEffect::NotStarted,
@@ -470,4 +472,50 @@ fn is_nats_url(server: &str) -> bool {
     server
         .get(.."nats://".len())
         .is_some_and(|scheme| scheme.eq_ignore_ascii_case("nats://"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use plenora_runtime_capabilities::{ContractId, OperationName, OperationVersion};
+    use plenora_runtime_messaging::{CorrelationId, MessageId, MessageMetadata, SerializedMessage};
+
+    #[tokio::test]
+    async fn placeholder_routes_only_the_supported_operation_version() -> Result<(), Box<dyn Error>>
+    {
+        let runtime = RuntimeHandle::new(ServiceMetadata::new("test", "0.1.0", "instance"));
+        for (name, version, accepted) in [
+            ("example.execute", 1, true),
+            ("example.execute", 2, false),
+            ("other.execute", 1, false),
+        ] {
+            let context = WorkerContext::new(
+                MessageId::random(),
+                CorrelationId::random(),
+                None,
+                1,
+                MessageMetadata::new(),
+                runtime.shutdown_signal(),
+            );
+            let request = CapabilityRequest::new(
+                CapabilityId::new("plenora.example-tools", 1)?,
+                OperationName::new(name)?,
+                OperationVersion::new(version)?,
+                ContractId::new("plenora-example-input-v1")?,
+                SerializedMessage::new("application/json", "{}"),
+            );
+            let result = ExampleCapabilityHandler.invoke(context, request).await;
+            assert_eq!(result.is_ok(), accepted);
+            if !accepted {
+                assert_eq!(
+                    result
+                        .err()
+                        .ok_or("unsupported route accepted")?
+                        .remote_effect(),
+                    CapabilityRemoteEffect::NotStarted
+                );
+            }
+        }
+        Ok(())
+    }
 }

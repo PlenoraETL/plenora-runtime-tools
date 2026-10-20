@@ -460,3 +460,55 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         Err(poisoned) => poisoned.into_inner(),
     }
 }
+
+#[tokio::test]
+async fn versioned_handler_registrations_route_without_overwrite() -> Result<(), Box<dyn Error>> {
+    let records = Arc::new(Mutex::new(Vec::new()));
+    let mut builder = CapabilityRegistryBuilder::new(CapabilityRegistryConfig::new(2)?)?;
+    for (version, adapter) in [(2, "v2"), (3, "v3")] {
+        let id = CapabilityId::new("plenora.data-tools", version)?;
+        let handler = RecordingHandler {
+            adapter,
+            records: Arc::clone(&records),
+        };
+        builder.register(id.clone(), handler.clone())?;
+        let error = builder
+            .register(id.clone(), handler)
+            .err()
+            .ok_or("duplicate rejected")?;
+        assert!(!format!("{error} {error:?}").contains("plenora.data-tools"));
+        assert_eq!(error, CapabilityRegistryError::Duplicate(id));
+    }
+    let registry = builder.build();
+    assert_eq!(
+        registry.capabilities(),
+        vec![
+            CapabilityId::new("plenora.data-tools", 2)?,
+            CapabilityId::new("plenora.data-tools", 3)?
+        ]
+    );
+    let dispatcher = CapabilityDispatcher::new(registry, CapabilityDispatcherConfig::default())?;
+    for version in [3, 2, 4] {
+        let request = CapabilityRequest::new(
+            CapabilityId::new("plenora.data-tools", version)?,
+            OperationName::new("data.run")?,
+            OperationVersion::new(1)?,
+            ContractId::new("plenora-data-execution-input-v1")?,
+            SerializedMessage::new("application/json", "{}"),
+        );
+        let result = dispatcher.handle(worker_context(1), request).await;
+        if version == 4 {
+            assert_eq!(
+                result.err().ok_or("unknown version rejected")?.category(),
+                CapabilityDispatchErrorCategory::UnknownCapability
+            );
+        } else {
+            result?;
+        }
+    }
+    let records = lock(&records);
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0].adapter, "v3");
+    assert_eq!(records[1].adapter, "v2");
+    Ok(())
+}

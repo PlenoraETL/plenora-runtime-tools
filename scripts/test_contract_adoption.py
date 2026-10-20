@@ -45,7 +45,7 @@ class AdoptionGateTests(unittest.TestCase):
             with self.subTest(mutation=mutation):
                 manifest = json.loads(original)
                 requirements = manifest["requirements"]
-                deviation = next(item for item in requirements if item["rule"] == "CAP-004")
+                deviation = next(item for item in requirements if item["rule"] == "RT-012")
                 if mutation == "removed":
                     requirements.remove(deviation)
                 elif mutation == "added":

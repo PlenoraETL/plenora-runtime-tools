@@ -11,7 +11,7 @@ REVISION = "3aec9f724f5a0ad21366f293895b4d0dbcd0aad1"
 EXPECTED_DEVIATIONS = {
     "RT-007", "RT-010", "RT-012", "RT-013", "RT-016", "RT-017",
     "RT-018", "RT-019", "RT-020", "RT-021", "RT-022", "RT-023",
-    "RT-024", "RT-026", "RT-027", "ADOPTION-v4", "CAP-004",
+    "RT-024", "RT-026", "RT-027", "ADOPTION-v4",
 }
 
 
@@ -79,7 +79,7 @@ def check(upstream=None):
             == EXPECTED_DEVIATIONS)
     require({f"RT-{n:03}" for n in range(1, 28)} <= set(rules))
     require({"CAT-001", "CAT-002", "CAT-003", "SB-001", "ERR-015", "ERR-016",
-             "ADOPTION-v4", "contracts#39", "contracts#40", "INTEROP-001..005"} <= set(rules))
+             "ADOPTION-v4", "CAP-004", "contracts#39", "contracts#40", "INTEROP-001..005"} <= set(rules))
     alignment = (ROOT / "docs/contract-alignment.md").read_text(encoding="utf-8")
     risks = (ROOT / "docs/security-review.md").read_text(encoding="utf-8")
     gates = (ROOT / "docs/qualification.md").read_text(encoding="utf-8")

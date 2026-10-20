@@ -160,7 +160,9 @@ impl CapabilityHandler for ExampleLibraryAdapter {
         context: WorkerContext,
         request: CapabilityRequest,
     ) -> Result<CapabilityResponse, CapabilityFailure> {
-        if request.operation().as_str() != PROCESS_OPERATION {
+        if request.operation().as_str() != PROCESS_OPERATION
+            || request.operation_version().get() != 1
+        {
             return Err(Self::reject_not_started(
                 AdapterError::UnsupportedOperation,
                 RetryErrorClass::DeadLetter,
@@ -291,6 +293,29 @@ mod tests {
     use plenora_runtime_worker::WorkerHandler as _;
 
     use super::*;
+
+    #[tokio::test]
+    async fn unsupported_version_never_reaches_the_library() -> Result<(), Box<dyn Error>> {
+        let runtime = RuntimeHandle::new(ServiceMetadata::new("test", "0.1.0", "instance"));
+        let library = ExampleLibrary::default();
+        let dispatcher = dispatcher(library.clone())?;
+        let original = request(PROCESS_OPERATION, CONTENT_TYPE, b"valid")?;
+        let request = CapabilityRequest::new(
+            original.capability().clone(),
+            original.operation().clone(),
+            OperationVersion::new(2)?,
+            original.input_contract().clone(),
+            original.into_input(),
+        );
+        let error = dispatcher
+            .handle(worker_context(&runtime), request)
+            .await
+            .err()
+            .ok_or("version rejected")?;
+        assert_eq!(error.remote_effect(), CapabilityRemoteEffect::NotStarted);
+        assert_eq!(library.invocation_count(), 0);
+        Ok(())
+    }
 
     #[tokio::test]
     async fn success_reaches_the_library_once() -> Result<(), Box<dyn Error>> {
