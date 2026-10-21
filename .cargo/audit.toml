@@ -1,0 +1,9 @@
+# Eccezioni di cargo-audit, ciascuna con il suo rientro tracciato.
+
+[advisories]
+# RUSTSEC-2026-0381 (webpki-roots < 1.0.10): nel grafo la 1.0.x e' gia' alla
+# 1.0.10 corretta; resta lo shim 0.26.11 richiesto da tokio-websockets 0.10
+# (pin esatto), che non porta radici proprie: le riesporta dalla 1.0.x
+# interna. Rientro: bump di tokio-websockets a una linea che usa
+# webpki-roots 1.0 (issue #13).
+ignore = ["RUSTSEC-2026-0381"]
