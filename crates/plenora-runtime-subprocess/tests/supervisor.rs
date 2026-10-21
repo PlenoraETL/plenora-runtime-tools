@@ -25,7 +25,11 @@ fn subprocess_fixture_child() {
         }
         Ok("sleep") => {
             if let Ok(path) = env::var(FIXTURE_PID_FILE) {
-                let _written = std::fs::write(path, std::process::id().to_string());
+                // Write-then-rename: the reader polls for the file's existence,
+                // so the pid must be complete the instant the path appears.
+                let staged = format!("{path}.tmp");
+                let _written = std::fs::write(&staged, std::process::id().to_string())
+                    .and_then(|()| std::fs::rename(&staged, path));
             }
             thread::sleep(Duration::from_secs(30));
         }
@@ -418,8 +422,8 @@ async fn abandoning_an_execution_force_kills_the_whole_isolated_tree() -> Result
     let spec = SubprocessSpec::new(PathBuf::from("/bin/sh"))?
         .with_argument("-c")?
         .with_argument(
-            "sh -c \"trap '' TERM; sleep 30\" & echo -n \"$!\" > \"$PID_FILE\"; \
-             trap '' TERM; sleep 30",
+            "sh -c \"trap '' TERM; sleep 30\" & echo -n \"$!\" > \"$PID_FILE.tmp\" && \
+             mv \"$PID_FILE.tmp\" \"$PID_FILE\"; trap '' TERM; sleep 30",
         )?
         .with_environment("PID_FILE", pid_file.to_string_lossy().into_owned())?;
 
