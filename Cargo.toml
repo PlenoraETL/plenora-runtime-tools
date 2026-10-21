@@ -42,7 +42,7 @@ async-nats = { version = "=0.50.0", default-features = false, features = ["chron
 axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio", "tracing"] }
 # Codifica reversibile dei metadati binari Plenora negli header riservati
 # NATS (docs/adr/0005-apalis-and-nats-adapter-baseline.md).
-base64 = { version = "=0.22.1" }
+base64 = { version = "=0.23.1" }
 # Payload dei messaggi senza copie fra broker, worker e codec.
 bytes = { version = "=1.12.1" }
 # Deadline RFC 3339 UTC, timestamp dei messaggi e dello scheduler; solo la
@@ -81,7 +81,7 @@ tracing = { version = "=0.1.44", default-features = false, features = ["attribut
 # Decisione: docs/adr/0006-http-and-observability-baseline.md.
 tracing-opentelemetry = { version = "=0.33.0", default-features = false }
 # Identificatori di messaggio, correlazione, causazione e outbox (UUID v4).
-uuid = { version = "=1.24.1", features = ["v4"] }
+uuid = { version = "=1.26.1", features = ["v4"] }
 
 [workspace.lints.rust]
 missing_docs = "warn"
