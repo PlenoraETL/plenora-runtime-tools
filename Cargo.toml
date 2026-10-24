@@ -67,7 +67,7 @@ serde_json = { version = "=1.0.151", default-features = false, features = ["std"
 # Runtime asincrono di tutti i crate; nessuna feature di default, ogni
 # crate abilita solo quelle che usa. Stessa versione delle altre librerie
 # Plenora.
-tokio = { version = "=1.53.1", default-features = false }
+tokio = { version = "=1.53.3", default-features = false }
 # Limiti di concorrenza e servizi componibili per HTTP e apalis; solo
 # limit e util.
 tower = { version = "=0.5.3", default-features = false, features = ["limit", "util"] }
