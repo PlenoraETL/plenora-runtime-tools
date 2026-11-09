@@ -91,3 +91,17 @@
 Stato dettagliato e comportamento osservato: [registro contratti](contract-alignment.md). Nessuna conformita runtime end-to-end o release v4 attestata da queste prove locali.
 
 Regola CAP-004; ambito discovery con versioni simultanee. Rientrata il 2026-10-20: operazioni indicizzate per coppia nome/versione, lookup pubblici e dispatch esplicitamente versionati; duplicati della stessa coppia rifiutati. Rischio precedente: documento multi-versione non registrabile. Condizione di chiusura: lookup e dispatch esatti e prove multi-versione, ora presenti; dettagli nel [registro contratti](contract-alignment.md#cap-004).
+
+## Dipendenze 0.1.1: limiti della verifica locale
+
+Regola: verifica supply-chain corrente e separazione delle fixture dalle
+credenziali di deploy. Ambito: entrambi i lock del candidato 0.1.1.
+Rischio residuo: la prova offline usa il database RustSec del 2 novembre 2026;
+inoltre archivi di dipendenze già presenti distribuiscono chiavi private di test
+pubblicamente distribuite, in particolare async-nats e fixture PEM dei crate crittografici.
+Non sono credenziali di produzione e non sono state introdotte dal bump.
+Condizione di chiusura della verifica: gate supply-chain aggiornati sullo
+SHA candidato e controllo dell'artefatto effettivamente distribuito, affinché
+le fixture non siano usate come credenziali di deploy. Nessun artefatto di
+rilascio è stato prodotto in questa sessione. Inventario dei percorsi e
+limiti nel [rapporto 0.1.1](dependency-alignment-0.1.1.md).

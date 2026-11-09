@@ -136,3 +136,15 @@ coverage, campagne libFuzzer, cargo audit/deny, build rustdoc e guardia upstream
 di immutabilita con verifica di origin/main remoto (vietata la rete).
 Il manifesto v4 di artefatti rilasciati non e stato prodotto: e una deviazione,
 non un gate passato. Nessun commit o push.
+
+## Allineamento dipendenze 0.1.1: qualifica aperta
+
+Regola AGENTS.md 7 e policy delle dipendenze; ambito: candidato locale con i
+lock aggiornati descritti nel [rapporto 0.1.1](dependency-alignment-0.1.1.md).
+Rischio: i gate offline Windows e le sonde differenziali non qualificano
+Linux, NATS reale, coverage, fuzz o il consumatore aggregato; il database
+advisory usato è fermo al commit RustSec del 2 novembre 2026.
+Condizione di chiusura: eseguire i gate CI sul medesimo SHA candidato, con
+Linux e Windows verdi, controlli supply-chain aggiornati, NATS reale,
+coverage e fuzz smoke; verificare il consumatore con il vettore coerente
+delle versioni Plenora. Nessuno dei gate omessi è dichiarato passato.
