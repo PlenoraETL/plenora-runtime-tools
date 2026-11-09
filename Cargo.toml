@@ -63,7 +63,7 @@ opentelemetry = { version = "=0.32.0", default-features = false, features = ["tr
 serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
 # Codec JSON dei contratti comuni (Runtime Binding, Discovery,
 # plenora-error-v1); stessa versione delle altre librerie Plenora.
-serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
+serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }
 # Runtime asincrono di tutti i crate; nessuna feature di default, ogni
 # crate abilita solo quelle che usa. Stessa versione delle altre librerie
 # Plenora.
