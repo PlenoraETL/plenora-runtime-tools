@@ -4,3 +4,5 @@ Gli ADR registrano le scelte rilevanti non fissate dalla specifica di implementa
 di file sequenziali, includere stato e conseguenze, e sostituire le decisioni precedenti invece di
 riscriverne la storia.
 
+
+Decisione di perimetro del prodotto: [ADR 0008](0008-chain-product-scope.md).

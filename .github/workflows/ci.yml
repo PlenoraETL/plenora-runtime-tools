@@ -72,6 +72,14 @@ jobs:
       - name: Check workspace
         run: cargo check --workspace --all-targets --locked
 
+      - name: Check chain feature inventory
+        run: python scripts/check_chain_inventory.py
+
+      - name: Check chain dependency boundaries
+        run: |
+          cargo fetch --locked
+          python scripts/check_chain_graph.py
+
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 

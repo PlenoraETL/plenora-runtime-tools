@@ -1,6 +1,9 @@
 # plenora-runtime-tools
 
-Fondamenta Rust riusabili per servizi e worker asincroni dell'ecosistema Plenora.
+Fondamenta Rust riusabili per servizi e worker asincroni dell'ecosistema Plenora,
+con un nuovo strato prodotto di orchestrazione catene progettato nello stesso repository.
+[ADR 0008](docs/adr/0008-chain-product-scope.md) ne registra il perimetro:
+i crate catene non sono ancora implementati; le fondamenta generiche restano invariate.
 Il progetto è agnostico rispetto all'infrastruttura ai propri confini pubblici: le tecnologie
 concrete di HTTP, worker, broker e persistenza stanno dietro gli adapter.
 
@@ -64,6 +67,8 @@ installato sull'host, usare l'helper Docker da PowerShell:
 ./scripts/cargo-docker.ps1 test --workspace --all-features
 ```
 
+Il gate del grafo catene richiede anche Cargo e le dipendenze già disponibili
+localmente (`metadata --offline --locked --all-features`), senza compilazione.
 I gate Python richiedono Python 3.10 o successivo, senza dipendenze esterne.
 La CI li esegue su Linux, Windows e macOS come passi bloccanti:
 
@@ -72,6 +77,8 @@ python -m unittest discover -s scripts -p 'test_*.py'
 python scripts/check-contract-adoption.py
 python scripts/check_comments.py
 python scripts/check_docs.py
+python scripts/check_chain_inventory.py
+python scripts/check_chain_graph.py
 ```
 
 Il gate commenti controlla Rust, Python, PowerShell, shell, TOML e YAML,
