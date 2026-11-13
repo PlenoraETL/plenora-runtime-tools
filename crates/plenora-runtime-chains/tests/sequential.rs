@@ -19,6 +19,7 @@ use std::{
 mod primary;
 use primary::ScriptStore;
 struct ScriptAdapter {
+    denied: AtomicUsize,
     calls: AtomicUsize,
     recoveries: AtomicUsize,
     unknown: bool,
@@ -28,8 +29,24 @@ struct ScriptAdapter {
 }
 #[async_trait]
 impl Adapter for ScriptAdapter {
+    // Declared coordinator fake: all plans in this test are explicitly authorized.
+    async fn authorize(
+        &self,
+        _: &str,
+        _: &plenora_runtime_chains::contracts::Plan,
+    ) -> Result<(), Error> {
+        if self.denied.load(Ordering::SeqCst) == 1 {
+            Err(Error::Invalid)
+        } else {
+            Ok(())
+        }
+    }
     async fn prepare(&self, _: &Invocation) -> Result<(), Error> {
-        Ok(())
+        if self.denied.load(Ordering::SeqCst) == 2 {
+            Err(Error::ResourceLimit)
+        } else {
+            Ok(())
+        }
     }
     async fn invoke(&self, i: &Invocation) -> Result<StepResult, Error> {
         self.calls.fetch_add(1, Ordering::SeqCst);
@@ -77,6 +94,7 @@ fn registry() -> Result<Registry, Rejection> {
 }
 fn adapter(unknown: bool, recovery: bool) -> Result<Arc<ScriptAdapter>, Rejection> {
     Ok(Arc::new(ScriptAdapter {
+        denied: AtomicUsize::new(0),
         calls: AtomicUsize::new(0),
         recoveries: AtomicUsize::new(0),
         delay: None,
@@ -642,5 +660,51 @@ async fn replayed_run_returns_confirmed_recovery_without_waiting_for_deadline()
         std::task::Poll::Ready(Err(Error::Recovery))
     ));
     assert_eq!(adapter.calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn revoked_admission_after_intent_never_mints_unknown_or_recovery_authority()
+-> Result<(), Box<dyn StdError>> {
+    for denial in [1, 2] {
+        let store = Arc::new(ScriptStore::default());
+        store.3.advance(Duration::from_hours(498_492))?;
+        let adapter = adapter(false, true)?;
+        let engine = ChainEngine::new(
+            store.clone(),
+            adapter.clone(),
+            registry()?,
+            clock(),
+            "tenant",
+        )?;
+        let accepted = engine.submit(&plan()?, options()).await?;
+        store.5.store(true, Ordering::SeqCst);
+        assert_eq!(engine.advance(&accepted.run_id).await, Err(Error::Recovery));
+        adapter.denied.store(denial, Ordering::SeqCst);
+        engine
+            .work_once(&uuid::Uuid::new_v4().to_string(), 30_000)
+            .await?;
+        {
+            let rows = store.1.lock().map_err(|_| "ledger")?;
+            assert_eq!(rows.len(), 1);
+            let report = rows
+                .values()
+                .next()
+                .ok_or("receipt")?
+                .evidence()
+                .ok_or("evidence")?
+                .report();
+            assert_eq!(report["remote_effect"], "none");
+            assert!(report.get("output").is_none());
+        }
+        adapter.denied.store(0, Ordering::SeqCst);
+        let current = engine.status(&accepted.run_id).await?;
+        assert_eq!(
+            engine.resume(&accepted.run_id, current.revision).await,
+            Err(Error::Recovery)
+        );
+        assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
+        assert_eq!(adapter.recoveries.load(Ordering::SeqCst), 0);
+    }
     Ok(())
 }

@@ -293,3 +293,9 @@ server drena i task accettati dopo errore di pubblicazione, con regressioni loca
 scriptate. Restano non qualificati abort/drop esterni del server e settlement
 end-to-end del nuovo host. I gate aperti impediscono la chiusura del blocco anche
 in presenza di compilazione verde.
+
+P1.4c remains OPEN. Complete-plan confirmation is explicit and default-deny in
+the scripted profile; this does not close actual journal reservation or the
+resource resolver/lease/cleanup gates above. Tests of immutable plan confirmation
+and pre-invocation denial are incremental evidence only. Real PostgreSQL/NATS
+coverage remains ignored locally and wired to the existing CI job.

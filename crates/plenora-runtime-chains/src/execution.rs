@@ -104,8 +104,29 @@ impl<A: Adapter> Component<A> {
         {
             return Err(Error::Invalid);
         }
+        // Read-only admission failures prove that the domain was not invoked. They
+        // must not mint Unknown evidence that could later authorize reconciliation.
+        if matches!(wire.mode, Mode::Invoke | Mode::Recover)
+            && self
+                .adapter
+                .authorize(&wire.tenant, &parse_plan(&wire.plan)?)
+                .await
+                .is_err()
+        {
+            return Ok(budget.failure(preflight_failure(Category::Authorization)?));
+        }
         let evidence = match wire.mode {
-            Mode::Invoke => Some(self.adapter.invoke(&invocation).await?),
+            Mode::Invoke => {
+                if let Err(error) = self.adapter.prepare(&invocation).await {
+                    let category = if error == Error::ResourceLimit {
+                        Category::ResourceLimit
+                    } else {
+                        Category::InvalidConfiguration
+                    };
+                    return Ok(budget.failure(preflight_failure(category)?));
+                }
+                Some(self.adapter.invoke(&invocation).await?)
+            }
             Mode::Recover => self.adapter.recover(&invocation).await?,
             Mode::Cancel => {
                 self.adapter.request_cancel(&invocation).await?;
@@ -137,6 +158,16 @@ impl<A: Adapter> Component<A> {
             .map_err(|_| Error::Storage)
     }
 }
+fn preflight_failure(category: Category) -> Result<PlenoraError, Error> {
+    PlenoraError::new(
+        category,
+        Phase::Validate,
+        Effect::None,
+        Retry::Never,
+        "Step admission rejected.",
+    )
+    .map_err(|_| Error::Invalid)
+}
 struct SharedClock(Arc<dyn Clock>);
 impl Clock for SharedClock {
     fn now(&self) -> std::time::SystemTime {
@@ -160,6 +191,7 @@ fn worker() -> WorkerContext {
 // The coordinator receives only this restricted view, never an adapter invocation capability.
 #[async_trait]
 trait Preparation: Send + Sync {
+    async fn authorize(&self, tenant: &str, plan: &crate::contracts::Plan) -> Result<(), Error>;
     async fn prepare(&self, invocation: &crate::Invocation) -> Result<(), Error>;
     async fn artifact(&self, tenant: &str, reference: &str, limit: usize)
     -> Result<Vec<u8>, Error>;
@@ -167,6 +199,9 @@ trait Preparation: Send + Sync {
 struct Resources<A>(Arc<A>);
 #[async_trait]
 impl<A: Adapter> Preparation for Resources<A> {
+    async fn authorize(&self, tenant: &str, plan: &crate::contracts::Plan) -> Result<(), Error> {
+        self.0.authorize(tenant, plan).await
+    }
     async fn prepare(&self, invocation: &crate::Invocation) -> Result<(), Error> {
         self.0.prepare(invocation).await
     }
@@ -258,6 +293,13 @@ impl<S: DurableExecutionStore> StepExecutor<S> {
             runtime,
             resources: Arc::new(Resources(adapter)),
         })
+    }
+    pub(crate) async fn authorize(
+        &self,
+        tenant: &str,
+        plan: &crate::contracts::Plan,
+    ) -> Result<(), Error> {
+        self.resources.authorize(tenant, plan).await
     }
     pub(crate) async fn prepare(&self, invocation: &crate::Invocation) -> Result<(), Error> {
         self.resources.prepare(invocation).await

@@ -13,6 +13,9 @@ async fn nats_real_scripted_calls_preserve_errors_and_discovery() -> Result<(), 
         tenant: format!("qualification-{}", uuid::Uuid::new_v4()),
         registry: include_str!("../../../contracts/chains-v2/fixtures/context.json").into(),
         outcomes: include_str!("../../../contracts/chains-v2/fixtures/result-valid.json").into(),
+        authorized_plans: vec![
+            include_str!("../../../contracts/chains-v2/fixtures/plan-valid.json").into(),
+        ],
         recovery: None,
         attempts: vec![],
         artifacts: BTreeMap::new(),
@@ -49,6 +52,19 @@ async fn nats_real_scripted_calls_preserve_errors_and_discovery() -> Result<(), 
             deadline_ms: None,
         },
     };
+    // Same real transport/primary, but a fresh identity cannot borrow confirmation
+    // from a different complete plan, even when its contract remains valid.
+    let mut unauthorized = run();
+    if let Request::Run { plan, options } = &mut unauthorized {
+        options.idempotency_key = None;
+        let mut value: serde_json::Value = serde_json::from_str(plan)?;
+        value["revision"] = serde_json::json!(2);
+        *plan = serde_json::to_string(&value)?;
+    }
+    assert_eq!(
+        client.exchange(unauthorized).await?.error,
+        Some(plenora_runtime_chains::Error::Invalid)
+    );
     let completed = client.exchange(run()).await?;
     assert_eq!(completed.error, None);
     assert_eq!(completed.value["state"], "succeeded");

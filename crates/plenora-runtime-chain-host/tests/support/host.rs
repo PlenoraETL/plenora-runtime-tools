@@ -20,6 +20,9 @@ fn config(tenant: &str) -> ScriptedConfig {
         tenant: tenant.into(),
         registry: include_str!("../../../../contracts/chains-v2/fixtures/context.json").into(),
         outcomes: include_str!("../../../../contracts/chains-v2/fixtures/result-valid.json").into(),
+        authorized_plans: vec![
+            include_str!("../../../../contracts/chains-v2/fixtures/plan-valid.json").into(),
+        ],
         recovery: None,
         attempts: vec![],
         artifacts: BTreeMap::new(),
@@ -277,13 +280,21 @@ async fn rt022_replay_after_deadline_and_new_admission_error_precedence() -> Res
 #[tokio::test]
 async fn scripted_output_reservation_is_checked_before_any_step_invocation() -> ResultTest {
     let store = Arc::new(ScriptStore::default());
-    let h = host(store.clone(), "tenant")?;
     let mut call = request(true, None);
     if let Request::Run { plan, .. } = &mut call {
         let mut value: Value = serde_json::from_str(plan)?;
         value["steps"][0]["budgets"]["result_bytes"] = json!(1);
         *plan = serde_json::to_string(&value)?;
     }
+    let mut profile = config("tenant");
+    if let Request::Run { plan, .. } = &call {
+        profile.authorized_plans = vec![plan.clone()];
+    }
+    let h = ScriptedHost::with_store(
+        profile,
+        store.clone(),
+        Arc::new(ManualClock::new(UNIX_EPOCH + Duration::from_hours(498_492))),
+    )?;
     let result = h.execute(call).await;
     assert!(result.error.is_some());
     assert_eq!(result.value["state"], "rejected");
@@ -327,5 +338,56 @@ async fn autonomous_host_worker_scans_runs_after_host_restart_and_drains_shutdow
     task.await??;
     assert_eq!(result.value["state"], "succeeded");
     assert_eq!(domain_attempts(&store)?, 3);
+    Ok(())
+}
+
+#[tokio::test]
+async fn complete_plan_confirmation_is_default_deny_and_cannot_authorize_a_changed_plan()
+-> ResultTest {
+    let store = Arc::new(ScriptStore::default());
+    let mut denied = config("tenant");
+    denied.authorized_plans.clear();
+    let clock = Arc::new(ManualClock::new(UNIX_EPOCH + Duration::from_hours(498_492)));
+    let h = ScriptedHost::with_store(denied, store.clone(), clock)?;
+    assert_eq!(
+        h.execute(request(false, None)).await.error,
+        Some(Error::Invalid)
+    );
+    assert!(store.0.lock().map_err(|_| "primary")?.is_empty());
+    assert_eq!(domain_attempts(&store)?, 0);
+    let h = host(store.clone(), "tenant")?;
+    for change in ["destination", "input", "policy"] {
+        let mut call = request(false, None);
+        if let Request::Submit { plan, .. } = &mut call {
+            let mut value: Value = serde_json::from_str(plan)?;
+            match change {
+                "destination" => {
+                    value["steps"][2]["destination_ref"] = json!("ref:different-destination");
+                }
+                "input" => {
+                    value["steps"][0]["parameters"]["artifact_ref"] =
+                        json!("ref:different-parameters");
+                }
+                _ => value["steps"][0]["retry_policy"]["backoff_ms"] = json!(37),
+            }
+            // The modified plan is structurally valid; denial is not a parser accident.
+            let parsed =
+                plenora_runtime_chains::contracts::parse_plan(&serde_json::to_vec(&value)?)?;
+            plenora_runtime_chains::contracts::validate_plan(
+                &parsed,
+                &parse_registry(config("tenant").registry.as_bytes())?,
+            )?;
+            assert_ne!(
+                plenora_runtime_chains::contracts::plan_digest(&parsed)?,
+                plenora_runtime_chains::contracts::plan_digest(
+                    &plenora_runtime_chains::contracts::parse_plan(plan.as_bytes())?
+                )?
+            );
+            *plan = serde_json::to_string(&value)?;
+        }
+        assert_eq!(h.execute(call).await.error, Some(Error::Invalid));
+    }
+    assert!(store.0.lock().map_err(|_| "primary")?.is_empty());
+    assert_eq!(domain_attempts(&store)?, 0);
     Ok(())
 }

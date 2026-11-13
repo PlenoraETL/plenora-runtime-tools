@@ -513,3 +513,27 @@ nel job postgres-integration esistente. Rischio residuo: queste prove non chiudo
 risorse/provider, crash matrix completa o enumerazione di ogni operazione sulle
 cinque superfici. Chiusura: criteri 3-6 e CI Linux/Windows sul candidato; nessuna
 promozione di una cella completa del catalogo in questo passo.
+
+## P1.4c - complete-plan confirmation (partial criterion 3)
+
+The trusted scripted host now supplies authorized_plans: explicit complete plan
+documents confirmed once in its tenant context. Missing confirmation denies new
+submission. CHAIN-C14N-1 binds destination, inputs, parameters, policy, graph and
+scoped loss grants; changing any of them requires a new confirmation. This is a
+declared fake of the authorization provider, not authentication of a real user.
+All facades share the same native host. Existing exact idempotent receipts remain
+readable; new invocation and reconciliation recheck the current trusted profile.
+
+The durable dispatcher repeats read-only preparation on worker restart. Denial
+before invoke produces validate/none/never, not unknown: it cannot authorize a
+scripted recovery result for work never invoked. A run whose intention already
+exists can still require coordinator reconciliation after this known runtime
+rejection; no synthetic StepResult is fabricated. Local regression covers both
+authorization and resource-limit denial after the persisted intention.
+
+Criterion 3 remains open: actual journal reservations, resource bytes/digest and
+schema/fidelity checks, durable artifact leases, bounded fan-out and cleanup are
+not qualified by this change. The existing real PostgreSQL/NATS test now includes
+rejection of an unconfirmed plan, but was not executed locally. Closure requires
+these missing resource guarantees and their tests; real library adoption remains
+a separate qualification gate.

@@ -45,6 +45,7 @@ async fn postgres_nats_real_worker_restarts_and_retries_persisted_runs()
         tenant: tenant.clone(),
         registry: include_str!("../../../contracts/chains-v2/fixtures/context.json").into(),
         outcomes: serde_json::to_string(&outcomes)?,
+        authorized_plans: vec![serde_json::to_string(&plan)?],
         recovery: None,
         attempts: vec![serde_json::to_string(&second)?],
         artifacts: BTreeMap::new(),

@@ -25,6 +25,10 @@ pub struct ScriptedConfig {
     pub tenant: String,
     /// Closed registry JSON from the fixture qualification corpus.
     pub registry: String,
+    /// Complete plans confirmed once by this trusted tenant profile; absent means deny.
+    /// This scripted allowlist is not authentication of an external user.
+    #[serde(default)]
+    pub authorized_plans: Vec<String>,
     /// Closed result JSON supplying scripted step outcomes.
     pub outcomes: String,
     /// Optional authenticated scripted recovery receipts, distinct from reinvocation.
@@ -36,13 +40,32 @@ pub struct ScriptedConfig {
     pub artifacts: BTreeMap<String, Vec<u8>>,
 }
 struct ScriptedAdapter {
+    tenant: String,
+    authorized: std::collections::BTreeSet<String>,
     steps: Vec<StepResult>,
     recovery: Vec<StepResult>,
     artifacts: BTreeMap<String, Vec<u8>>,
 }
 #[async_trait]
 impl Adapter for ScriptedAdapter {
+    async fn authorize(
+        &self,
+        tenant: &str,
+        plan: &plenora_runtime_chains::contracts::Plan,
+    ) -> Result<(), Error> {
+        if tenant != self.tenant
+            || !self
+                .authorized
+                .contains(&plenora_runtime_chains::contracts::plan_digest(plan)?)
+        {
+            return Err(Error::Invalid);
+        }
+        Ok(())
+    }
     async fn prepare(&self, i: &Invocation) -> Result<(), Error> {
+        if i.tenant != self.tenant || !self.authorized.contains(&i.plan_digest) {
+            return Err(Error::Invalid);
+        }
         let s = self
             .steps
             .iter()
@@ -81,7 +104,15 @@ impl Adapter for ScriptedAdapter {
             .find(|s| s.step_id == i.step.id && s.attempt == i.attempt)
             .cloned())
     }
-    async fn artifact(&self, _: &str, reference: &str, limit: usize) -> Result<Vec<u8>, Error> {
+    async fn artifact(
+        &self,
+        tenant: &str,
+        reference: &str,
+        limit: usize,
+    ) -> Result<Vec<u8>, Error> {
+        if tenant != self.tenant {
+            return Err(Error::Invalid);
+        }
         let bytes = self.artifacts.get(reference).ok_or(Error::NotFound)?;
         if bytes.len() > limit {
             return Err(Error::ResourceLimit);
@@ -142,7 +173,17 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ScriptedHost<S>
             .map(|r| parse_result(r.as_bytes()))
             .transpose()?
             .map_or_else(Vec::new, |r| r.steps);
+        let authorized = config
+            .authorized_plans
+            .iter()
+            .map(|raw| {
+                let plan = plenora_runtime_chains::contracts::parse_plan(raw.as_bytes())?;
+                Ok(plenora_runtime_chains::contracts::validate_plan(&plan, &registry)?.plan_digest)
+            })
+            .collect::<Result<std::collections::BTreeSet<_>, Error>>()?;
         let adapter = Arc::new(ScriptedAdapter {
+            tenant: config.tenant.clone(),
+            authorized,
             steps,
             recovery,
             artifacts: config.artifacts,

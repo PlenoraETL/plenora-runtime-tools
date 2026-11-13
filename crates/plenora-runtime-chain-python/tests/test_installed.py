@@ -20,6 +20,7 @@ CONFIG = {
     "tenant": "wheel-qualification",
     "registry": (FIXTURES / "context.json").read_text(encoding="utf-8"),
     "outcomes": (FIXTURES / "result-valid.json").read_text(encoding="utf-8"),
+    "authorized_plans": [PLAN],
     "recovery": None,
     "artifacts": {"ref:fixture": [0, 1, 2, 255]},
 }
@@ -240,7 +241,8 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
                          "message": "Chain operation rejected or incomplete.",
                          "step_id": "transform", "upstream_error": None, "reports": []})
         config = dict(CONFIG, tenant="retry-" + str(uuid.uuid4()),
-                      outcomes=json.dumps(outcomes), attempts=[json.dumps(second)])
+                      outcomes=json.dumps(outcomes), attempts=[json.dumps(second)],
+                      authorized_plans=[json.dumps(plan)])
         client = AsyncClient(config)
         await client.migrate()
         sync = Client(config)

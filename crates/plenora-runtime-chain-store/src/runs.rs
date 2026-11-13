@@ -232,6 +232,14 @@ mod tests {
     struct NoInvocation;
     #[async_trait]
     impl Adapter for NoInvocation {
+        // Declared store-only fake: authorization is explicit and no domain can run.
+        async fn authorize(
+            &self,
+            _: &str,
+            _: &plenora_runtime_chains::contracts::Plan,
+        ) -> Result<(), Error> {
+            Ok(())
+        }
         async fn prepare(&self, _: &Invocation) -> Result<(), Error> {
             Err(Error::Unsupported)
         }

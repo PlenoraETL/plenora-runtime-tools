@@ -23,6 +23,14 @@ struct Script {
 }
 #[async_trait]
 impl Adapter for Script {
+    // Declared coordinator fake: all plans in this test are explicitly authorized.
+    async fn authorize(
+        &self,
+        _: &str,
+        _: &plenora_runtime_chains::contracts::Plan,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
     async fn prepare(&self, i: &Invocation) -> Result<(), Error> {
         if i.step.id == "transform" && i.reservation.limits.rows_produced < 3 {
             Err(Error::ResourceLimit)

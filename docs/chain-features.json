@@ -174,7 +174,15 @@
           "incremental_evidence": {
             "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
             "scope": "coordinatore scriptato, lookup prima della deadline nuova accettazione; replay scaduto, conflitto, tenant e retention con ManualClock; un tentativo, nessuna promozione della cella",
-            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale",
+            "p14c_authorization": {
+              "scope": "Declared scripted host: complete-plan confirmation default-deny; dispatcher rechecks before invocation and recovery.",
+              "local_tests": [
+                "crates/plenora-runtime-chain-host/tests/support/host.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs"
+              ],
+              "remaining": "Criterion 3 open: journal reservations, resolver/digest/schema/fidelity, artifact lease/fan-out/cleanup."
+            }
           }
         },
         "cli": {
@@ -237,7 +245,15 @@
           "incremental_evidence": {
             "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
             "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
-            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale",
+            "p14c_authorization": {
+              "scope": "Declared scripted host: complete-plan confirmation default-deny; dispatcher rechecks before invocation and recovery.",
+              "local_tests": [
+                "crates/plenora-runtime-chain-host/tests/support/host.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs"
+              ],
+              "remaining": "Criterion 3 open: journal reservations, resolver/digest/schema/fidelity, artifact lease/fan-out/cleanup."
+            }
           }
         },
         "cli": {

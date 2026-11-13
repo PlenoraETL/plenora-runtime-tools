@@ -25,6 +25,8 @@ pub struct Invocation {
     pub run_id: String,
     /// Durable message identity for this attempt.
     pub message_id: String,
+    /// Digest of the complete immutable plan confirmed by the trusted host.
+    pub plan_digest: String,
     /// Exact step, including scoped consent and destination.
     pub step: Step,
     /// Complete immutable input manifests.
@@ -40,6 +42,11 @@ pub struct Invocation {
 /// Scripted implementations prove coordination only, never real provider behavior.
 #[async_trait]
 pub trait Adapter: Send + Sync + 'static {
+    /// Verify one complete-plan confirmation in the authenticated tenant context.
+    /// Default deny: a document containing loss grants is not itself authorization.
+    async fn authorize(&self, _tenant: &str, _plan: &Plan) -> Result<(), Error> {
+        Err(Error::Invalid)
+    }
     /// Read an authorized immutable resource with a finite host limit.
     async fn artifact(
         &self,
@@ -219,6 +226,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             }
             return previous.handle();
         }
+        self.executor.authorize(&self.tenant, plan).await?;
         let reserved = plan
             .steps
             .iter()
@@ -1082,6 +1090,7 @@ pub(crate) fn resolve_invocation(
         tenant: tenant.to_owned(),
         run_id: run_id.to_owned(),
         message_id: intent.message_id.clone(),
+        plan_digest: crate::contracts::plan_digest(plan)?,
         step,
         inputs,
         reservation,
