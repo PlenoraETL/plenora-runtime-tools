@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use plenora_runtime_chains::{
     Adapter, ChainEngine, Error, Invocation, Journal, RunOptions, Store, contracts::*,
 };
+use plenora_runtime_core::Clock;
 use plenora_runtime_testkit::ManualClock;
 use std::{
     collections::BTreeMap,
@@ -19,6 +20,23 @@ use std::{
 struct ScriptStore(Mutex<BTreeMap<(String, String), Journal>>);
 #[async_trait]
 impl Store for ScriptStore {
+    async fn lookup(
+        &self,
+        tenant: &str,
+        id: &str,
+        key: Option<&str>,
+    ) -> Result<Option<Journal>, Error> {
+        let rows = self.0.lock().map_err(|_| Error::Storage)?;
+        let mut matches = rows.values().filter(|j| {
+            j.tenant() == tenant
+                && (j.run_id() == id || (key.is_some() && j.idempotency_key() == key))
+        });
+        let result = matches.next().cloned();
+        if matches.next().is_some() {
+            return Err(Error::Conflict);
+        }
+        Ok(result)
+    }
     async fn create(
         &self,
         candidate: plenora_runtime_chains::Submission,
@@ -480,5 +498,96 @@ async fn multiple_named_outputs_are_complete_and_missing_one_never_succeeds()
             assert_eq!(result.steps[1].outputs.len(), 2);
         }
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn expired_deadline_replays_binding_but_never_accepts_new_work()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let adapter = adapter(false, false)?;
+    let clock = clock();
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock.clone(),
+        "tenant-a",
+    )?;
+    let now = u64::try_from(clock.now().duration_since(UNIX_EPOCH)?.as_millis())?;
+    let mut controls = options();
+    controls.idempotency_key = Some("expired-deadline".into());
+    controls.deadline_ms = Some(now + 10);
+    let accepted = engine.submit(&plan()?, controls.clone()).await?;
+    clock.advance(Duration::from_millis(11))?;
+    assert_eq!(engine.submit(&plan()?, controls.clone()).await?, accepted);
+    controls.run_id = uuid::Uuid::new_v4().to_string();
+    assert_eq!(engine.submit(&plan()?, controls.clone()).await?, accepted);
+    let mut changed = plan()?;
+    changed.revision += 1;
+    assert_eq!(
+        engine.submit(&changed, controls.clone()).await,
+        Err(Error::Conflict)
+    );
+    controls.deadline_ms = Some(now + 20);
+    assert_eq!(
+        engine.submit(&plan()?, controls.clone()).await,
+        Err(Error::Conflict)
+    );
+    controls.deadline_ms = Some(now + 10);
+    controls.idempotency_key = Some("new-key".into());
+    assert_eq!(
+        engine.submit(&plan()?, controls.clone()).await,
+        Err(Error::Timeout)
+    );
+    let other = ChainEngine::new(
+        store,
+        adapter.clone(),
+        registry()?,
+        clock.clone(),
+        "tenant-b",
+    )?;
+    assert_eq!(other.submit(&plan()?, controls).await, Err(Error::Timeout));
+    clock.advance(Duration::from_millis(plenora_runtime_chains::DELIVERY_MS))?;
+    let mut replay = options();
+    replay.run_id = accepted.run_id;
+    replay.idempotency_key = Some("expired-deadline".into());
+    replay.deadline_ms = Some(now + 10);
+    assert_eq!(engine.submit(&plan()?, replay).await, Err(Error::Expired));
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn event_cursor_rejects_whole_malformed_pages_without_advancing()
+-> Result<(), Box<dyn StdError>> {
+    let engine = ChainEngine::new(
+        Arc::new(ScriptStore::default()),
+        adapter(false, false)?,
+        registry()?,
+        clock(),
+        "tenant-a",
+    )?;
+    let result = engine.run(&plan()?, options()).await?;
+    let events = engine.events(&result.run_id, 0, 256).await?;
+    let mut cursor = plenora_runtime_chains::EventCursor::new(&result.run_id, 0, 2)?;
+    let initial_request = serde_json::to_value(cursor.request())?;
+    let mut bad = serde_json::to_value(&events[..2])?;
+    bad[1]["sequence"] = serde_json::json!(3);
+    assert!(cursor.accept(&bad).is_err());
+    assert_eq!(serde_json::to_value(cursor.request())?, initial_request);
+    let mut foreign = serde_json::to_value(&events[..2])?;
+    foreign[1]["run_id"] = serde_json::json!(uuid::Uuid::new_v4().to_string());
+    assert!(cursor.accept(&foreign).is_err());
+    assert_eq!(serde_json::to_value(cursor.request())?, initial_request);
+    assert!(cursor.accept(&serde_json::to_value(&events[..3])?).is_err());
+    assert_eq!(serde_json::to_value(cursor.request())?, initial_request);
+    let mut actual = Vec::new();
+    for page in events.chunks(2) {
+        actual.extend(cursor.accept(&serde_json::to_value(page)?)?);
+    }
+    assert_eq!(actual, events);
+    assert!(cursor.accept(&serde_json::json!([]))?.is_empty());
+    assert_eq!(serde_json::to_value(cursor.request())?["cursor"], 10);
     Ok(())
 }

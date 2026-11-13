@@ -373,6 +373,14 @@ impl Journal {
 /// Implementations enforce seven-day delivery, ninety-day reports and permanent tombstones.
 #[async_trait]
 pub trait Store: Send + Sync + 'static {
+    /// Lookup both identities before new-admission deadline checks. Two matching rows conflict.
+    /// Expired identities return `Expired`, never absence; this does not authorize a mutation.
+    async fn lookup(
+        &self,
+        tenant: &str,
+        run_id: &str,
+        key: Option<&str>,
+    ) -> Result<Option<Journal>, Error>;
     /// Atomically lookup-or-create by tenant/run and tenant/chain.submit@2/key.
     /// Changed bindings conflict; expired identities are never created again.
     async fn create(&self, candidate: Submission) -> Result<Journal, Error>;

@@ -1371,11 +1371,28 @@ crates/plenora-runtime-capabilities/src/result.rs | impl Error for CapabilityRes
 crates/plenora-runtime-capabilities/src/result.rs | impl Error for CapabilityResultBuildError { } | fn source (& self) -> Option < & (dyn Error + 'static) >
 crates/plenora-runtime-capabilities/src/result.rs | impl Error for CapabilityResultPublishError { } | 
 crates/plenora-runtime-capabilities/src/result.rs | impl Error for CapabilityResultPublishError { } | fn source (& self) -> Option < & (dyn Error + 'static) >
+crates/plenora-runtime-chain-cli/src/lib.rs |  | 
+crates/plenora-runtime-chain-cli/src/lib.rs |  | 
+crates/plenora-runtime-chain-cli/src/lib.rs |  | fn number (s : & str) -> Result < u64 , Error >
+crates/plenora-runtime-chain-cli/src/lib.rs |  | fn parse (args : & [String] , read : impl Fn (& str) -> Result < String , Error > ,) -> Result < Command , Error >
+crates/plenora-runtime-chain-cli/src/lib.rs |  | fn required (options : & mut BTreeMap < & str , String > , name : & str) -> Result < String , Error >
+crates/plenora-runtime-chain-cli/src/lib.rs |  | matches ! (first . as_str () , "artifact" | "report")
+crates/plenora-runtime-chain-cli/src/lib.rs |  | matches ! (name . as_str () , "--json" | "--json-lines")
+crates/plenora-runtime-chain-cli/src/lib.rs |  | pub
+crates/plenora-runtime-chain-cli/src/lib.rs |  | pub enum Endpoint { Scripted (String) , Remote { # [doc = " Broker connection address, excluded from errors."] server : String , # [doc = " Exact host-authorized request subject."] subject : String , } , }
+crates/plenora-runtime-chain-cli/src/lib.rs |  | pub struct Command { pub endpoint : Endpoint , pub request : Request , pub json_lines : bool , }
 crates/plenora-runtime-chain-cli/src/lib.rs |  | pub use plenora_runtime_chains :: { Request , Response } ;
 crates/plenora-runtime-chain-cli/src/main.rs |  | 
 crates/plenora-runtime-chain-cli/src/main.rs |  | 
-crates/plenora-runtime-chain-cli/src/main.rs |  | fn execute () -> Result < Response , Error >
+crates/plenora-runtime-chain-cli/src/main.rs |  | 
+crates/plenora-runtime-chain-cli/src/main.rs |  | 
+crates/plenora-runtime-chain-cli/src/main.rs |  | enum Session { Scripted (Box < ScriptedHost >) , Remote (RemoteClient) , }
+crates/plenora-runtime-chain-cli/src/main.rs |  | fn emit (value : & impl serde :: Serialize) -> Result < () , Error >
+crates/plenora-runtime-chain-cli/src/main.rs |  | fn execute () -> Result < Option < Response > , Error >
 crates/plenora-runtime-chain-cli/src/main.rs |  | fn main () -> std :: process :: ExitCode
+crates/plenora-runtime-chain-cli/src/main.rs |  | fn read_file (path : & str) -> Result < String , Error >
+crates/plenora-runtime-chain-cli/src/main.rs | impl Session { } | 
+crates/plenora-runtime-chain-cli/src/main.rs | impl Session { } | async fn call (& self , bytes : Vec < u8 >) -> Result < Response , Error >
 crates/plenora-runtime-chain-contracts/src/codec.rs |  | 
 crates/plenora-runtime-chain-contracts/src/codec.rs |  | fn canonical (value : & Value) -> Checked < Vec < u8 > >
 crates/plenora-runtime-chain-contracts/src/codec.rs |  | fn digest (value : & Value) -> Checked < String >
@@ -1770,7 +1787,14 @@ crates/plenora-runtime-chain-host/src/lib.rs | impl ScriptedHost { } | pub
 crates/plenora-runtime-chain-host/src/lib.rs | impl ScriptedHost { } | pub
 crates/plenora-runtime-chain-host/src/lib.rs | impl ScriptedHost { } | pub
 crates/plenora-runtime-chain-host/src/lib.rs | impl ScriptedHost { } | pub
+crates/plenora-runtime-chain-host/src/remote.rs |  | 
+crates/plenora-runtime-chain-host/src/remote.rs |  | 
+crates/plenora-runtime-chain-host/src/remote.rs |  | 
+crates/plenora-runtime-chain-host/src/remote.rs |  | async fn drain (tasks : & mut tokio :: task :: JoinSet < Result < () , Error > > , mut failure : Option < Error > ,) -> Result < () , Error >
+crates/plenora-runtime-chain-host/src/remote.rs |  | async fn drive < S , F , R > (stream : & mut S , mut invoke : F) -> Result < () , Error > where S : futures_util :: Stream + Unpin , F : FnMut (S :: Item) -> R , R : std :: future :: Future < Output = Result < () , Error > > + Send + 'static ,
+crates/plenora-runtime-chain-host/src/remote.rs |  | fn task_error (result : Option < & Result < Result < () , Error > , tokio :: task :: JoinError > >) -> Option < Error >
 crates/plenora-runtime-chain-host/src/remote.rs |  | pub struct RemoteClient { client : async_nats :: Client , subject : String , }
+crates/plenora-runtime-chain-host/src/remote.rs |  | tokio :: select ! { result = tasks . join_next () , if ! tasks . is_empty () => { if let Some (error) = task_error (result . as_ref ()) { break Some (error) ; } continue ; } message = stream . next () , if tasks . len () < 16 => { let Some (message) = message else { break None } ; message } }
 crates/plenora-runtime-chain-host/src/remote.rs | # [async_trait] impl Transport for RemoteClient { } | 
 crates/plenora-runtime-chain-host/src/remote.rs | # [async_trait] impl Transport for RemoteClient { } | async fn exchange (& self , request : Request) -> Result < Response , Error >
 crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | async fn call (& self , bytes : Vec < u8 >) -> Result < Response , Error >
@@ -1781,13 +1805,21 @@ crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | pub
 crates/plenora-runtime-chain-host/src/remote.rs | impl ScriptedHost { } | async fn serve (self : Arc < Self > , server : & str , subject : & str , ready : tokio :: sync :: oneshot :: Sender < () > ,) -> Result < () , Error >
 crates/plenora-runtime-chain-host/src/remote.rs | impl ScriptedHost { } | pub
 crates/plenora-runtime-chain-python/src/lib.rs |  | 
+crates/plenora-runtime-chain-python/src/lib.rs |  | 
 crates/plenora-runtime-chain-python/src/lib.rs |  | fn _native (module : & Bound < '_ , PyModule >) -> PyResult < () >
+crates/plenora-runtime-chain-python/src/lib.rs |  | fn native_error (error : plenora_runtime_chains :: Error) -> PyErr
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | 
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | 
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | 
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | fn call (& self , py : Python < '_ > , request : & str) -> PyResult < String >
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | fn migrate (& self , py : Python < '_ >) -> PyResult < () >
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | fn new (config : & str) -> PyResult < Self >
+crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeEventCursor { } | 
+crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeEventCursor { } | 
+crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeEventCursor { } | 
+crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeEventCursor { } | fn accept (& mut self , py : Python < '_ > , value : & str) -> PyResult < String >
+crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeEventCursor { } | fn new (request : & str) -> PyResult < Self >
+crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeEventCursor { } | fn request (& self) -> PyResult < String >
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeRemoteClient { } | 
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeRemoteClient { } | 
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeRemoteClient { } | fn call (& self , py : Python < '_ > , request : & str) -> PyResult < String >
@@ -1871,9 +1903,11 @@ crates/plenora-runtime-chain-store/src/runs.rs |  | fn unavailable (_ : impl std
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | 
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | 
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | 
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn compare_exchange (& self , expected : u64 , next : plenora_runtime_chains :: Change ,) -> Result < () , Error >
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn create (& self , candidate : plenora_runtime_chains :: Submission ,) -> Result < Journal , Error >
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn load (& self , tenant : & str , run_id : & str) -> Result < Journal , Error >
+crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn lookup (& self , tenant : & str , run_id : & str , key : Option < & str > ,) -> Result < Option < Journal > , Error >
 crates/plenora-runtime-chain-store/src/settlement.rs | impl PostgresStore { } | async fn evidence_report (& self , id : MessageId) -> Result < Vec < u8 > , StoreError >
 crates/plenora-runtime-chain-store/src/settlement.rs | impl PostgresStore { } | async fn record_evidence (& self , permit : & StartPermit , report : & [u8] ,) -> Result < () , StoreError >
 crates/plenora-runtime-chain-store/src/settlement.rs | impl PostgresStore { } | pub
@@ -1916,11 +1950,20 @@ crates/plenora-runtime-chains/src/budget.rs |  | pub (crate)
 crates/plenora-runtime-chains/src/budget.rs | impl Reservation { } | fn new (global : & Budget , step : & Budget , used : & Counters , retained : u64 , now : u64 , deadline : u64 ,) -> Result < Self , Error >
 crates/plenora-runtime-chains/src/budget.rs | impl Reservation { } | pub (crate)
 crates/plenora-runtime-chains/src/client.rs |  | pub struct ChainClient < T > { transport : Arc < T > , }
+crates/plenora-runtime-chains/src/client.rs |  | pub struct EventCursor { run_id : String , sequence : u64 , limit : usize , }
 crates/plenora-runtime-chains/src/client.rs | # [async_trait] pub trait Transport : Send + Sync { } | async fn exchange (& self , request : Request) -> Result < Response , Error >
 crates/plenora-runtime-chains/src/client.rs | impl < T : Transport > ChainClient < T > { } | async fn execute (& self , request : Request) -> Result < Response , Error >
+crates/plenora-runtime-chains/src/client.rs | impl < T : Transport > ChainClient < T > { } | async fn next_events (& self , cursor : & mut EventCursor ,) -> Result < Vec < crate :: contracts :: Event > , Error >
 crates/plenora-runtime-chains/src/client.rs | impl < T : Transport > ChainClient < T > { } | const fn new (transport : Arc < T >) -> Self
 crates/plenora-runtime-chains/src/client.rs | impl < T : Transport > ChainClient < T > { } | pub
 crates/plenora-runtime-chains/src/client.rs | impl < T : Transport > ChainClient < T > { } | pub
+crates/plenora-runtime-chains/src/client.rs | impl < T : Transport > ChainClient < T > { } | pub
+crates/plenora-runtime-chains/src/client.rs | impl EventCursor { } | fn accept (& mut self , value : & serde_json :: Value ,) -> Result < Vec < crate :: contracts :: Event > , Error >
+crates/plenora-runtime-chains/src/client.rs | impl EventCursor { } | fn new (run_id : & str , sequence : u64 , limit : usize) -> Result < Self , Error >
+crates/plenora-runtime-chains/src/client.rs | impl EventCursor { } | fn request (& self) -> Request
+crates/plenora-runtime-chains/src/client.rs | impl EventCursor { } | pub
+crates/plenora-runtime-chains/src/client.rs | impl EventCursor { } | pub
+crates/plenora-runtime-chains/src/client.rs | impl EventCursor { } | pub
 crates/plenora-runtime-chains/src/engine.rs |  | 
 crates/plenora-runtime-chains/src/engine.rs |  | 
 crates/plenora-runtime-chains/src/engine.rs |  | 
@@ -2003,6 +2046,7 @@ crates/plenora-runtime-chains/src/journal.rs |  | pub struct Submission (pub (cr
 crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn compare_exchange (& self , expected : u64 , next : Change) -> Result < () , Error >
 crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn create (& self , candidate : Submission) -> Result < Journal , Error >
 crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn load (& self , tenant : & str , run_id : & str) -> Result < Journal , Error >
+crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn lookup (& self , tenant : & str , run_id : & str , key : Option < & str > ,) -> Result < Option < Journal > , Error >
 crates/plenora-runtime-chains/src/journal.rs | impl Change { } | fn into_journal (self) -> Journal
 crates/plenora-runtime-chains/src/journal.rs | impl Change { } | pub
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | 
@@ -2061,7 +2105,7 @@ crates/plenora-runtime-chains/src/lib.rs |  | pub (crate)
 crates/plenora-runtime-chains/src/lib.rs |  | pub (crate)
 crates/plenora-runtime-chains/src/lib.rs |  | pub (crate)
 crates/plenora-runtime-chains/src/lib.rs |  | pub use budget :: Reservation ;
-crates/plenora-runtime-chains/src/lib.rs |  | pub use client :: { ChainClient , Transport } ;
+crates/plenora-runtime-chains/src/lib.rs |  | pub use client :: { ChainClient , EventCursor , Transport } ;
 crates/plenora-runtime-chains/src/lib.rs |  | pub use engine :: { Adapter , ChainEngine , Invocation } ;
 crates/plenora-runtime-chains/src/lib.rs |  | pub use journal :: { Change , DELIVERY_MS , JOURNAL_BYTES , Journal , REPORT_MS , RunHandle , RunOptions , Store , Submission , } ;
 crates/plenora-runtime-chains/src/lib.rs |  | pub use plenora_runtime_chain_contracts as contracts ;

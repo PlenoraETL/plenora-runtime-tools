@@ -276,8 +276,10 @@ Il coordinatore corrente rifiuta retry con piu tentativi; le facciate sono un
 harness scriptato, non attraversano ancora il boundary/dispatcher prodotto.
 Restano aperti: retry/backoff completi, prenotazione completa delle risorse,
 manifest/lease e autorizzazione reali, enumerazione RT/catalogo su ogni superficie,
-iteratori eventi, CLI finale, errori di dominio finali e test di controllo da
-wheel/binario su PostgreSQL/NATS. Il trasporto NATS del solo harness non e P2.5.
+opzioni finali CLI, errori di dominio finali e qualifica dei test di controllo da
+wheel/binario su PostgreSQL/NATS. Iterator sync/async e paginazione CLI condividono
+EventCursor Rust; le prove installate PostgreSQL sono cablate in un database CI
+isolato, senza attestazione locale del backend. Il trasporto NATS del solo harness non e P2.5.
 
 Rischio: confondere prove incrementali con chiusura dei blocchi. Condizione di
 chiusura: integrazione e prove mancanti, rilettura senza rilievi bloccanti, CI
@@ -286,8 +288,8 @@ reale o non eseguito e attestato dai doppi scriptati.
 
 La prenotazione del journal e ancora da qualificare contro la dimensione reale
 dei rapporti degli adapter; un esito oltre il canale puo richiedere recovery.
-Il replay di submit con deadline esplicita del chiamante gia scaduta richiede
-ancora il lookup idempotente prima del controllo della nuova accettazione.
-Il server NATS sperimentale deve ancora completare il drain isolato dei task
-in presenza di errore di pubblicazione. Questi limiti impediscono la chiusura
-del blocco, anche in presenza di gate di compilazione verdi.
+Il lookup idempotente precede ora il controllo della nuova deadline; il loop del
+server drena i task accettati dopo errore di pubblicazione, con regressioni locali
+scriptate. Restano non qualificati abort/drop esterni del server e settlement
+end-to-end del nuovo host. I gate aperti impediscono la chiusura del blocco anche
+in presenza di compilazione verde.

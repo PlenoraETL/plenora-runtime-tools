@@ -77,18 +77,10 @@ impl ScriptedHost {
             .map_err(|_| Error::Storage)?;
         remote.client.flush().await.map_err(|_| Error::Storage)?;
         ready.send(()).map_err(|()| Error::Storage)?;
-        let mut tasks = tokio::task::JoinSet::new();
-        while let Some(message) = subscription.next().await {
-            if tasks.len() >= 16 {
-                tasks
-                    .join_next()
-                    .await
-                    .ok_or(Error::Storage)?
-                    .map_err(|_| Error::Storage)??;
-            }
+        let result = drive(&mut subscription, |message: async_nats::Message| {
             let host = self.clone();
             let client = remote.client.clone();
-            tasks.spawn(async move {
+            async move {
                 let reply = message.reply.ok_or(Error::Invalid)?;
                 let response = host.call(&message.payload).await;
                 let mut bytes = serde_json::to_vec(&response).map_err(|_| Error::Invalid)?;
@@ -104,14 +96,103 @@ impl ScriptedHost {
                     .await
                     .map_err(|_| Error::Storage)?;
                 client.flush().await.map_err(|_| Error::Storage)
-            });
-            while let Some(result) = tasks.try_join_next() {
-                result.map_err(|_| Error::Storage)??;
             }
+        })
+        .await;
+        // No new work is consumed after drive observes an error; all accepted tasks are drained.
+        let unsubscribe = subscription.unsubscribe().await.map_err(|_| Error::Storage);
+        result.and(unsubscribe)
+    }
+}
+
+async fn drive<S, F, R>(stream: &mut S, mut invoke: F) -> Result<(), Error>
+where
+    S: futures_util::Stream + Unpin,
+    F: FnMut(S::Item) -> R,
+    R: std::future::Future<Output = Result<(), Error>> + Send + 'static,
+{
+    let mut tasks = tokio::task::JoinSet::new();
+    let failure = loop {
+        let message = tokio::select! {
+            result = tasks.join_next(), if !tasks.is_empty() => {
+                if let Some(error) = task_error(result.as_ref()) {
+                    break Some(error);
+                }
+                continue;
+            }
+            message = stream.next(), if tasks.len() < 16 => {
+                let Some(message) = message else { break None };
+                message
+            }
+        };
+        tasks.spawn(invoke(message));
+    };
+    // A failed publication cannot drop JoinSet and abort sibling handlers.
+    drain(&mut tasks, failure).await
+}
+
+fn task_error(result: Option<&Result<Result<(), Error>, tokio::task::JoinError>>) -> Option<Error> {
+    match result {
+        Some(Ok(Ok(()))) => None,
+        Some(Ok(Err(error))) => Some(*error),
+        Some(Err(_)) | None => Some(Error::Storage),
+    }
+}
+
+async fn drain(
+    tasks: &mut tokio::task::JoinSet<Result<(), Error>>,
+    mut failure: Option<Error>,
+) -> Result<(), Error> {
+    while let Some(result) = tasks.join_next().await {
+        if let Some(error) = task_error(Some(&result)) {
+            failure.get_or_insert(error);
         }
-        while let Some(result) = tasks.join_next().await {
-            result.map_err(|_| Error::Storage)??;
-        }
-        Err(Error::Storage)
+    }
+    Err(failure.unwrap_or(Error::Storage))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn publication_failure_drains_all_accepted_work() {
+        let mut stream = futures_util::stream::iter([0, 1]).chain(futures_util::stream::pending());
+        let entered = Arc::new(tokio::sync::Notify::new());
+        let release = Arc::new(tokio::sync::Notify::new());
+        let completed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let gate = release.clone();
+        let done = completed.clone();
+        let (observed, failure) = tokio::sync::oneshot::channel();
+        let mut observed = Some(observed);
+        let task = tokio::spawn(async move {
+            drive(&mut stream, |item| {
+                let entered = entered.clone();
+                let release = release.clone();
+                let completed = completed.clone();
+                let observed = if item == 0 { observed.take() } else { None };
+                async move {
+                    if item == 0 {
+                        entered.notified().await;
+                        if let Some(observed) = observed {
+                            observed.send(()).map_err(|()| Error::Invalid)?;
+                        }
+                        Err(Error::Storage)
+                    } else {
+                        entered.notify_one();
+                        release.notified().await;
+                        completed.store(true, std::sync::atomic::Ordering::SeqCst);
+                        Ok(())
+                    }
+                }
+            })
+            .await
+        });
+        assert!(failure.await.is_ok());
+        tokio::task::yield_now().await;
+        assert!(!task.is_finished());
+        gate.notify_one();
+        assert_eq!(task.await.ok(), Some(Err(Error::Storage)));
+        assert!(done.load(std::sync::atomic::Ordering::SeqCst));
     }
 }

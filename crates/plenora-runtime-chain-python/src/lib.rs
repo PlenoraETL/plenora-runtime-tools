@@ -44,8 +44,46 @@ impl NativeClient {
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<NativeClient>()?;
     module.add_class::<NativeRemoteClient>()?;
+    module.add_class::<NativeEventCursor>()?;
     module.add("FUNCTIONS", plenora_runtime_chains::FUNCTIONS.to_vec())?;
     Ok(())
+}
+
+#[pyclass]
+struct NativeEventCursor {
+    cursor: plenora_runtime_chains::EventCursor,
+}
+#[pymethods]
+impl NativeEventCursor {
+    #[new]
+    fn new(request: &str) -> PyResult<Self> {
+        let request: plenora_runtime_chains::Request =
+            serde_json::from_str(request).map_err(|_| PyRuntimeError::new_err("invalid"))?;
+        let plenora_runtime_chains::Request::Events {
+            run_id,
+            cursor,
+            limit,
+        } = request
+        else {
+            return Err(PyRuntimeError::new_err("invalid"));
+        };
+        Ok(Self {
+            cursor: plenora_runtime_chains::EventCursor::new(&run_id, cursor, limit)
+                .map_err(native_error)?,
+        })
+    }
+    fn request(&self) -> PyResult<String> {
+        serde_json::to_string(&self.cursor.request())
+            .map_err(|_| PyRuntimeError::new_err("invalid"))
+    }
+    fn accept(&mut self, py: Python<'_>, value: &str) -> PyResult<String> {
+        py.detach(|| {
+            let value =
+                serde_json::from_str(value).map_err(|_| PyRuntimeError::new_err("invalid"))?;
+            let events = self.cursor.accept(&value).map_err(native_error)?;
+            serde_json::to_string(&events).map_err(|_| PyRuntimeError::new_err("invalid"))
+        })
+    }
 }
 
 #[pyclass]
@@ -81,4 +119,12 @@ impl NativeRemoteClient {
             serde_json::to_string(&response).map_err(|_| PyRuntimeError::new_err("invalid"))
         })
     }
+}
+
+fn native_error(error: plenora_runtime_chains::Error) -> PyErr {
+    let code = serde_json::to_value(error)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .unwrap_or_else(|| "storage".into());
+    PyRuntimeError::new_err(code)
 }

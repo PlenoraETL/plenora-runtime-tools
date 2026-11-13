@@ -214,10 +214,11 @@ mod cases {
             }
         }
         assert_eq!(created, 1);
-        assert!(matches!(
-            AcceptanceStore::accept(&store, &id, None)?,
-            AcceptanceRecord::Existing(CONTEXT)
-        ));
+        let sync_store = store.clone();
+        let acceptance =
+            tokio::task::spawn_blocking(move || AcceptanceStore::accept(&sync_store, &id, None))
+                .await??;
+        assert!(matches!(acceptance, AcceptanceRecord::Existing(CONTEXT)));
         // case: identity_race
         let scope = Uuid::new_v4().to_string();
         let mut jobs = Vec::new();
@@ -529,16 +530,20 @@ mod cases {
         // case: crash_restart
         for phase in ["uncommitted", "started", "finished"] {
             let child_id = MessageId::random();
-            let exit = std::process::Command::new(std::env::current_exe()?)
-                .args([
-                    "--exact",
-                    "tests::cases::postgres_crash_child",
-                    "--ignored",
-                    "--nocapture",
-                ])
-                .env("PLENORA_CRASH_PHASE", phase)
-                .env("PLENORA_CRASH_ID", child_id.to_string())
-                .status()?;
+            let executable = std::env::current_exe()?;
+            let exit = tokio::task::spawn_blocking(move || {
+                std::process::Command::new(executable)
+                    .args([
+                        "--exact",
+                        "tests::cases::postgres_crash_child",
+                        "--ignored",
+                        "--nocapture",
+                    ])
+                    .env("PLENORA_CRASH_PHASE", phase)
+                    .env("PLENORA_CRASH_ID", child_id.to_string())
+                    .status()
+            })
+            .await??;
             assert_eq!(exit.code(), Some(73));
             let fresh = PostgresStore::new(&database())?;
             if phase == "uncommitted" {

@@ -21,7 +21,7 @@ mod journal;
 mod protocol;
 
 pub use budget::Reservation;
-pub use client::{ChainClient, Transport};
+pub use client::{ChainClient, EventCursor, Transport};
 pub use engine::{Adapter, ChainEngine, Invocation};
 pub use journal::{
     Change, DELIVERY_MS, JOURNAL_BYTES, Journal, REPORT_MS, RunHandle, RunOptions, Store,

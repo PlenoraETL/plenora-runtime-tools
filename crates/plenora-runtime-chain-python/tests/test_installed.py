@@ -5,12 +5,15 @@ import os
 from pathlib import Path
 import subprocess
 import unittest
+from unittest.mock import patch
+import uuid
 
 from plenora_runtime import AsyncClient, ChainError, Client, FUNCTIONS
 
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = ROOT / "contracts/chains-v2/fixtures"
 PLAN = (FIXTURES / "plan-valid.json").read_text(encoding="utf-8")
+EVENT = json.loads((FIXTURES / "event-valid.json").read_text(encoding="utf-8"))
 CONFIG = {
     "database": os.environ.get("PLENORA_POSTGRES_URL", "host=127.0.0.1 port=1 dbname=not_running connect_timeout=1"),
     "tenant": "wheel-qualification",
@@ -57,6 +60,43 @@ class Installed(unittest.IsolatedAsyncioTestCase):
                 else:
                     self.assertEqual(await getattr(asynchronous, name)(**arguments), expected)
 
+    async def test_event_iterators_use_native_cursor_and_reject_gaps(self):
+        event = EVENT
+        events = [dict(event, sequence=i) for i in range(1, 4)]
+        def page(function, **arguments):
+            self.assertEqual(function, "events")
+            self.assertEqual(arguments["run_id"], event["run_id"])
+            start = arguments["cursor"]
+            return events[start:start + arguments["limit"]]
+        sync = Client(CONFIG)
+        asynchronous = AsyncClient(CONFIG)
+        with patch.object(sync, "call", side_effect=page):
+            self.assertEqual(list(sync.iter_events(event["run_id"], limit=2)), events)
+        async def async_page(function, **arguments):
+            await asyncio.sleep(0)
+            return page(function, **arguments)
+        with patch.object(asynchronous, "call", side_effect=async_page):
+            self.assertEqual([e async for e in asynchronous.iter_events(event["run_id"], limit=2)], events)
+        class Indexable:
+            def __index__(self):
+                return 1
+        for field in ["cursor", "limit"]:
+            for invalid in [True, False, 1.5, "1", -1, Indexable()]:
+                with self.subTest(field=field, invalid=invalid):
+                    with self.assertRaises(ChainError):
+                        list(sync.iter_events(event["run_id"], **{field: invalid}))
+                    with self.assertRaises(ChainError):
+                        [e async for e in asynchronous.iter_events(event["run_id"], **{field: invalid})]
+        events[1]["sequence"] = 4
+        with patch.object(sync, "call", side_effect=page):
+            with self.assertRaises(ChainError) as caught:
+                list(sync.iter_events(event["run_id"], limit=2))
+            self.assertEqual(caught.exception.code, "conflict")
+        with patch.object(asynchronous, "call", side_effect=async_page):
+            with self.assertRaises(ChainError) as caught:
+                [e async for e in asynchronous.iter_events(event["run_id"], limit=2)]
+            self.assertEqual(caught.exception.code, "conflict")
+
     async def test_event_loop_heartbeat_during_native_work(self):
         client = AsyncClient(CONFIG)
         beats = 0
@@ -92,6 +132,82 @@ class Installed(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(completed.returncode, 0 if name == "capabilities" else 2)
             self.assertEqual(reply["error"], None if name == "capabilities" else "invalid")
 
+
+    @unittest.skipUnless(os.environ.get("PLENORA_CHAIN_BIN"), "requires installed binary path")
+    def test_installed_binary_named_commands(self):
+        config_path = ROOT / "target/p1-5-command-config.json"
+        invalid_plan = ROOT / "target/p1-5-command-invalid-plan.json"
+        config_path.write_text(json.dumps(CONFIG), encoding="utf-8")
+        invalid_plan.write_text("{}", encoding="utf-8")
+        commands = {
+            "capabilities": ["capabilities"],
+            "validate": ["chain", "validate", "--plan", str(invalid_plan)],
+            "submit": ["chain", "submit", "--plan", str(invalid_plan), "--run", OPTIONS["run_id"]],
+            "run": ["chain", "run", "--plan", str(invalid_plan), "--run", OPTIONS["run_id"]],
+            "status": ["chain", "status", "--run", "bad"],
+            "result": ["chain", "result", "--run", "bad"],
+            "events": ["chain", "events", "--run", "bad", "--cursor", "0"],
+            "cancel": ["chain", "cancel", "--run", "bad", "--revision", "1"],
+            "resume": ["chain", "resume", "--run", "bad", "--revision", "1"],
+            "artifact": ["artifact", "get", "--ref", "file:forbidden"],
+            "report": ["report", "get", "--run", "bad"],
+        }
+        self.assertEqual(set(commands), set(FUNCTIONS))
+        try:
+            for name, command in commands.items():
+                completed = subprocess.run([os.environ["PLENORA_CHAIN_BIN"], *command,
+                    "--config", str(config_path), "--json"], text=True, encoding="utf-8",
+                    capture_output=True, check=False)
+                self.assertEqual(completed.stderr, "")
+                self.assertEqual(completed.returncode, 0 if name == "capabilities" else 2)
+                self.assertEqual(json.loads(completed.stdout)["error"], None if name == "capabilities" else "invalid")
+        finally:
+            config_path.unlink()
+            invalid_plan.unlink()
+
+
+@unittest.skipUnless(os.environ.get("PLENORA_POSTGRES_URL") and os.environ.get("PLENORA_CHAIN_BIN"),
+                     "requires real PostgreSQL and installed binary in the infrastructure CI job")
+class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
+    async def test_cancel_resume_and_events_on_installed_surfaces(self):
+        config = dict(CONFIG, tenant="installed-" + str(uuid.uuid4()))
+        client = AsyncClient(config)
+        await client.migrate()
+        controls = dict(OPTIONS, run_id=str(uuid.uuid4()), idempotency_key=str(uuid.uuid4()))
+        receipt = await client.submit(plan=PLAN, options=controls)
+        sync = Client(config)
+        cancelled = await asyncio.to_thread(sync.cancel, run_id=receipt["run_id"], revision=receipt["revision"])
+        with self.assertRaises(ChainError) as stale:
+            await client.resume(run_id=receipt["run_id"], revision=receipt["revision"])
+        self.assertEqual(stale.exception.code, "conflict")
+        final = await client.resume(run_id=receipt["run_id"], revision=cancelled["revision"])
+        self.assertEqual(final["state"], "cancelled")
+        expected = await client.result(run_id=receipt["run_id"])
+        self.assertEqual(await asyncio.to_thread(sync.result, run_id=receipt["run_id"]), expected)
+        events = [e async for e in client.iter_events(receipt["run_id"], limit=1)]
+        self.assertEqual(await asyncio.to_thread(lambda: list(sync.iter_events(receipt["run_id"], limit=2))), events)
+        self.assertEqual([e["sequence"] for e in events], list(range(1, len(events) + 1)))
+        config_path = ROOT / "target" / (config["tenant"] + ".json")
+        plan_path = ROOT / "contracts/chains-v2/fixtures/plan-valid.json"
+        await asyncio.to_thread(config_path.write_text, json.dumps(config), encoding="utf-8")
+        async def binary(*arguments, lines=False):
+            result = await asyncio.to_thread(subprocess.run,
+                [os.environ["PLENORA_CHAIN_BIN"], *arguments, "--config", str(config_path),
+                 "--json-lines" if lines else "--json"], capture_output=True, text=True,
+                encoding="utf-8", check=False)
+            self.assertEqual(result.stderr, "")
+            self.assertEqual(result.returncode, 0, result.stdout)
+            return [json.loads(line) for line in result.stdout.splitlines()] if lines else json.loads(result.stdout)["value"]
+        try:
+            started = await binary("chain", "submit", "--plan", str(plan_path), "--run", str(uuid.uuid4()))
+            stopped = await binary("chain", "cancel", "--run", started["run_id"], "--revision", str(started["revision"]))
+            finished = await binary("chain", "resume", "--run", started["run_id"], "--revision", str(stopped["revision"]))
+            self.assertEqual(finished["state"], "cancelled")
+            actual = await binary("chain", "events", "--run", started["run_id"], "--cursor", "0", "--limit", "1", lines=True)
+            self.assertEqual(actual, [e async for e in client.iter_events(started["run_id"])])
+            self.assertEqual((await binary("chain", "result", "--run", started["run_id"]))["state"], "cancelled")
+        finally:
+            await asyncio.to_thread(config_path.unlink)
 
 if __name__ == "__main__":
     unittest.main()

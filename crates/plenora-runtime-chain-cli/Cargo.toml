@@ -15,6 +15,8 @@ path = "src/main.rs"
 plenora-runtime-chain-host = { version = "=0.1.0", path = "../plenora-runtime-chain-host" }
 plenora-runtime-chains = { version = "=0.1.0", path = "../plenora-runtime-chains" }
 serde_json.workspace = true
+# Shared serialization trait for JSON and event records; same workspace pin as the facade.
+serde.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [lints]

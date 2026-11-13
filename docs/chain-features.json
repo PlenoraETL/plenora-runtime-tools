@@ -173,7 +173,7 @@
           },
           "incremental_evidence": {
             "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
-            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "scope": "coordinatore scriptato, lookup prima della deadline nuova accettazione; replay scaduto, conflitto, tenant e retention con ManualClock; un tentativo, nessuna promozione della cella",
             "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
@@ -475,7 +475,7 @@
           "specification": "docs/specs/CHAIN-PLAN-2.0.md",
           "incremental_evidence": {
             "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
-            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "scope": "EventCursor Rust con pagine atomiche, gap/run estraneo/limiti rifiutati; iteratori wheel su pagine fake; CLI installata con sintassi nominata e rifiuti. Nessuna promozione, PostgreSQL locale non eseguito.",
             "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
@@ -488,7 +488,12 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chain-python/tests/test_installed.py",
+            "scope": "EventCursor Rust con pagine atomiche, gap/run estraneo/limiti rifiutati; iteratori wheel su pagine fake; CLI installata con sintassi nominata e rifiuti. Nessuna promozione, PostgreSQL locale non eseguito.",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "python_sync": {
           "status": "specificata",
@@ -499,7 +504,12 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chain-python/tests/test_installed.py",
+            "scope": "EventCursor Rust con pagine atomiche, gap/run estraneo/limiti rifiutati; iteratori wheel su pagine fake; CLI installata con sintassi nominata e rifiuti. Nessuna promozione, PostgreSQL locale non eseguito.",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "python_async": {
           "status": "specificata",
@@ -510,7 +520,12 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chain-python/tests/test_installed.py",
+            "scope": "EventCursor Rust con pagine atomiche, gap/run estraneo/limiti rifiutati; iteratori wheel su pagine fake; CLI installata con sintassi nominata e rifiuti. Nessuna promozione, PostgreSQL locale non eseguito.",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "runtime": {
           "status": "specificata",

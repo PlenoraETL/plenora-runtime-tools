@@ -405,7 +405,7 @@ crates/plenora-runtime-chain-python/tests/test_installed.py. Non chiudono RT-022
 nel runtime durevole preesistente, che continua a rifiutare le chiavi.
 
 Deviazioni esplicite: un solo tentativo, facciate del harness senza boundary,
-CLI scripted-call invece della sintassi finale, eventi a pagine senza iteratori,
+qualifica incompleta delle opzioni CLI e del modello errori,
 classificazione degli errori delle facciate ancora sperimentale. Rischio:
 scambiare la presenza dei metodi per parita qualificata. Chiusura: gate
 [P1.4/P1.5](qualification.md#gate-p14p15-sperimentale) e ADR 0010.
@@ -423,3 +423,23 @@ CLI scripted-call, NativeClient/NativeRemoteClient e NATS serve = harness
 sperimentale di ADR 0010, non ingresso del prodotto qualificato. Le prove di
 parita disponibili sono limitate al corpus elencato nel resoconto, e non
 chiudono l'enumerazione RT richiesta per ogni superficie.
+
+### Incremento replay e paginazione del candidato P1.4/P1.5
+
+Il lookup autorevole tenant/run e tenant/chain.submit@2/key precede il controllo
+della deadline di nuova accettazione; conserva il binding completo e la finestra
+di delivery. `create` ripete il confronto atomico per la race lookup/inserimento.
+La regressione `expired_deadline_replays_binding_but_never_accepts_new_work`
+prova replay scaduto, conflitto, isolamento e rifiuto dopo retention con fake.
+Il test PostgreSQL corrispondente resta una prova ignorata da eseguire in CI.
+
+Il loop comune `drive` del listener attende tutti i task gia accettati dopo un
+fallimento di pubblicazione; il test sincronizza un task fratello ancora attivo.
+Non qualifica abort/drop esterno del server, JetStream o settlement del prodotto.
+
+`EventCursor` valida atomicamente pagine e continuita di sequenza in Rust; CLI
+JSON-lines e iteratori Python lo riusano. Il codec Request JSON ammette i controlli
+Python senza coercizioni numeriche PyO3. Le nuove forme CLI mappano soltanto le
+Request esistenti. Le celle di inventario restano senza promozione: integrazione
+boundary/dispatcher durevole, retry/worker, risorse, modello completo degli errori,
+RT end-to-end e crash matrix completa restano condizioni di chiusura del gate.

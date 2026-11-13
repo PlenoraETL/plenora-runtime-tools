@@ -1316,6 +1316,7 @@ version = "0.1.0"
 dependencies = [
  "plenora-runtime-chain-host",
  "plenora-runtime-chains",
+ "serde",
  "serde_json",
  "tokio",
 ]

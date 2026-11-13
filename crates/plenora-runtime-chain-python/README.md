@@ -6,9 +6,19 @@ i membri duplicati devono arrivare al parser Rust senza passare per un dizionari
 
 PyO3 rilascia il GIL; AsyncClient attende il metodo nativo su un worker Python.
 Cancellare l'attesa non cancella il run. Le factory remote usano il client Rust NATS.
-Gli iteratori eventi e la qualifica completa P1.5 restano aperti.
+`Client.iter_events(run_id, cursor=0, limit=256)` e
+`AsyncClient.iter_events(...)` enumerano le pagine disponibili usando EventCursor
+Rust. Una pagina vuota termina l'enumerazione, senza attestare fine run. Il cursor
+e la sequenza dell'ultimo evento consumato; per una nuova enumerazione usare
+quella sequenza. Gli errori non avanzano il cursore della pagina.
+La qualifica completa P1.5 resta aperta.
 
 Build: `maturin build --manifest-path crates/plenora-runtime-chain-python/Cargo.toml`.
 I test in tests/test_installed.py importano una wheel installata; discovery,
 validazione e rifiuti locali non attestano i controlli su PostgreSQL/NATS reali.
 Limiti: [ADR 0010](../../docs/adr/0010-scripted-chain-facades.md).
+
+Il job PostgreSQL installa wheel e binario e prova cancel/resume/eventi in un
+database separato dalle prove di riduzione permanente della retention. Il test
+e saltato se non sono disponibili URL PostgreSQL e binario installato: non vale
+come qualifica locale del backend quando saltato.

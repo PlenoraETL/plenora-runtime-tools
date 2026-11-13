@@ -41,6 +41,31 @@ async fn expire(tx: &Transaction<'_>, now: u64, reports: u64) -> Result<(), Erro
 }
 #[async_trait]
 impl Store for PostgresStore {
+    async fn lookup(
+        &self,
+        tenant: &str,
+        run_id: &str,
+        key: Option<&str>,
+    ) -> Result<Option<Journal>, Error> {
+        let mut client = self.connect().await.map_err(unavailable)?;
+        let tx = Self::transaction(&mut client).await.map_err(unavailable)?;
+        let (now, delivery, reports) = policy(&tx).await?;
+        expire(&tx, now, reports).await?;
+        let rows = tx.query("SELECT * FROM plenora_chain_runs WHERE tenant=$1 AND (run_id=$2 OR (operation='chain.submit@2' AND idempotency_key=$3))", &[&tenant, &run_id, &key]).await.map_err(unavailable)?;
+        let result = match rows.as_slice() {
+            [] => Ok(None),
+            [row] => restore(row, now, reports).and_then(|j| {
+                if now - j.created_ms() >= delivery {
+                    Err(Error::Expired)
+                } else {
+                    Ok(Some(j))
+                }
+            }),
+            _ => Err(Error::Conflict),
+        };
+        Self::commit(tx).await.map_err(unavailable)?;
+        result
+    }
     async fn create(
         &self,
         candidate: plenora_runtime_chains::Submission,
@@ -186,13 +211,13 @@ mod tests {
             store.clone(),
             Arc::new(NoInvocation),
             registry,
-            clock,
+            clock.clone(),
             &tenant,
         )?;
         let options = || RunOptions {
             run_id: uuid::Uuid::new_v4().to_string(),
             idempotency_key: Some("same-key".into()),
-            deadline_ms: None,
+            deadline_ms: Some(now + 10),
         };
         let (left, right) = tokio::join!(a.submit(&plan, options()), b.submit(&plan, options()));
         let left = left?;
@@ -207,6 +232,11 @@ mod tests {
             "cancelled"
         );
         assert_eq!(b.result(&left.run_id).await?.state, "cancelled");
+        clock.advance(Duration::from_millis(11))?;
+        assert_eq!(b.submit(&plan, options()).await?.run_id, left.run_id);
+        let mut fresh = options();
+        fresh.idempotency_key = Some("new-after-deadline".into());
+        assert_eq!(a.submit(&plan, fresh).await, Err(Error::Timeout));
         let mut different = plan.clone();
         different.revision += 1;
         assert_eq!(a.submit(&different, options()).await, Err(Error::Conflict));

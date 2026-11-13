@@ -1,7 +1,7 @@
 """Native scripted qualification clients; no ETL library is attested by this profile."""
 import asyncio
 import json
-from ._native import FUNCTIONS, NativeClient, NativeRemoteClient
+from ._native import FUNCTIONS, NativeClient, NativeRemoteClient, NativeEventCursor
 
 
 class ChainError(Exception):
@@ -37,6 +37,15 @@ class Client:
             raise ChainError(reply["error"], reply["value"])
         return reply["value"]
 
+    def iter_events(self, run_id, cursor=0, limit=256):
+        """Yield currently persisted events; an empty page ends this enumeration."""
+        pages = _EventPages(run_id, cursor, limit)
+        while True:
+            page = pages.accept(self.call(**pages.request()))
+            if not page:
+                return
+            yield from page
+
     def __getattr__(self, name):
         if name not in FUNCTIONS:
             raise AttributeError(name)
@@ -64,12 +73,42 @@ class AsyncClient:
         """Execute native work on a worker thread; durable cancellation is an explicit call."""
         return await asyncio.to_thread(self._sync.call, function, **arguments)
 
+    async def iter_events(self, run_id, cursor=0, limit=256):
+        """Yield persisted events without blocking the loop or cancelling the run."""
+        pages = _EventPages(run_id, cursor, limit)
+        while True:
+            value = await self.call(**pages.request())
+            page = await asyncio.to_thread(pages.accept, value)
+            if not page:
+                return
+            for event in page:
+                yield event
+
     def __getattr__(self, name):
         if name not in FUNCTIONS:
             raise AttributeError(name)
         async def invoke(**arguments):
             return await self.call(name, **arguments)
         return invoke
+
+
+class _EventPages:
+    """Cursor validation and sequence advancement live exclusively in Rust."""
+
+    def __init__(self, run_id, cursor, limit):
+        try:
+            self._cursor = NativeEventCursor(json.dumps({"function": "events", "run_id": run_id, "cursor": cursor, "limit": limit}))
+        except (RuntimeError, OverflowError, TypeError):
+            raise ChainError("invalid") from None
+
+    def request(self):
+        return json.loads(self._cursor.request())
+
+    def accept(self, value):
+        try:
+            return json.loads(self._cursor.accept(json.dumps(value)))
+        except RuntimeError as error:
+            raise ChainError(str(error)) from None
 
 
 __all__ = ["Client", "AsyncClient", "ChainError", "FUNCTIONS"]

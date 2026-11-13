@@ -122,6 +122,30 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
         {
             return Err(Error::Invalid);
         }
+        let canonical = canonical_plan(plan)?;
+        let registry = encode(&self.registry)?;
+        if let Some(previous) = self
+            .store
+            .lookup(
+                &self.tenant,
+                &options.run_id,
+                options.idempotency_key.as_deref(),
+            )
+            .await?
+        {
+            previous.validate()?;
+            self.delivery(&previous)?;
+            if previous.tenant != self.tenant
+                || previous.plan != canonical
+                || previous.registry != registry
+                || previous.options.idempotency_key != options.idempotency_key
+                || previous.options.deadline_ms != options.deadline_ms
+                || (previous.run_id() != options.run_id && options.idempotency_key.is_none())
+            {
+                return Err(Error::Conflict);
+            }
+            return previous.handle();
+        }
         // Retry support requires retained per-attempt accounting; this profile admits one attempt.
         // The explicit profile restriction is tracked in docs/qualification.md.
         if plan.steps.iter().any(|s| s.retry_policy.max_attempts != 1) {
@@ -158,8 +182,8 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
             created: now,
             deadline,
             revision: 1,
-            plan: canonical_plan(plan)?,
-            registry: encode(&self.registry)?,
+            plan: canonical,
+            registry,
             view: encode(&view)?,
             active: None,
             cancelled: false,

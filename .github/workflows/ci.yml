@@ -273,6 +273,22 @@ jobs:
         run: cargo test -p plenora-runtime-chain-store --locked postgres_migrations -- --ignored --nocapture --test-threads=1
       - name: Run real race crash restart retention and authority tests
         run: cargo test -p plenora-runtime-chain-store --locked postgres_real -- --ignored --nocapture --test-threads=1
+      - name: Install native scripted surfaces against the real primary
+        run: |
+          python -m pip install maturin==1.15.0
+          maturin build --manifest-path crates/plenora-runtime-chain-python/Cargo.toml --locked --out target/chain-wheels
+          python -m pip install --no-index --find-links target/chain-wheels plenora_runtime==0.1.0
+          cargo install --path crates/plenora-runtime-chain-cli --root target/chain-install --debug --locked
+      - name: Verify installed cancel resume and event cursors on isolated PostgreSQL
+        env:
+          PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime
+        shell: bash
+        run: |
+          # Store retention tests deliberately shrink their policy permanently; use a separate database.
+          docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" \
+            psql -h 127.0.0.1 -U postgres -d chain_store -v ON_ERROR_STOP=1 -c 'CREATE DATABASE chain_surfaces'
+          PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_surfaces}" \
+            python -m unittest discover -s crates/plenora-runtime-chain-python/tests -p 'test_*.py'
       - name: Start ephemeral NATS for combined product qualification
         id: product_nats
         shell: pwsh
