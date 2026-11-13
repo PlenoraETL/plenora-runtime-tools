@@ -388,27 +388,32 @@ async fn absolute_deadlines_are_evaluated_with_the_injected_clock() -> Result<()
     )?;
     let registry = builder.build();
 
-    let live = CapabilityDispatcher::new(registry.clone(), CapabilityDispatcherConfig::new(32)?)?;
+    let live = CapabilityDispatcher::new(registry.clone(), CapabilityDispatcherConfig::new(32)?)?
+        .with_clock(Arc::new(FixedClock(
+            SystemTime::UNIX_EPOCH + Duration::from_hours(517_200),
+        )));
     live.handle(worker_context(1), deadline_request()?).await?;
     assert_eq!(lock(&records).len(), 1);
 
-    // A clock positioned after the absolute deadline rejects the request before invocation,
-    // without depending on real elapsed time.
-    let expired = CapabilityDispatcher::new(registry, CapabilityDispatcherConfig::new(32)?)?
-        .with_clock(Arc::new(FixedClock(
-            SystemTime::UNIX_EPOCH + Duration::from_secs(4_000_000_000),
-        )));
-    let error = expired
-        .handle(worker_context(1), deadline_request()?)
-        .await
-        .err()
-        .ok_or("expired absolute deadline was accepted")?;
+    // RT-021 includes equality: timeout(0) must never get a chance to poll invoke.
+    for seconds in [1_893_456_000, 4_000_000_000] {
+        let expired =
+            CapabilityDispatcher::new(registry.clone(), CapabilityDispatcherConfig::new(32)?)?
+                .with_clock(Arc::new(FixedClock(
+                    SystemTime::UNIX_EPOCH + Duration::from_secs(seconds),
+                )));
+        let error = expired
+            .handle(worker_context(1), deadline_request()?)
+            .await
+            .err()
+            .ok_or("expired absolute deadline was accepted")?;
 
-    assert_eq!(
-        error.category(),
-        CapabilityDispatchErrorCategory::DeadlineExceeded
-    );
-    assert_eq!(lock(&records).len(), 1);
+        assert_eq!(
+            error.category(),
+            CapabilityDispatchErrorCategory::DeadlineExceeded
+        );
+        assert_eq!(lock(&records).len(), 1);
+    }
     Ok(())
 }
 

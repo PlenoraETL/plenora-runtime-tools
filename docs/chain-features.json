@@ -4574,7 +4574,10 @@
             "rejection": "alias metadata, duplicati, numeri JSON, null, 01/+1/spazi e UUID non canonici; versione canonica non supportata: unsupported",
             "limit": "versione numerica lunga entro bound documento; rifiuto prima di invoke/resolver",
             "effect": "errore plenora-error-v1 con validate/none/never, riflette solo campi validi; replay conserva identità risultato"
-          }
+          },
+          "implementation_scope": "P2.1: RuntimeBoundary.admit_raw/admit_message, WorkerMessageDecoder e wrapper del dispatcher; prove locali di ammissione, errore e identit?. Stato da fare per la superficie completa.",
+          "implementation_evidence": "crates/plenora-runtime-boundary/tests/raw_ingress.rs",
+          "remaining": "Persistenza/replay dell?identit?, settlement terminale, host completo e parit? delle composizioni legacy; nessuna promozione della cella da prove parziali."
         },
         "cli": {
           "status": "da fare",

@@ -86,6 +86,10 @@ Regola: RT-010. Ambito: runtime. Modello pubblico e mappature presenti; settleme
 
 ### RT-012
 
+Profilo boundary P2.1: grammatica e riflessione provate all'ingresso grezzo da
+`rt012`/`rt019` in [raw_ingress.rs](../crates/plenora-runtime-boundary/tests/raw_ingress.rs).
+La chiusura è limitata a `RuntimeBoundary`; decoder UUID legacy non attestati.
+
 Regola: RT-012. Ambito: runtime. Il codec capability non verifica tutte le identita dell envelope. Hazard: Identita non canoniche possono attraversare un adapter. Rientro: Eseguire tutti i probe sulle vere frontiere codec/trasporto.
 
 ### RT-013
@@ -94,33 +98,85 @@ Regola: RT-013. Ambito: runtime. Payload di dominio opachi; nessuna risoluzione 
 
 ### RT-016
 
+Profilo boundary P2.1: rifiuti validate/none/never provati dai 21 probe upstream
+e da `rt016`/`rt018`; il wrapper rimappa anche il timeout pre-invoke del dispatcher.
+La pubblicazione dei rifiuti da parte del runner resta il gate RT-019.
+
 Regola: RT-016. Ambito: runtime. Rifiuti preesistenti usano quarantine o prepare anziche validate/none/never. Hazard: Semantica pubblica del rifiuto diversa da RT-016. Rientro: Uniformare codec, dispatcher e settlement e provare tutti i probe.
 
 ### RT-017
+
+Profilo boundary P2.1: `rt017` prova JSON stringa, duplicati e versioni fino a
+8192 cifre prima di `u16`; overflow canonico è unsupported. Il decoder NATS
+rifiuta valori riservati multipli prima della mappa: prova
+`duplicate_reserved_wire_values_are_rejected_before_map_construction` in
+[metadata.rs](../adapters/plenora-runtime-nats/src/metadata.rs).
+Il codec generico diretto resta legacy; nessuna chiusura globale.
 
 Regola: RT-017. Ambito: runtime. Parsing u16 e UUID generici non garantisce tutta la grammatica canonica. Hazard: Normalizzazione di valori come 01. Rientro: Validazione lessicale esatta prima della conversione in tutto il workspace.
 
 ### RT-018
 
+Profilo boundary P2.1: `rt018` esegue le otto combinazioni
+protocol/unsupported/timeout su raw JSON e decoder worker; protocol precede
+anche un selettore numerico canonico oltre u16. Le composizioni legacy non
+passate attraverso il boundary restano fuori dall'evidenza.
+
 Regola: RT-018. Ambito: runtime. Ordine globale protocol/unsupported/timeout non qualificato su tutti i probe. Hazard: Categoria dipende dal percorso adapter. Rientro: Applicare un unico ordine e provare difetti multipli.
 
 ### RT-019
+
+Profilo boundary P2.1: `rt019` e tutti i probe upstream provano media type,
+contratto, riflessione byte per byte e assenza delle chiavi malformate.
+JSON illeggibile non inventa correlation/operation/causation. Resta aperta la
+pubblicazione terminale con settlement del runner (P2.4); serializzare non è
+pubblicare. La deviazione complessiva non è chiusa.
 
 Regola: RT-019. Ambito: runtime. Serializzazione del rifiuto e riflessione selettiva non integrate nel settlement. Hazard: Metadati mancanti o impropri nel risultato. Rientro: Costruire rifiuti al confine del trasporto con probe neri.
 
 ### RT-020
 
+Profilo boundary P2.1: `rt020` e `real_dispatch_success_identity_and_queued_expiry`
+provano nuova identità per errore/successo e causation=request.message.id;
+serializzare due volte la stessa istanza conserva l'identità. Persistenza,
+replay dopo restart e terminali da retry restano P2.2/P2.4: nessuna chiusura
+end-to-end dalla sola prova locale.
+
 Regola: RT-020. Ambito: runtime. Identita nuova e causation dei risultati non qualificate end-to-end. Hazard: Caller non puo correlare ogni rifiuto al messaggio. Rientro: Verificare successi e rifiuti sui trasporti reali.
 
 ### RT-021
+
+Profilo boundary P2.1: `rt021` usa ManualClock; riceve T/t, Z/z e +00:00,
+frazione 1–9 cifre, rifiuta -00:00, offset non zero e secondi intercalari.
+Motivo dell'esclusione: SystemTime non ne conserva l'identità temporale.
+La regressione `absolute_deadlines_are_evaluated_with_the_injected_clock`
+prova uguaglianza e superamento anche nel dispatcher generico. La sola modifica
+del generico impedisce il poll di invoke tramite timeout(0); non sostituisce
+il suo parser legacy con una dichiarazione di conformità.
+La deadline resta `DateTime<Utc>` fino al calcolo della durata, senza conversione
+anticipata in SystemTime: `nanosecond_deadline_is_not_rounded_by_dispatcher`
+prova il caso futuro di un nanosecondo anche su Windows. La prova
+`deadline_reached_between_boundary_and_dispatcher_never_polls_handler` controlla
+la scadenza fra le due letture dell'orologio.
 
 Regola: RT-021. Ambito: runtime. Il parser RFC3339 esistente non rifiuta tutti gli offset vietati. Hazard: Deadline non UTC accettata. Rientro: Parser esatto UTC e prova ManualClock su <= now.
 
 ### RT-022
 
+Profilo boundary P2.1: `rt022` prova vuota/null/limite specifico e assenza;
+il probe upstream storage prova il controllo non supportato. La policy
+dell'host è obbligatoria e non inventa dedup remota. Digest/CAS autorevole,
+conflitto, race, restart e at-most-one-start restano aperti (P2.2).
+La riga complessiva resta deviation.
+
 Regola: RT-022. Ambito: runtime. Supporto controllo verificato, ma chiave vuota/limite specifico/conflitto input non qualificati. Hazard: Deduplicazione non garantita. Rientro: Qualificare grammatica, limiti e store deduplicazione del componente.
 
 ### RT-023
+
+Profilo boundary P2.1: `rt023` prova un validatore di contratto fixture,
+prima di invoke, con deadline uguali e diverse; nessuna ricerca di campi
+arbitrari nel boundary. I cinque adapter reali devono implementare la policy
+del proprio schema prima dei resolver: questa prova non li qualifica.
 
 Regola: RT-023. Ambito: runtime. Input opaco: il runtime non riconosce un secondo campo deadline di dominio. Hazard: Doppio canale deadline. Rientro: Adapter rifiuta campo payload e metadata insieme.
 

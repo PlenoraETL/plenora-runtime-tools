@@ -53,12 +53,24 @@ pub(crate) fn decode(
 
     let mut metadata_entries = 0_usize;
     let mut metadata_decoded_bytes = 0_usize;
+    let mut content_type_seen = false;
     for (name, values) in headers.iter() {
         let name = name.to_string();
+        // RT-017: preserve ambiguity as a rejection, including empty value lists.
+        if (name.eq_ignore_ascii_case(CONTENT_TYPE)
+            || strip_prefix_ignore_ascii_case(&name, METADATA_PREFIX).is_some())
+            && values.len() != 1
+        {
+            return Err(protocol_limit("ambiguous encoded metadata"));
+        }
         let Some(value) = values.first() else {
             continue;
         };
         if name.eq_ignore_ascii_case(CONTENT_TYPE) {
+            if content_type_seen {
+                return Err(protocol_limit("duplicate encoded content type"));
+            }
+            content_type_seen = true;
             if value.as_str().len() > MAX_ENCODED_CONTENT_TYPE_BYTES {
                 return Err(protocol_limit(
                     "encoded content type exceeds the configured byte limit",
@@ -102,6 +114,9 @@ pub(crate) fn decode(
             let value = URL_SAFE_NO_PAD
                 .decode(value.as_str())
                 .map_err(|error| protocol("invalid encoded metadata value", error))?;
+            if metadata.contains_key(&key) {
+                return Err(protocol_limit("duplicate decoded metadata"));
+            }
             metadata
                 .insert(key, value)
                 .map_err(|error| protocol("invalid decoded metadata key", error))?;
@@ -172,6 +187,23 @@ mod tests {
         MAX_ENCODED_METADATA_KEY_BYTES, MAX_ENCODED_METADATA_VALUE_BYTES, METADATA_PREFIX, decode,
         encode, insert_header,
     };
+
+    #[test]
+    fn duplicate_reserved_wire_values_are_rejected_before_map_construction()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for key in [
+            CONTENT_TYPE.to_owned(),
+            format!("{METADATA_PREFIX}cGxlbm9yYS5vcGVyYXRpb24udmVyc2lvbg"),
+        ] {
+            let mut headers = HeaderMap::new();
+            let name: async_nats::HeaderName = key.parse()?;
+            let value: async_nats::HeaderValue = "MQ".parse()?;
+            headers.append(name.clone(), value.clone());
+            headers.append(name, value);
+            assert!(decode(Some(&headers)).is_err());
+        }
+        Ok(())
+    }
 
     #[test]
     fn binary_metadata_round_trips() -> Result<(), Box<dyn std::error::Error>> {

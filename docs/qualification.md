@@ -198,3 +198,21 @@ barriere effettive, P2.x per boundary/store, ratifica centrale e CI sul medesimo
 SHA Linux e Windows. Schema dinamico e fidelity hanno verdetti rinviati espliciti;
 non sono compatibilità provate. Le sole celle Rust statiche dell'inventario sono
 marcate `provata su fixture`; le altre superfici restano da qualificare.
+
+## Gate P2.1: ammissione raw e limite della consegna
+
+Regola: tutti i probe RT-012/016…023 all'ingresso grezzo, nessun invoke/resolver
+nei rifiuti e stessa semantica nelle facciate. Ambito implementato: nuovo
+[boundary](../crates/plenora-runtime-boundary/README.md), dispatcher generico
+con rifiuto della deadline uguale a now e decoder NATS senza perdita di duplicati.
+Le prove sono elencate in [boundary-probes.json](boundary-probes.json).
+
+**Gate complessivo aperto.** Rischio: scambiare prove di serializzazione e
+ammissione locale per pubblicazione terminale, dedup durevole o migrazione di
+tutti i consumer legacy. Condizione di chiusura: cablaggio di tutte le facciate
+esistenti al boundary con gestione esplicita del rifiuto, nessuna terminazione
+silenziosa del runner, CAS/digest/restart per RT-022 e persistenza/replay/settlement
+per RT-019/020. Il progetto assegna store a P2.2 e finalizzatore a P2.4;
+queste parti non sono attestate da P2.1. CI Linux e Windows sul medesimo SHA,
+NATS reale e prove del profilo di deployment restano gate separati non eseguiti
+dalla suite locale del boundary.

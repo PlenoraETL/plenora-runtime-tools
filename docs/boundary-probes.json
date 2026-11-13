@@ -1,0 +1,11 @@
+{
+  "step": "P2.1",
+  "rules": ["RT-012", "RT-016", "RT-017", "RT-018", "RT-019", "RT-020", "RT-021", "RT-022", "RT-023"],
+  "probe": "crates/plenora-runtime-boundary/tests/raw_ingress.rs",
+  "scope": "Raw metadata admission and dispatcher wrapper; not durable replay or transport settlement",
+  "remaining": {
+    "RT-019": "Terminal publication and settlement: P2.4",
+    "RT-020": "Durable result identity replay and terminal retries: P2.2/P2.4",
+    "RT-022": "Authoritative digest/CAS, conflict, race and restart: P2.2"
+  }
+}

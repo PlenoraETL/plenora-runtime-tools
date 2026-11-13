@@ -131,3 +131,17 @@ autorizzazione del consenso, disponibilità dei rapporti o quote effettive.
 provare; non è un token di esecuzione. Condizione di chiusura: host e adapter
 qualificati che eseguano tali verifiche prima dell'invoke e rifiutino mutazioni
 di discovery/input/consenso. Nessuna garanzia runtime è promossa da queste prove.
+
+## P2.1: rischio residuo di composizione del boundary
+
+Regola: nessuna perdita silenziosa e rifiuto prima di effetti.
+Ambito: `plenora-runtime-boundary`, policy di contratto, sink e ingressi legacy.
+Rischio: una policy host che compie I/O viola il contratto di validazione pura;
+un consumer che ignora `Rejection` può lasciare il caller senza esito. Il decoder
+generico del runner non equivale a un finalizzatore durevole. Nessuna promessa
+di dedup/CAS o replay persistito è implementata da questo crate.
+Condizione di chiusura: policy concrete qualificate con resolver strumentati,
+wrapper dei trasporti che persistono/pubblicano anche i rifiuti, store P2.2 e
+finalizzatore P2.4 con prove di risposta/ACK persi e restart. Gli esempi legacy
+non sono ingressi qualificati del prodotto catene. Le prove locali sono
+circoscritte in [qualification](qualification.md#gate-p21-ammissione-raw-e-limite-della-consegna).
