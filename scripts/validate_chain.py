@@ -322,7 +322,11 @@ def validate_result(result, plan, context):
         if step["attempt"] > definition["retry_policy"]["max_attempts"]:
             reject("CHAIN_RESULT")
         for key, amount in step["counters"].items():
-            if amount > definition["budgets"][key]:
+            timeout = step["state"] != "succeeded" and any(
+                e is not None and e["category"] == "timeout"
+                for e in [step["error"], *step["other_errors"]]
+            )
+            if amount > definition["budgets"][key] and not (key == "elapsed_ms" and timeout):
                 reject("CHAIN_RESULT")
         all_reports.extend(step["reports"])
         if step["state"] in ("blocked", "skipped", "rejected") and (step["attempt"] != 0 or step["remote_effect"] != "none" or step["outputs"]):
@@ -383,7 +387,13 @@ def validate_result(result, plan, context):
     if result["state"] == "cancelled" and "cancelled" not in states:
         reject("CHAIN_RESULT")
     for key, amount in result["counters"].items():
-        if amount > plan["budgets"][key]:
+        errors = [result["error"], *result["other_errors"]]
+        for child in result["steps"]:
+            errors.extend([child["error"], *child["other_errors"]])
+        timeout = result["state"] != "succeeded" and any(
+            e is not None and e["category"] == "timeout" for e in errors
+        )
+        if amount > plan["budgets"][key] and not (key == "elapsed_ms" and timeout):
             reject("CHAIN_RESULT")
         if key not in ("memory_bytes", "elapsed_ms", "spool_bytes"):
             if amount != sum(s["counters"][key] for s in result["steps"]):

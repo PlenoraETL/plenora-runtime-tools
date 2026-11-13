@@ -62,6 +62,14 @@ pub fn parse_registry(raw: &[u8]) -> Checked<Registry> {
 pub fn parse_result(raw: &[u8]) -> Checked<ChainResult> {
     parse(raw, "chain-result-v2.schema.json")
 }
+/// Decode complete original step evidence without inferring execution or aggregate validity.
+/// # Errors
+/// Rejects noncanonical, oversized or structurally invalid evidence.
+pub fn parse_step_result(raw: &[u8]) -> Checked<StepResult> {
+    let value = codec::parse(raw)?;
+    schema::step_result(&value)?;
+    StepResult::decode(value)
+}
 /// Parse a closed event without attesting sequence history.
 /// # Errors
 /// Returns a data-free lexical, size or structural rejection.

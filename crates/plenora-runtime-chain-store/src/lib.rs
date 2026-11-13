@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 
 mod delivery;
+mod runs;
 mod settlement;
 mod types;
 pub use types::{
@@ -30,6 +31,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("migration-v2.sql", include_str!("migration-v2.sql")),
     ("evidence-v1.sql", include_str!("evidence-v1.sql")),
     ("delivery-v1.sql", include_str!("delivery-v1.sql")),
+    ("runs-v1.sql", include_str!("runs-v1.sql")),
 ];
 
 /// Connection factory. Each operation opens a primary connection and a transaction;
@@ -133,6 +135,8 @@ impl PostgresStore {
         if version != 2 {
             return Err(StoreError::Unavailable);
         }
+        // Purge retained run documents under the same monotone policy; keep scoped identities forever.
+        tx.execute("UPDATE plenora_chain_runs r SET journal=NULL FROM plenora_chain_schema p WHERE p.singleton AND r.journal IS NOT NULL AND r.created_ms + p.report_seconds*1000 <= extract(epoch FROM clock_timestamp())*1000", &[]).await?;
         tx.execute("UPDATE plenora_chain_acceptance SET tombstone=true WHERE expires_at <= clock_timestamp() AND NOT tombstone", &[]).await?;
         tx.execute("UPDATE plenora_chain_outbox o SET expired=true, lease=NULL, lease_until=NULL FROM plenora_chain_acceptance a WHERE o.id=a.id AND a.tombstone AND NOT o.delivered", &[]).await?;
         // The product journal shares the report clock even when nobody reads the result.

@@ -342,3 +342,11 @@ Il risultato `reference_only` non certifica payload referenziati, conservazione
 Arrow reale, report disponibili, autorizzazioni, provider o runtime. I gate sono
 espliciti in [qualification](../qualification.md),
 [contract-alignment](../contract-alignment.md) e [security-review](../security-review.md).
+
+## Tempo osservato oltre deadline
+
+La durata osservata puo superare il budget durante stop/finalizzazione. Il
+contatore elapsed_ms conserva il valore esatto; l'overrun e ammesso soltanto
+su esito non succeeded con errore timeout esplicito nello step/risultato
+pertinente. Gli altri contatori restano limitati. Questa regola non autorizza
+nuove invocazioni oltre deadline e non converte un commit noto in rollback.

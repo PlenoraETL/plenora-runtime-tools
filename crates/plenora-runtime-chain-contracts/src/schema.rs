@@ -92,6 +92,19 @@ pub(crate) fn structure(value: &Value, file: &str) -> Checked<()> {
     ensure(schemas.matches(value, schema, file), Code::Schema)
 }
 
+pub(crate) fn step_result(value: &Value) -> Checked<()> {
+    let schemas = schemas()?;
+    let schema = schemas
+        .documents
+        .get("common.schema.json")
+        .and_then(|d| d.pointer("/$defs/step_result"))
+        .ok_or(Code::Schema)?;
+    ensure(
+        schemas.matches(value, schema, "common.schema.json"),
+        Code::Schema,
+    )
+}
+
 fn size_valid(schema: &Value, length: usize, min: &str, max: &str) -> bool {
     schema
         .get(min)

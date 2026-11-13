@@ -1,0 +1,24 @@
+[package]
+name = "plenora-runtime-chains"
+description = "Sequential chain coordination with fenced durable journals."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+plenora-runtime-chain-contracts = { version = "=0.1.0", path = "../plenora-runtime-chain-contracts" }
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
+
+[lints]
+workspace = true

@@ -365,3 +365,16 @@ fn combined_port_limit_is_exact() -> Result<(), Box<dyn Error>> {
     );
     Ok(())
 }
+
+#[test]
+fn observed_elapsed_overrun_requires_explicit_timeout() -> Result<(), Box<dyn Error>> {
+    let (plan, registry) = setup()?;
+    let mut result = parse_result(&load("result-failed-valid.json")?)?;
+    result.counters.elapsed_ms = plan.budgets.elapsed_ms + 1;
+    assert!(validate_result(&result, &plan, &registry).is_err());
+    result.error.as_mut().ok_or("error")?.category = "timeout".into();
+    validate_result(&result, &plan, &registry)?;
+    result.counters.memory_bytes = plan.budgets.memory_bytes + 1;
+    assert!(validate_result(&result, &plan, &registry).is_err());
+    Ok(())
+}

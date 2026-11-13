@@ -392,3 +392,34 @@ stesso scenario e eseguito localmente con un doppio, senza attestare il backend.
 Storage significa autorita non confermata: la SPI comune aggrega anche assenza
 e scadenza oltre a errori transitori. Nessuna promessa di successo con retry;
 la finestra durevole e i tombstone continuano a impedire nuove invocazioni.
+
+## Incremento P1.4/P1.5 non qualificato
+
+Regola: stessa semantica e stessi gate su Rust, CLI, SDK sync/async e runtime.
+Ambito: coordinatore sequenziale e facciate sperimentali, con adapter fake
+esplicitamente dichiarati. Sono presenti journal PostgreSQL, scope host
+(tenant, chain.submit@2, chiave), CAS, evidenza originale conservata prima della
+classificazione, cancel richiesto distinto da stop e recovery senza replay.
+Le prove locali sono in crates/plenora-runtime-chains/tests/sequential.rs e
+crates/plenora-runtime-chain-python/tests/test_installed.py. Non chiudono RT-022
+nel runtime durevole preesistente, che continua a rifiutare le chiavi.
+
+Deviazioni esplicite: un solo tentativo, facciate del harness senza boundary,
+CLI scripted-call invece della sintassi finale, eventi a pagine senza iteratori,
+classificazione degli errori delle facciate ancora sperimentale. Rischio:
+scambiare la presenza dei metodi per parita qualificata. Chiusura: gate
+[P1.4/P1.5](qualification.md#gate-p14p15-sperimentale) e ADR 0010.
+Nessuna cella dell'inventario e promossa per queste prove incrementali.
+
+Il validatore locale dell'esito ammette elapsed_ms osservato oltre budget solo
+su esito non riuscito con timeout esplicito, per conservare il tempo di arresto
+senza clamp. Regola, ambito e rischio: bozza locale, non ratifica upstream; non
+autorizza nuovi effetti dopo deadline. Chiusura: ratifica e vettori centrali.
+
+Gli ingressi aggiunti nell'inventario boundary-api sono classificati come:
+parse_step_result = decoder chiuso senza I/O; ChainEngine/Store/Submission/Change =
+coordinatore e SPI fidate con autorita non costruibile dai caller; ScriptedHost,
+CLI scripted-call, NativeClient/NativeRemoteClient e NATS serve = harness
+sperimentale di ADR 0010, non ingresso del prodotto qualificato. Le prove di
+parita disponibili sono limitate al corpus elencato nel resoconto, e non
+chiudono l'enumerazione RT richiesta per ogni superficie.

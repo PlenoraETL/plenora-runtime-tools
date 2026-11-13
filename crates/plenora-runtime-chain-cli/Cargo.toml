@@ -1,0 +1,21 @@
+[package]
+name = "plenora-runtime-chain-cli"
+description = "Machine JSON facade for the explicitly scripted chain qualification host."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[[bin]]
+name = "plenora-runtime"
+path = "src/main.rs"
+
+[dependencies]
+plenora-runtime-chain-host = { version = "=0.1.0", path = "../plenora-runtime-chain-host" }
+plenora-runtime-chains = { version = "=0.1.0", path = "../plenora-runtime-chains" }
+serde_json.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+
+[lints]
+workspace = true

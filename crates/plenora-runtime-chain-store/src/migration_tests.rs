@@ -109,7 +109,7 @@ mod cases {
                 )
                 .await?
                 .try_get(0)?;
-            if tables != 10 {
+            if tables != 11 {
                 return Err(StoreError::Invalid);
             }
         }

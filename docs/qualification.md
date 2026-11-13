@@ -267,3 +267,27 @@ Il job PostgreSQL esegue anche il percorso combinato con NATS, con entrambi i
 container effimeri e cleanup always. Non sono stati eseguiti sull'host.
 Rischio: confondere prove locali con qualifica infrastrutturale o engine reali.
 Chiusura: job verdi sul medesimo candidato; nessuna superficie CLI/SDK promossa.
+
+## Gate P1.4/P1.5 sperimentale
+
+Regola: P1.4/P1.5 richiedono macchina a stati/crash matrix completa e parita su
+cinque superfici. Ambito: nuovi crate chains, chain-host, chain-cli e chain-python.
+Il coordinatore corrente rifiuta retry con piu tentativi; le facciate sono un
+harness scriptato, non attraversano ancora il boundary/dispatcher prodotto.
+Restano aperti: retry/backoff completi, prenotazione completa delle risorse,
+manifest/lease e autorizzazione reali, enumerazione RT/catalogo su ogni superficie,
+iteratori eventi, CLI finale, errori di dominio finali e test di controllo da
+wheel/binario su PostgreSQL/NATS. Il trasporto NATS del solo harness non e P2.5.
+
+Rischio: confondere prove incrementali con chiusura dei blocchi. Condizione di
+chiusura: integrazione e prove mancanti, rilettura senza rilievi bloccanti, CI
+Linux/Windows sul candidato. Il resoconto locale e target/P1-4-5.md. Nessun gate
+reale o non eseguito e attestato dai doppi scriptati.
+
+La prenotazione del journal e ancora da qualificare contro la dimensione reale
+dei rapporti degli adapter; un esito oltre il canale puo richiedere recovery.
+Il replay di submit con deadline esplicita del chiamante gia scaduta richiede
+ancora il lookup idempotente prima del controllo della nuova accettazione.
+Il server NATS sperimentale deve ancora completare il drain isolato dei task
+in presenza di errore di pubblicazione. Questi limiti impediscono la chiusura
+del blocco, anche in presenza di gate di compilazione verdi.

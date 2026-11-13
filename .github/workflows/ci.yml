@@ -89,6 +89,22 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --all-targets --all-features --locked
 
+      - name: Install pinned native wheel builder
+        run: python -m pip install maturin==1.15.0
+
+      - name: Build and install native wheel
+        run: |
+          maturin build --manifest-path crates/plenora-runtime-chain-python/Cargo.toml --locked --out target/chain-wheels
+          python -m pip install --no-index --find-links target/chain-wheels plenora_runtime==0.1.0
+
+      - name: Install chain qualification binary
+        run: cargo install --path crates/plenora-runtime-chain-cli --root target/chain-install --debug --locked
+
+      - name: Verify installed scripted surfaces and async heartbeat
+        env:
+          PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: python -m unittest discover -s crates/plenora-runtime-chain-python/tests -p 'test_*.py'
+
       - name: Build documentation
         env:
           RUSTDOCFLAGS: -D warnings
@@ -264,6 +280,10 @@ jobs:
           $status = ./scripts/nats-docker.ps1 Start | ConvertFrom-Json
           "run_id=$($status.run_id)" >> $env:GITHUB_OUTPUT
           "client_url=$($status.client_url)" >> $env:GITHUB_OUTPUT
+      - name: Run scripted facade over real NATS
+        env:
+          PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}
+        run: cargo test -p plenora-runtime-chain-host --test remote --locked -- --ignored --nocapture
       - name: Run product PostgreSQL and NATS settlement tests
         env:
           PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}

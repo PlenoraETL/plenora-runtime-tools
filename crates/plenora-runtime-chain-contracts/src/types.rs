@@ -1854,3 +1854,10 @@ impl crate::Decode for ChainError {
             .map_err(|_| crate::Rejection(crate::Code::Schema))
     }
 }
+impl crate::Decode for StepResult {
+    fn decode(value: serde_json::Value) -> crate::error::Checked<Self> {
+        serde_json::from_value::<wire::StepResult>(value)
+            .map(Into::into)
+            .map_err(|_| crate::Rejection(crate::Code::Schema))
+    }
+}

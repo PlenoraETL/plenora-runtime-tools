@@ -170,6 +170,11 @@
               "RT-020",
               "RT-024"
             ]
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -228,6 +233,11 @@
             "rejection": "errore tipizzato con risultato allegato",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -308,6 +318,11 @@
               "RT-020",
               "RT-024"
             ]
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -389,6 +404,11 @@
               "RT-020",
               "RT-024"
             ]
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -452,7 +472,12 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "cli": {
           "status": "specificata",
@@ -514,6 +539,11 @@
             "rejection": "expected_revision stale",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -594,6 +624,11 @@
               "RT-020",
               "RT-024"
             ]
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -2830,7 +2865,12 @@
             "limit": "attesa/backoff/pubblicazione inclusi; cleanup finito separato",
             "effect": "restart non rinnova deadline; timeout attesa non cancella run"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "cli": {
           "status": "specificata",
@@ -3497,6 +3537,11 @@
             "rejection": "store non autorevole o worker stale",
             "limit": "race multi-host e lease scaduto",
             "effect": "crash in ogni finestra C.4; commit remoto non atomico col journal"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -3556,7 +3601,12 @@
             "limit": "chiave vuota/oltre bound; race e restart",
             "effect": "assenza esito non prova none; niente dedup remota inventata"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "cli": {
           "status": "specificata",
