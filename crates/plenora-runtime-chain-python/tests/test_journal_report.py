@@ -16,7 +16,7 @@ class InstalledJournal(unittest.IsolatedAsyncioTestCase):
         fixture = json.loads(source)
         config, run_id, expected = fixture["config"], fixture["run_id"], fixture["expected"]
         self.assertGreater(len(expected), 400 * 1024)
-        sync, asynchronous = Client(config), AsyncClient(config)
+        sync, asynchronous = await asyncio.to_thread(Client, config), AsyncClient(config)
         def binary(cursor):
             with tempfile.TemporaryDirectory(dir=Path(os.environ["PLENORA_JOURNAL_REPORT"]).parent) as folder:
                 profile = Path(folder) / "config.json"

@@ -914,3 +914,33 @@ async fn legacy_unreserved_intention_never_starts_a_new_receipt() -> Result<(), 
     assert!(store.1.lock().map_err(|_| "receipts")?.is_empty());
     Ok(())
 }
+
+#[tokio::test]
+async fn crash_before_intention_confirmation_never_invokes_and_restart_is_safe()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let adapter = adapter(false, false)?;
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock(),
+        "tenant",
+    )?;
+    let controls = options();
+    let accepted = engine.submit(&plan()?, controls.clone()).await?;
+    let before = store.load("tenant", &accepted.run_id).await?.to_json()?;
+    store.15.store(true, Ordering::SeqCst);
+    assert_eq!(engine.advance(&accepted.run_id).await, Err(Error::Storage));
+    assert_eq!(
+        store.load("tenant", &accepted.run_id).await?.to_json()?,
+        before
+    );
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
+    assert!(store.1.lock().map_err(|_| "ledger")?.is_empty());
+    drop(engine);
+    let restarted = ChainEngine::new(store, adapter.clone(), registry()?, clock(), "tenant")?;
+    assert_eq!(restarted.run(&plan()?, controls).await?.state, "succeeded");
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 3);
+    Ok(())
+}

@@ -712,3 +712,30 @@ adozione provider reali separata e criterio 6 con intera matrice C e controlli
 remoti end-to-end. Le nuove prove PostgreSQL/NATS della wheel e del binario sono
 cablati nei job esistenti e restano ignorati localmente quando manca infrastruttura.
 Esiti locali e stato corrente dei criteri in target/P1-4-5.md.
+
+
+## P1.5 criterio 6: controlli installati e crash matrix C
+
+Regola: ogni riga C.4 deve avere prove eseguibili, senza confondere assenza di
+risultato con assenza di effetto. Ambito: esecutore/host con adapter dichiarati
+fake, piu prove PostgreSQL/NATS dei sottosistemi durevoli e del trasporto.
+La fonte enumerata e [CHAIN-CRASH-MATRIX-C](specs/CHAIN-CRASH-MATRIX-C.md);
+[chain-crash-evidence.json](chain-crash-evidence.json) associa tutte le sette
+righe a test locali e reali ignorati. Il gate verifica fonte, righe, test,
+classificazione ignored/local e cablaggio CI; omissioni e prove mancanti sono
+regressioni negative. Non si attesta un process-kill end-to-end per ogni riga.
+
+I controlli positivi installati usano CLI nominata, Client e AsyncClient sia
+sul primario reale sia tramite NATS. La prova remota mantiene lease primarie
+rinnovate sui run accettati finche cancel e persistito; quindi le rilascia al
+worker. Verifica observe inerte, revisioni obsolete rifiutate, resume fino a
+cancelled, nessun tentativo/effetto, pagine eventi complete e duplicate control
+senza nuovi eventi. La barriera di scheduling e dichiarata: non si prova stop
+di un provider reale. Subprocess e costruttori sync sono fuori dai loop async.
+
+Rischio residuo: attribuire questi esiti a librerie ETL/provider reali o alla
+CI non eseguita. Condizione di chiusura infrastrutturale: job esistenti verdi
+sullo stesso SHA con wheel/binario installati e container effimeri; adozione
+librerie reali resta successiva. Il cablaggio e compilato localmente, i test
+infrastrutturali restano ignorati dove mancano i servizi. I criteri 1-6 sono
+riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.

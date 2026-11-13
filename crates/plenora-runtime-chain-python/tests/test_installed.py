@@ -55,7 +55,7 @@ class Installed(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(caught.exception.code, "storage")
 
     async def test_report_cursor_on_installed_bindings(self):
-        sync, asynchronous = Client(CONFIG), AsyncClient(CONFIG)
+        sync, asynchronous = await asyncio.to_thread(Client, CONFIG), AsyncClient(CONFIG)
         for cursor, expected in [({"index": 0, "offset": 0}, "not_found" if os.environ.get("PLENORA_POSTGRES_URL") else "storage"),
                                  ({"index": 0, "offset": -1}, "invalid")]:
             with self.assertRaises(ChainError) as error:
@@ -78,7 +78,7 @@ class Installed(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(json.loads(result.stdout)["error"], expected)
 
     async def test_sync_async_error_parity_for_every_function(self):
-        sync = Client(CONFIG)
+        sync = await asyncio.to_thread(Client, CONFIG)
         asynchronous = AsyncClient(CONFIG)
         for name, arguments in CASES.items():
             with self.subTest(function=name):
@@ -100,10 +100,10 @@ class Installed(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(arguments["run_id"], event["run_id"])
             start = arguments["cursor"]
             return events[start:start + arguments["limit"]]
-        sync = Client(CONFIG)
+        sync = await asyncio.to_thread(Client, CONFIG)
         asynchronous = AsyncClient(CONFIG)
         with patch.object(sync, "call", side_effect=page):
-            self.assertEqual(list(sync.iter_events(event["run_id"], limit=2)), events)
+            self.assertEqual(await asyncio.to_thread(lambda: list(sync.iter_events(event["run_id"], limit=2))), events)
         async def async_page(function, **arguments):
             await asyncio.sleep(0)
             return page(function, **arguments)
@@ -213,7 +213,7 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
         await client.migrate()
         controls = dict(OPTIONS, run_id=str(uuid.uuid4()), idempotency_key=str(uuid.uuid4()))
         receipt = await client.submit(plan=PLAN, options=controls)
-        sync = Client(config)
+        sync = await asyncio.to_thread(Client, config)
         cancelled = await asyncio.to_thread(sync.cancel, run_id=receipt["run_id"], revision=receipt["revision"])
         with self.assertRaises(ChainError) as stale:
             await client.resume(run_id=receipt["run_id"], revision=receipt["revision"])
@@ -253,7 +253,7 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
         config["artifacts"]["ref:fidelity-write"].append(0)
         client = AsyncClient(config)
         await client.migrate()
-        sync = Client(config)
+        sync = await asyncio.to_thread(Client, config)
         failures = []
         with self.assertRaises(ChainError) as rejected:
             await asyncio.to_thread(sync.run, plan=PLAN, options=dict(OPTIONS, run_id=str(uuid.uuid4())))
@@ -289,7 +289,7 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
         config = dict(CONFIG, tenant="journal-" + str(uuid.uuid4()), journal_bytes=1)
         client = AsyncClient(config)
         await client.migrate()
-        sync = Client(config)
+        sync = await asyncio.to_thread(Client, config)
         with self.assertRaises(ChainError) as rejected:
             await asyncio.to_thread(sync.submit, plan=PLAN, options=dict(OPTIONS, run_id=str(uuid.uuid4())))
         self.assertEqual(rejected.exception.code, "resource_limit")
@@ -330,7 +330,7 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
                       authorized_plans=[json.dumps(plan)])
         client = AsyncClient(config)
         await client.migrate()
-        sync = Client(config)
+        sync = await asyncio.to_thread(Client, config)
         def options():
             return dict(OPTIONS, run_id=str(uuid.uuid4()))
         results = [await asyncio.to_thread(sync.run, plan=json.dumps(plan), options=options()),

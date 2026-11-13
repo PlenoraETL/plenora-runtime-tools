@@ -642,6 +642,12 @@
           "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
           "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
           "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "p1_5_criterion_6": {
+          "scope": "Declared scripted providers; positive installed native/remote controls on real PostgreSQL/NATS, CI wired and locally skipped without infrastructure. No real-library attestation.",
+          "installed": "crates/plenora-runtime-chain-python/tests/test_controls_real.py",
+          "host": "crates/plenora-runtime-chain-host/tests/controls.rs",
+          "crash_matrix": "docs/chain-crash-evidence.json"
         }
       }
     },
@@ -714,6 +720,12 @@
           "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
           "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
           "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "p1_5_criterion_6": {
+          "scope": "Declared scripted providers; positive installed native/remote controls on real PostgreSQL/NATS, CI wired and locally skipped without infrastructure. No real-library attestation.",
+          "installed": "crates/plenora-runtime-chain-python/tests/test_controls_real.py",
+          "host": "crates/plenora-runtime-chain-host/tests/controls.rs",
+          "crash_matrix": "docs/chain-crash-evidence.json"
         }
       }
     },
@@ -826,6 +838,12 @@
           "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
           "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
           "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "p1_5_criterion_6": {
+          "scope": "Declared scripted providers; positive installed native/remote controls on real PostgreSQL/NATS, CI wired and locally skipped without infrastructure. No real-library attestation.",
+          "installed": "crates/plenora-runtime-chain-python/tests/test_controls_real.py",
+          "host": "crates/plenora-runtime-chain-host/tests/controls.rs",
+          "crash_matrix": "docs/chain-crash-evidence.json"
         }
       }
     },

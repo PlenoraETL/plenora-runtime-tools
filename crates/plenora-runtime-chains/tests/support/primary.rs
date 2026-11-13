@@ -38,6 +38,7 @@ pub struct ScriptStore(
     pub Mutex<Option<Pause>>,
     pub std::sync::atomic::AtomicU64,
     pub Mutex<Option<Pause>>,
+    pub AtomicBool,
 );
 #[async_trait]
 impl Store for ScriptStore {
@@ -338,6 +339,9 @@ impl Store for ScriptStore {
         expected: u64,
         next: plenora_runtime_chains::Change,
     ) -> Result<(), Error> {
+        if self.15.swap(false, Ordering::SeqCst) {
+            return Err(Error::Storage); // Declared failure before any durable CAS mutation.
+        }
         let lease = next.lease().cloned();
         let next = next.into_journal();
         let mut rows = self.0.lock().map_err(|_| Error::Storage)?;

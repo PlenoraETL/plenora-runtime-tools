@@ -77,5 +77,8 @@ per sostituzione con un backend in memoria.
 
 Le righe RT della matrice esercitano le regressioni pertinenti delle facciate
 e collegano le garanzie strutturali ai gate di architettura. Non sostituiscono
-il corpus completo raw-ingress/settlement/crash: il criterio 6, inclusa tutta
-la crash matrix C e i controlli remoti end-to-end, resta il passo successivo.
+il corpus completo raw-ingress/settlement/crash. La copertura C.4 e ora
+enumerata in [chain-crash-evidence](chain-crash-evidence.json), distinguendo
+prove locali e reali di sottosistema. I controlli installati positivi sono in
+test_controls_real.py, cablati nel job PostgreSQL/NATS; esito CI da verificare
+sullo SHA corrente, senza attestare librerie reali.

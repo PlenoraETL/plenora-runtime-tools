@@ -1,0 +1,144 @@
+{
+  "source": "docs/specs/CHAIN-CRASH-MATRIX-C.md",
+  "table_sha256": "3c5b172109bcfa4e50c599744599e41ea46245d4275340f717d5600be8eb31db",
+  "scope": "Layered behavioral qualification: coordinator/host doubles plus real primary/broker subsystem proofs; not seven integrated process-kill scenarios. Domain libraries remain scripted.",
+  "points": [
+    {
+      "id": "C01",
+      "requirement": "Prima dell'intenzione durevole",
+      "proofs": [
+        {
+          "path": "crates/plenora-runtime-chains/tests/sequential.rs",
+          "test": "crash_before_intention_confirmation_never_invokes_and_restart_is_safe",
+          "gate": "workspace"
+        },
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "acceptance_failure_keeps_receipt_ready_until_authority_is_confirmed",
+          "gate": "workspace"
+        },
+        {
+          "path": "crates/plenora-runtime-chain-store/src/tests.rs",
+          "test": "postgres_real",
+          "gate": "postgres_store"
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "requirement": "Intenzione presente, nessuna prova che invoke sia iniziata",
+      "proofs": [
+        {
+          "path": "crates/plenora-runtime-chains/tests/sequential.rs",
+          "test": "crash_before_runtime_receipt_never_grants_a_reconciliation_shortcut",
+          "gate": "workspace"
+        },
+        {
+          "path": "crates/plenora-runtime-chains/tests/retry_worker.rs",
+          "test": "two_owners_before_receipt_creation_share_one_immutable_carrier",
+          "gate": "workspace"
+        },
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "postgres_real_product_settlement",
+          "gate": "postgres_delivery"
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "requirement": "Running senza esito dopo scadenza lease",
+      "proofs": [
+        {
+          "path": "crates/plenora-runtime-chains/tests/sequential.rs",
+          "test": "unknown_crash_never_replays_and_cancel_does_not_claim_stop",
+          "gate": "workspace"
+        },
+        {
+          "path": "crates/plenora-runtime-chains/tests/retry_worker.rs",
+          "test": "worker_recovers_receipt_crashes_with_monotone_ownership_and_no_double_invoke",
+          "gate": "workspace"
+        },
+        {
+          "path": "crates/plenora-runtime-chain-store/src/resources_tests.rs",
+          "test": "postgres_real_owned_buffers_renew_expire_cleanup_and_preserve_tombstones",
+          "gate": "postgres_store"
+        }
+      ]
+    },
+    {
+      "id": "C04",
+      "requirement": "Commit remoto noto, journal non completato",
+      "proofs": [
+        {
+          "path": "crates/plenora-runtime-chains/tests/sequential.rs",
+          "test": "crash_after_runtime_evidence_finalizes_without_reinvoking_domain",
+          "gate": "workspace"
+        },
+        {
+          "path": "crates/plenora-runtime-chain-host/tests/support/host.rs",
+          "test": "unknown_and_recovery_keep_complete_runtime_evidence_without_reinvoke",
+          "gate": "workspace"
+        },
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "postgres_real_product_settlement",
+          "gate": "postgres_delivery"
+        }
+      ]
+    },
+    {
+      "id": "C05",
+      "requirement": "Esito e outbox durevoli, risposta esterna persa",
+      "proofs": [
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "product_settlement_scenario_matches_the_real_probe",
+          "gate": "workspace"
+        },
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "postgres_real_product_settlement",
+          "gate": "postgres_delivery"
+        }
+      ]
+    },
+    {
+      "id": "C06",
+      "requirement": "ACK perso dopo risultato",
+      "proofs": [
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "rt026_027_apalis_ack_loss_dlq_redrive_and_no_store_confirmation",
+          "gate": "workspace"
+        },
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "nats_postgres_real_product_end_to_end",
+          "gate": "postgres_delivery"
+        }
+      ]
+    },
+    {
+      "id": "C07",
+      "requirement": "Artifact temporaneo senza pubblicazione",
+      "proofs": [
+        {
+          "path": "crates/plenora-runtime-chain-host/tests/support/ownership.rs",
+          "test": "cleanup_survives_cancel_and_both_sides_of_commit_without_losing_evidence",
+          "gate": "workspace"
+        },
+        {
+          "path": "crates/plenora-runtime-chain-host/tests/support/ownership.rs",
+          "test": "failed_and_unknown_steps_keep_distinct_cleanup_authority_and_recovery_imports_outputs",
+          "gate": "workspace"
+        },
+        {
+          "path": "crates/plenora-runtime-chain-store/src/resources_tests.rs",
+          "test": "postgres_real_owned_buffers_renew_expire_cleanup_and_preserve_tombstones",
+          "gate": "postgres_store"
+        }
+      ]
+    }
+  ]
+}
