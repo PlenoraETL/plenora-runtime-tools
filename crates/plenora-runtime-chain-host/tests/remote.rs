@@ -201,3 +201,57 @@ async fn check_owned(
     );
     Ok(())
 }
+
+/// Installed bindings exercise every matrix cell while real broker hosts keep polling.
+#[tokio::test]
+#[ignore = "Requires real PostgreSQL/NATS and the installed wheel/binary from the existing CI job"]
+async fn nats_real_installed_surface_matrix() -> Result<(), Box<dyn Error>> {
+    let server = std::env::var("PLENORA_NATS_URL")?;
+    let database = std::env::var("PLENORA_POSTGRES_URL")?;
+    let binary = std::env::var("PLENORA_CHAIN_BIN")?;
+    let matrix: serde_json::Value = serde_json::from_str(include_str!("fixtures/surfaces.json"))?;
+    let mut endpoints = serde_json::Map::new();
+    let mut tasks = Vec::new();
+    for (name, profile) in matrix["profiles"].as_object().ok_or("profiles")? {
+        let mut config: ScriptedConfig = serde_json::from_value(profile.clone())?;
+        config.database.clone_from(&database);
+        config.tenant = uuid::Uuid::new_v4().to_string();
+        let host = Arc::new(ScriptedHost::new(config)?);
+        host.migrate().await?;
+        let subject = format!("matrix.{}", uuid::Uuid::new_v4().simple());
+        endpoints.insert(
+            name.clone(),
+            serde_json::json!({"server":server,"subject":subject}),
+        );
+        let address = server.clone();
+        let (ready, received) = tokio::sync::oneshot::channel();
+        tasks.push(tokio::spawn(async move {
+            host.serve(&address, &subject, ready).await
+        }));
+        tokio::time::timeout(Duration::from_secs(10), received).await??;
+    }
+    let endpoints = serde_json::to_string(&endpoints)?;
+    let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../plenora-runtime-chain-python/tests/test_surface_matrix.py");
+    let process = tokio::task::spawn_blocking(move || {
+        std::process::Command::new("python")
+            .arg(script)
+            .arg("Matrix.test_remote_installed_every_rt_and_operation")
+            .env("PLENORA_MATRIX_ENDPOINTS", endpoints)
+            .env("PLENORA_POSTGRES_URL", database)
+            .env("PLENORA_CHAIN_BIN", binary)
+            .output()
+    })
+    .await;
+    for task in tasks {
+        task.abort();
+        let _cancelled = task.await;
+    }
+    let output = process??;
+    assert!(
+        output.status.success(),
+        "installed matrix: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    Ok(())
+}

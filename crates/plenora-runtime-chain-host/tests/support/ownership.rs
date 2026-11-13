@@ -253,6 +253,7 @@ async fn failed_and_unknown_steps_keep_distinct_cleanup_authority_and_recovery_i
         ));
         let resumed = h
             .execute(Request::Resume {
+                recovery: plenora_runtime_chains::Recovery::Reconcile,
                 run_id: id.clone(),
                 revision: journal.revision(),
             })

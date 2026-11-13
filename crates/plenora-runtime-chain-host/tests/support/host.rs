@@ -220,8 +220,21 @@ async fn unknown_and_recovery_keep_complete_runtime_evidence_without_reinvoke() 
             run_id: run_id.clone(),
         })
         .await;
+    let denied = h
+        .execute(Request::Resume {
+            run_id: run_id.clone(),
+            revision: status.value["revision"].as_u64().ok_or("revision")?,
+            recovery: plenora_runtime_chains::Recovery::Continue,
+        })
+        .await;
+    assert_eq!(denied.error, Some(Error::Recovery));
+    assert_eq!(denied.value["revision"], status.value["revision"]);
+    assert_eq!(denied.failure().ok_or("failure")?.remote_effect, "unknown");
+    assert!(denied.value["observed_result"].is_object());
+    assert_eq!(domain_attempts(&store)?, 3);
     let resumed = h
         .execute(Request::Resume {
+            recovery: plenora_runtime_chains::Recovery::Reconcile,
             run_id: run_id.clone(),
             revision: status.value["revision"].as_u64().ok_or("revision")?,
         })
@@ -475,3 +488,83 @@ mod verification_tests;
 
 #[path = "ownership.rs"]
 mod ownership_tests;
+
+#[tokio::test]
+async fn public_recovery_observation_is_inert_and_revision_is_exact() -> ResultTest {
+    let store = Arc::new(ScriptStore::default());
+    let h = host(store.clone(), "recovery-control")?;
+    let submitted = h.execute(request(false, None)).await;
+    let id = submitted.value["run_id"].as_str().ok_or("run")?.to_owned();
+    let revision = submitted.value["revision"].as_u64().ok_or("revision")?;
+    let observed = h
+        .execute(Request::Resume {
+            run_id: id.clone(),
+            revision,
+            recovery: plenora_runtime_chains::Recovery::Observe,
+        })
+        .await;
+    assert_eq!(observed.error, None);
+    assert_eq!(observed.value, submitted.value);
+    assert_eq!(domain_attempts(&store)?, 0);
+    let invalid = h.call(&serde_json::to_vec(&json!({"function":"resume","run_id":id,"revision":revision,"recovery":{"stop_confirmed":true}}))?).await;
+    assert_eq!(invalid.error, Some(Error::Invalid));
+    let advanced = h
+        .execute(Request::Resume {
+            run_id: id.clone(),
+            revision,
+            recovery: plenora_runtime_chains::Recovery::Continue,
+        })
+        .await;
+    assert_eq!(advanced.error, None);
+    assert_eq!(domain_attempts(&store)?, 1);
+    let stale = h
+        .execute(Request::Resume {
+            run_id: id,
+            revision,
+            recovery: plenora_runtime_chains::Recovery::Observe,
+        })
+        .await;
+    assert_eq!(stale.error, Some(Error::Conflict));
+    Ok(())
+}
+
+#[test]
+fn terminal_boundary_failures_keep_every_axis_instead_of_guessing_from_category() -> ResultTest {
+    use plenora_runtime_capabilities::{
+        PlenoraError, PlenoraErrorCategory as C, PlenoraErrorPhase as P,
+        PlenoraErrorRemoteEffect as E, PlenoraErrorRetry as R,
+    };
+    for (effect, retry) in [
+        (E::None, R::Never),
+        (E::Committed, R::Never),
+        (E::Partial, R::Never),
+        (E::Unknown, R::RequiresRecovery),
+    ] {
+        let upstream = PlenoraError::new(
+            C::ResourceLimit,
+            P::Cleanup,
+            effect,
+            retry,
+            "Result remains recoverable.",
+        )?;
+        let bytes = serde_json::to_vec(&upstream)?;
+        let response = control::response(
+            &plenora_runtime_messaging::SerializedMessage::new(
+                "application/vnd.plenora.error+json",
+                bytes,
+            ),
+            &json!({}),
+        );
+        let axes = response.failure().ok_or("failure")?;
+        assert_eq!(axes.kind, "boundary");
+        assert_eq!(axes.phase, "cleanup");
+        assert_eq!(axes.category, "resource_limit");
+        assert_eq!(json!(axes.remote_effect), json!(effect));
+        assert_eq!(axes.retry, json!(retry));
+        assert_eq!(
+            response.exit_code(),
+            if effect == E::Unknown { 4 } else { 3 }
+        );
+    }
+    Ok(())
+}

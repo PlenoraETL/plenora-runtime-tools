@@ -298,6 +298,7 @@ jobs:
           "client_url=$($status.client_url)" >> $env:GITHUB_OUTPUT
       - name: Run scripted facade over real NATS
         env:
+          PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime
           PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}
         shell: bash
         run: |

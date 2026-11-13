@@ -42,6 +42,9 @@ I numeri del contenitore sono interi JSON lessicali fra 0 e 2^53−1, positivi
 dove lo schema richiede; `-0` non è canonico; `2.0`, `2e0`, booleani e stringhe non sono versioni.
 I payload di dominio sono documenti separati: possono contenere numeri del
 proprio contratto senza modificarli o convertirli in questo contenitore.
+Operazioni: due o piu segmenti canonici `[a-z][a-z0-9_]*` separati da punto;
+nessun segmento vuoto. Include i nomi `database.transaction.*` del catalogo
+fissato, senza alias e senza promessa di provider implementato.
 UUID minuscoli con trattini, ID e porte ASCII `[a-z][a-z0-9_-]*`, 1–64 caratteri.
 Versioni positive fino a 2147483647; pacchetti esatti major.minor.patch,
 SHA-256 esadecimali minuscoli; niente latest, range o fallback.

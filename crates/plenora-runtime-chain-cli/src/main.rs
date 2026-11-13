@@ -14,14 +14,7 @@ fn main() -> std::process::ExitCode {
             error: Some(error),
         },
     };
-    let code = match response.error {
-        None => 0,
-        Some(Error::Invalid | Error::Unsupported | Error::Conflict | Error::ResourceLimit) => 2,
-        Some(Error::Recovery) => 4,
-        Some(Error::Failed) => 3,
-        Some(Error::Cancelled) => 5,
-        _ => 6,
-    };
+    let code = response.exit_code();
     if emit(&response).is_err() {
         return std::process::ExitCode::from(6);
     }

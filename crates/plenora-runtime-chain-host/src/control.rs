@@ -305,13 +305,29 @@ pub(crate) fn response(terminal: &SerializedMessage, report: &Value) -> Response
         return reply;
     }
 
-    let value: Value = serde_json::from_slice(&terminal.bytes).unwrap_or(Value::Null);
-    error(match value["category"].as_str() {
-        Some("protocol" | "invalid_configuration") => Error::Invalid,
-        Some("unsupported") => Error::Unsupported,
-        Some("timeout") => Error::Timeout,
-        Some("resource_limit") => Error::ResourceLimit,
-        Some("conflict") => Error::Conflict,
-        _ => Error::Recovery,
-    })
+    // This is the terminal produced by the confirmed durable runtime, not a caller-supplied error.
+    let Ok(value) = serde_json::from_slice::<Value>(&terminal.bytes) else {
+        return error(Error::Recovery);
+    };
+    let code = if value["remote_effect"] == "unknown" {
+        Error::Recovery
+    } else if value["phase"] == "validate" && value["remote_effect"] == "none" {
+        match value["category"].as_str() {
+            Some("protocol" | "invalid_configuration") => Error::Invalid,
+            Some("unsupported") => Error::Unsupported,
+            Some("schema") => Error::Schema,
+            Some("timeout") => Error::Timeout,
+            Some("resource_limit") => Error::ResourceLimit,
+            Some("conflict") => Error::Conflict,
+            _ => Error::Failed,
+        }
+    } else if value["category"] == "cancelled" {
+        Error::Cancelled
+    } else {
+        Error::Failed
+    };
+    Response {
+        value: json!({"boundary_error":value}),
+        error: Some(code),
+    }
 }

@@ -615,3 +615,55 @@ async fn pending_renewal_keeps_polling_the_step_that_can_release_the_primary() -
     assert_eq!(script.calls.lock().map_err(|_| "calls")?.len(), 1);
     Ok(())
 }
+
+#[tokio::test]
+async fn public_run_error_keeps_the_accepted_receipt_for_recovery() -> Test {
+    let (store, script) = setup(0, "none")?;
+    let e = engine(&store, &script)?;
+    let original = options();
+    let handle = e.submit(&plan()?, original.clone()).await?;
+    store.5.store(true, std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(e.advance(&handle.run_id).await, Err(Error::Recovery));
+    store
+        .3
+        .advance(Duration::from_millis(plan()?.budgets.elapsed_ms))?;
+    let reply = e
+        .execute(plenora_runtime_chains::Request::Run {
+            plan: String::from_utf8(canonical_plan(&plan()?)?)?,
+            options: original,
+        })
+        .await;
+    assert_eq!(reply.error, Some(Error::Recovery));
+    assert_eq!(reply.value["run_id"], handle.run_id);
+    assert!(reply.value["revision"].as_u64().is_some());
+    assert_eq!(
+        reply.failure().ok_or("failure")?.run_id.as_deref(),
+        Some(handle.run_id.as_str())
+    );
+    assert_eq!(reply.failure().ok_or("failure")?.remote_effect, "unknown");
+    assert!(script.calls.lock().map_err(|_| "calls")?.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn coordination_error_preserves_prior_committed_effect_and_active_uncertainty() -> Test {
+    let (store, script) = setup(0, "none")?;
+    let e = engine(&store, &script)?;
+    let handle = e.submit(&plan()?, options()).await?;
+    let mut latest = e.status(&handle.run_id).await?;
+    for _ in 0..3 {
+        latest = e.advance(&handle.run_id).await?;
+    }
+    let reply = e
+        .execute(plenora_runtime_chains::Request::Cancel {
+            run_id: handle.run_id,
+            revision: latest.revision - 1,
+        })
+        .await;
+    assert_eq!(reply.error, Some(Error::Conflict));
+    let failure = reply.failure().ok_or("failure")?;
+    assert_eq!(failure.effect_scope, "run");
+    assert_eq!(failure.remote_effect, "committed");
+    assert_eq!(reply.value["observed_result"]["state"], "succeeded");
+    Ok(())
+}

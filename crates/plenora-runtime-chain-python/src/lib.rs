@@ -12,18 +12,20 @@ struct NativeClient {
 #[pymethods]
 impl NativeClient {
     #[new]
-    fn new(config: &str) -> PyResult<Self> {
-        let config: ScriptedConfig =
-            serde_json::from_str(config).map_err(|_| PyRuntimeError::new_err("invalid"))?;
-        let host = ScriptedHost::new(config).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
-            .enable_all()
-            .build()
-            .map_err(|_| PyRuntimeError::new_err("storage"))?;
-        Ok(Self {
-            host: Arc::new(host),
-            runtime: Arc::new(runtime),
+    fn new(py: Python<'_>, config: &str) -> PyResult<Self> {
+        py.detach(|| {
+            let config: ScriptedConfig =
+                serde_json::from_str(config).map_err(|_| PyRuntimeError::new_err("invalid"))?;
+            let host = ScriptedHost::new(config).map_err(native_error)?;
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .enable_all()
+                .build()
+                .map_err(|_| PyRuntimeError::new_err("storage"))?;
+            Ok(Self {
+                host: Arc::new(host),
+                runtime: Arc::new(runtime),
+            })
         })
     }
     fn call(&self, py: Python<'_>, request: &str) -> PyResult<String> {
@@ -36,12 +38,24 @@ impl NativeClient {
         py.detach(|| {
             self.runtime
                 .block_on(self.host.migrate())
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+                .map_err(native_error)
         })
     }
 }
+#[pyfunction]
+fn failure_json(code: &str, value: &str) -> PyResult<String> {
+    let error = serde_json::from_value(serde_json::Value::String(code.into()))
+        .map_err(|_| PyRuntimeError::new_err("invalid"))?;
+    let value = serde_json::from_str(value).map_err(|_| PyRuntimeError::new_err("invalid"))?;
+    let response = plenora_runtime_chains::Response {
+        value,
+        error: Some(error),
+    };
+    serde_json::to_string(&response.failure()).map_err(|_| PyRuntimeError::new_err("invalid"))
+}
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_function(wrap_pyfunction!(failure_json, module)?)?;
     module.add_class::<NativeClient>()?;
     module.add_class::<NativeRemoteClient>()?;
     module.add_class::<NativeEventCursor>()?;
@@ -103,9 +117,13 @@ impl NativeRemoteClient {
                 .map_err(|_| PyRuntimeError::new_err("storage"))?;
             let client = runtime
                 .block_on(RemoteClient::connect(server, subject))
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+                .map_err(native_error)?;
             Ok(Self { client, runtime })
         })
+    }
+    #[staticmethod]
+    fn migrate() -> PyResult<()> {
+        Err(native_error(plenora_runtime_chains::Error::Unsupported))
     }
     fn call(&self, py: Python<'_>, request: &str) -> PyResult<String> {
         py.detach(|| {
@@ -122,9 +140,5 @@ impl NativeRemoteClient {
 }
 
 fn native_error(error: plenora_runtime_chains::Error) -> PyErr {
-    let code = serde_json::to_value(error)
-        .ok()
-        .and_then(|value| value.as_str().map(str::to_owned))
-        .unwrap_or_else(|| "storage".into());
-    PyRuntimeError::new_err(code)
+    PyRuntimeError::new_err(error.code())
 }

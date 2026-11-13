@@ -817,5 +817,23 @@
     "code": "CHAIN_BOUNDARY",
     "context": "dynamic-static-port-mismatch-context.json",
     "plan": null
+  },
+  {
+    "file": "operation-qualified-valid.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "context-qualified.json",
+    "plan": null
+  },
+  {
+    "file": "operation-empty-segment.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context-qualified.json",
+    "plan": null
   }
 ]

@@ -28,8 +28,10 @@ mod budget;
 mod client;
 mod engine;
 mod execution;
+mod failure;
 mod journal;
 mod protocol;
+pub use failure::Failure;
 mod reports;
 mod resources;
 pub use resources::{OwnedResource, ResourceLease, ResourceLedger, ResourceRequest};
@@ -46,7 +48,7 @@ pub use journal::{
     Submission,
 };
 pub use plenora_runtime_chain_contracts as contracts;
-pub use protocol::{FUNCTIONS, Request, Response};
+pub use protocol::{FUNCTIONS, Recovery, Request, Response};
 
 use serde::{Deserialize, Serialize};
 use std::fmt;

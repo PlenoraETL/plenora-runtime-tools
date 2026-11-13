@@ -11,7 +11,15 @@ Cancellare l'attesa non cancella il run. Le factory remote usano il client Rust 
 Rust. Una pagina vuota termina l'enumerazione, senza attestare fine run. Il cursor
 e la sequenza dell'ultimo evento consumato; per una nuova enumerazione usare
 quella sequenza. Gli errori non avanzano il cursore della pagina.
-La qualifica completa P1.5 resta aperta.
+`await AsyncClient.create(config)` valida e costruisce fuori dall'event loop;
+`AsyncClient(config)` differisce la costruzione al primo await. Il config viene
+consumato in quel momento: non modificarlo durante l'inizializzazione. Anche
+costruzione, migrate e connessione espongono ChainError, con codice canonico,
+category/phase/remote_effect/effect_scope/retry/run_id/domain_code e risultato
+originale separato da str/repr. Le proiezioni sono implementate solo in Rust.
+`resume(..., recovery="observe"|"continue"|"reconcile")` usa le stesse autorita
+CLI/Rust; omissione equivale a reconcile. Il criterio 6 resta il passo successivo.
+Dettagli e limiti in [interfaccia](../../docs/chain-interface.md).
 
 Build: `maturin build --manifest-path crates/plenora-runtime-chain-python/Cargo.toml`.
 I test in tests/test_installed.py importano una wheel installata; discovery,

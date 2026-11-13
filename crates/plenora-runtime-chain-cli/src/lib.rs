@@ -38,7 +38,23 @@ pub fn parse(
 ) -> Result<Command, Error> {
     let (function, rest) = match args {
         [first, rest @ ..] if first == "capabilities" => ("capabilities", rest),
-        [first, second, rest @ ..] if first == "chain" => (second.as_str(), rest),
+        [first, second, rest @ ..]
+            if first == "chain"
+                && matches!(
+                    second.as_str(),
+                    "validate"
+                        | "submit"
+                        | "run"
+                        | "status"
+                        | "result"
+                        | "events"
+                        | "cancel"
+                        | "resume"
+                        | "report"
+                ) =>
+        {
+            (second.as_str(), rest)
+        }
         [first, second, rest @ ..]
             if matches!(first.as_str(), "artifact" | "report") && second == "get" =>
         {
@@ -139,7 +155,20 @@ pub fn parse(
             if function == "cancel" {
                 Request::Cancel { run_id, revision }
             } else {
-                Request::Resume { run_id, revision }
+                Request::Resume {
+                    run_id,
+                    revision,
+                    recovery: match options
+                        .remove("--recovery")
+                        .as_deref()
+                        .unwrap_or("reconcile")
+                    {
+                        "observe" => plenora_runtime_chains::Recovery::Observe,
+                        "continue" => plenora_runtime_chains::Recovery::Continue,
+                        "reconcile" => plenora_runtime_chains::Recovery::Reconcile,
+                        _ => return Err(Error::Invalid),
+                    },
+                }
             }
         }
         _ => return Err(Error::Invalid),
@@ -252,6 +281,33 @@ mod tests {
             "--report-index 0 --offset -1",
         ] {
             let args = format!("chain report --run id {flags} --config fake --json")
+                .split_whitespace()
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            assert!(parse(&args, |_| Err(Error::Invalid)).is_err());
+        }
+        Ok(())
+    }
+    #[test]
+    fn recovery_modes_and_namespace_are_closed() -> Result<(), Error> {
+        for mode in ["observe", "continue", "reconcile"] {
+            let args = format!(
+                "chain resume --run id --revision 2 --recovery {mode} --config fake --json"
+            )
+            .split_whitespace()
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+            let request = serde_json::to_value(parse(&args, |_| Err(Error::Invalid))?.request)
+                .map_err(|_| Error::Invalid)?;
+            assert_eq!(request["recovery"], mode);
+        }
+        for command in [
+            "chain capabilities",
+            "chain artifact --ref ref:a",
+            "chain resume --run id --revision 1 --recovery replay",
+            "chain cancel --run id --revision 1 --recovery observe",
+        ] {
+            let args = format!("{command} --config fake --json")
                 .split_whitespace()
                 .map(str::to_owned)
                 .collect::<Vec<_>>();

@@ -285,3 +285,29 @@ Condizione di chiusura dell'adozione: adapter reali con registrazione prima
 dell'effetto, rinnovo durante il lavoro, prova di stop e cleanup idempotente
 qualificati su tutte le superfici. Nessuna promozione dei criteri 5-6 o della
 conformita complessiva; esiti dei gate locali in target/P1-4-5.md.
+
+
+## P1.5 criterio 5: protocollo e matrice delle facciate
+
+Regola: una sola semantica su Rust pubblico, CLI, SDK sync/async e remoto.
+Ambito: sintassi chiusa con recovery observe/continue/reconcile; Response.failure
+calcolato da Rust preserva categoria/fase/effetto/retry del dominio e del boundary,
+oltre a contesto e identita della run nota. Gli errori di coordinazione non
+attestano assenza di effetti per una run attiva. SDK costruisce fuori dal loop,
+rilascia il GIL e traduce uniformemente gli errori; cancellare l'attesa non cancella
+il lavoro. Interfaccia e compatibilita in [chain-interface](chain-interface.md).
+
+La matrice eseguibile enumera 37 operazioni (anche condizionali/legacy), 18 righe
+RT e 11 controlli su cinque superfici; la sottrazione di ogni cella e testata.
+Per le operazioni si usano piani a uno step e provider dichiarati fake, senza
+porte di dominio; i contratti solo inventariati restano fixture esplicite.
+Corretto il vincolo locale che rifiutava nomi catalogati database.transaction.*:
+segmenti canonici multipli, mai vuoti, con vettori Rust/Python condivisi.
+Non e un cambiamento ai contratti upstream fissati ne un'attestazione librerie.
+
+Rischio: confondere enumerazione/selezione delle facciate con qualifica della
+semantica ETL o con copertura raw-ingress/crash completa. Condizione di chiusura:
+adozione provider reali separata e criterio 6 con intera matrice C e controlli
+remoti end-to-end. Le nuove prove PostgreSQL/NATS della wheel e del binario sono
+cablati nei job esistenti e restano ignorati localmente quando manca infrastruttura.
+Esiti locali e stato corrente dei criteri in target/P1-4-5.md.

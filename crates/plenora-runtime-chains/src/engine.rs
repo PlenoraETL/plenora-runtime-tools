@@ -765,6 +765,9 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
     /// Unknown work is returned as recovery, not retried. Failed domain results remain inspectable.
     pub async fn run(&self, plan: &Plan, options: RunOptions) -> Result<ChainResult, Error> {
         let handle = self.submit(plan, options).await?;
+        self.wait_run(&handle).await
+    }
+    pub(crate) async fn wait_run(&self, handle: &RunHandle) -> Result<ChainResult, Error> {
         loop {
             match self.result(&handle.run_id).await {
                 Ok(result) => return Ok(result),
@@ -809,6 +812,29 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             self.executor.cancel(&j).await?;
         }
         j.handle()
+    }
+    /// Apply explicit caller recovery authority without accepting caller-supplied stop evidence.
+    /// # Errors
+    /// Stale revisions and continuation of active/unknown work are rejected before effects.
+    pub async fn resume_controlled(
+        &self,
+        run_id: &str,
+        expected: u64,
+        recovery: crate::Recovery,
+    ) -> Result<RunHandle, Error> {
+        let j = self.load(run_id).await?;
+        if j.revision != expected {
+            return Err(Error::Conflict);
+        }
+        match recovery {
+            crate::Recovery::Observe => j.handle(),
+            crate::Recovery::Continue if j.active.is_some() || j.waiting_recovery => {
+                Err(Error::Recovery)
+            }
+            crate::Recovery::Continue | crate::Recovery::Reconcile => {
+                self.resume(run_id, expected).await
+            }
+        }
     }
     /// Reconcile active work through the trusted adapter; never reinvoke an unknown intention.
     /// Successful artifacts are revalidated by `prepare` before any subsequent step.

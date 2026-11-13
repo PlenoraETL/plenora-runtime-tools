@@ -362,6 +362,7 @@ async fn restart_recovery_rechecks_resources_and_preserves_unknown_evidence() ->
         .await;
     let resumed = h
         .execute(Request::Resume {
+            recovery: plenora_runtime_chains::Recovery::Reconcile,
             run_id: run_id.clone(),
             revision: status.value["revision"].as_u64().ok_or("revision")?,
         })
