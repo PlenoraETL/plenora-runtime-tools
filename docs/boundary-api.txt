@@ -871,17 +871,24 @@ crates/plenora-runtime-boundary/src/lib.rs | pub trait AdmissionPolicy : Send + 
 crates/plenora-runtime-boundary/src/lib.rs | pub trait AdmissionPolicy : Send + Sync { } | fn validate_payload (& self , request : & CapabilityRequest) -> Result < () , Category >
 crates/plenora-runtime-boundary/src/negotiation.rs |  | 
 crates/plenora-runtime-boundary/src/negotiation.rs |  | # [derive (Clone , Copy , Debug)] pub enum DeliveryRoute { Ingress , Forward , }
-crates/plenora-runtime-boundary/src/negotiation.rs |  | # [derive (Debug)] pub enum NegotiatedSendError { Admission (crate :: Rejection) , Negotiation , Publication , }
+crates/plenora-runtime-boundary/src/negotiation.rs |  | # [derive (Debug)] pub enum NegotiatedSendError { Admission (crate :: Rejection) , Negotiation , Storage , Publication , }
+crates/plenora-runtime-boundary/src/negotiation.rs |  | async fn lookup_acceptance < S : AcceptanceStore + Send + Sync + 'static > (store : Arc < S > , id : MessageId ,) -> Result < AcceptanceRecord , NegotiatedSendError >
 crates/plenora-runtime-boundary/src/negotiation.rs |  | fn context (message : & SerializedMessage) -> Result < NegotiationContext , NegotiatedSendError >
+crates/plenora-runtime-boundary/src/negotiation.rs |  | pub (crate)
 crates/plenora-runtime-boundary/src/negotiation.rs |  | pub struct NegotiatedDelivery { pub (crate) admitted : AdmittedRequest , pub (crate) message : SerializedMessage , }
 crates/plenora-runtime-boundary/src/negotiation.rs |  | pub struct NegotiatedRuntime < S > { pub (crate) boundary : RuntimeBoundary , pub (crate) store : Arc < S > , }
-crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | async fn send < P : MessageProducer > (& self , delivery : & NegotiatedDelivery , destination : Option < & CapabilityDiscovery > , producer : & P ,) -> Result < PublishOutcome , NegotiatedSendError >
+crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | async fn admit_async (& self , message : & SerializedMessage , route : DeliveryRoute ,) -> Result < NegotiatedDelivery , NegotiatedSendError > where S : Send + Sync + 'static ,
+crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | async fn send < P : MessageProducer > (& self , delivery : & NegotiatedDelivery , destination : Option < & CapabilityDiscovery > , producer : & P ,) -> Result < PublishOutcome , NegotiatedSendError > where S : Send + Sync + 'static ,
 crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | fn admit (& self , message : & SerializedMessage , route : DeliveryRoute ,) -> Result < NegotiatedDelivery , NegotiatedSendError >
 crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | fn new (boundary : RuntimeBoundary , store : Arc < S >) -> Self
+crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | matches ! (route , DeliveryRoute :: Ingress)
 crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | matches ! (route , DeliveryRoute :: Ingress)
 crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | pub
 crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | pub
 crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | pub
+crates/plenora-runtime-boundary/src/negotiation.rs | impl < S : AcceptanceStore > NegotiatedRuntime < S > { } | pub
+crates/plenora-runtime-boundary/src/negotiation.rs | impl AcceptanceStore for AcceptanceSnapshot { } | 
+crates/plenora-runtime-boundary/src/negotiation.rs | impl AcceptanceStore for AcceptanceSnapshot { } | fn accept (& self , _ : & MessageId , _ : Option < NegotiationContext > ,) -> Result < AcceptanceRecord , NegotiationError >
 crates/plenora-runtime-boundary/src/negotiation.rs | impl NegotiatedDelivery { } | const fn admitted (& self) -> & AdmittedRequest
 crates/plenora-runtime-boundary/src/negotiation.rs | impl NegotiatedDelivery { } | pub
 crates/plenora-runtime-boundary/src/negotiation.rs | impl fmt :: Debug for NegotiatedDelivery { } | 

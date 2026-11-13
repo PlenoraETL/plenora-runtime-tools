@@ -33,6 +33,9 @@ struct Double {
     acceptance: Mutex<BTreeMap<MessageId, NegotiationContext>>,
     journals: Mutex<BTreeMap<String, Vec<u8>>>,
     unavailable: AtomicBool,
+    acceptance_failure: AtomicBool,
+    acceptance_gate: Mutex<Option<Arc<AcceptanceGate>>>,
+    skip_gate: AtomicUsize,
     fail_seal: AtomicBool,
     before_seal: AtomicBool,
     fail_finish: AtomicBool,
@@ -62,6 +65,28 @@ impl AcceptanceStore for Double {
     ) -> Result<AcceptanceRecord, NegotiationError> {
         if self.unavailable.load(Ordering::SeqCst) {
             return Err(NegotiationError);
+        }
+        if self.acceptance_failure.load(Ordering::SeqCst) {
+            return Err(NegotiationError);
+        }
+        if self
+            .skip_gate
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .is_err()
+        {
+            let gate = self
+                .acceptance_gate
+                .lock()
+                .map_err(|_| NegotiationError)?
+                .take();
+            if let Some(gate) = gate {
+                gate.entered.notify_one();
+                gate.release
+                    .lock()
+                    .map_err(|_| NegotiationError)?
+                    .recv_timeout(std::time::Duration::from_secs(2))
+                    .map_err(|_| NegotiationError)?;
+            }
         }
         let mut records = self.acceptance.lock().map_err(|_| NegotiationError)?;
         if let Some(c) = records.get(id) {
@@ -892,12 +917,27 @@ async fn rt026_027_apalis_ack_loss_dlq_redrive_and_no_store_confirmation() -> Te
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 #[ignore = "requires the disposable PostgreSQL CI service"]
 async fn postgres_real_product_settlement() -> TestResult {
     use plenora_runtime_chain_store::{PostgresStore, Retention};
-    let store = Arc::new(PostgresStore::new(&std::env::var("PLENORA_POSTGRES_URL")?)?);
+    let connection = std::env::var("PLENORA_POSTGRES_URL")?;
+    let store = Arc::new(PostgresStore::new(&connection)?);
     store.migrate(Retention::reduced(60, 120)?).await?;
+    let restarted = Arc::new(PostgresStore::new(&connection)?);
+    product_settlement(store, restarted).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn product_settlement_scenario_matches_the_real_probe() -> TestResult {
+    let store = Arc::new(Double::default());
+    product_settlement(store.clone(), store).await
+}
+
+async fn product_settlement<S: DurableExecutionStore>(
+    store: Arc<S>,
+    restarted: Arc<S>,
+) -> TestResult {
     let scope = MessageId::random().to_string();
     let calls = Arc::new(AtomicUsize::new(0));
     let sink = Arc::new(Uncertain::default());
@@ -914,7 +954,6 @@ async fn postgres_real_product_settlement() -> TestResult {
     let first = h
         .process(&m, DeliveryRoute::Ingress, worker_context())
         .await?;
-    let restarted = Arc::new(PostgresStore::new(&std::env::var("PLENORA_POSTGRES_URL")?)?);
     let h = durable(
         restarted.clone(),
         Arc::new(ManualClock::default()),
@@ -943,11 +982,39 @@ async fn postgres_real_product_settlement() -> TestResult {
     assert!(h.relay(&h.key(&raw)).await?);
     // Independent hosts race for the same invocation authority, not just acceptance.
     let raced = message()?;
+    let competitor = durable(
+        restarted.clone(),
+        Arc::new(ManualClock::default()),
+        &scope,
+        good(calls.clone()),
+        standard_plan(),
+        1024,
+        sink.clone(),
+    )?;
     let (a, b) = tokio::join!(
         h.process(&raced, DeliveryRoute::Ingress, worker_context()),
-        h.process(&raced, DeliveryRoute::Ingress, worker_context())
+        competitor.process(&raced, DeliveryRoute::Ingress, worker_context())
     );
-    assert!(a.is_ok() || b.is_ok());
+    // An Ok refusal is not evidence of a completed domain invocation.
+    let terminals: Vec<_> = [a, b].into_iter().filter_map(Result::ok).collect();
+    assert!(!terminals.is_empty());
+    for terminal in &terminals {
+        assert_eq!(terminal.content_type.as_ref(), "application/json");
+        assert_eq!(terminal.bytes.as_ref(), b"  ");
+    }
+    let replay = h
+        .process(&raced, DeliveryRoute::Forward, worker_context())
+        .await?;
+    assert!(terminals.iter().all(|terminal| terminal == &replay));
+    let (journal, _) = restarted.load(&h.key(&raced)).await?;
+    assert_eq!(journal.stage(), DeliveryStage::Finished);
+    assert_eq!(
+        journal
+            .evidence()
+            .ok_or("missing race evidence")?
+            .message()?,
+        replay
+    );
     assert_eq!(calls.load(Ordering::SeqCst), 2);
     Ok(())
 }
@@ -1292,5 +1359,118 @@ async fn host_idempotency_key_is_explicitly_refused_and_replayed_without_domain(
     );
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     assert_eq!(store.get(&h.key(&m)).stage(), DeliveryStage::Finished);
+    Ok(())
+}
+
+struct AcceptanceGate {
+    entered: tokio::sync::Notify,
+    release: Mutex<std::sync::mpsc::Receiver<()>>,
+}
+async fn with_live_executor<T, E>(
+    store: &Double,
+    skip: usize,
+    operation: impl std::future::Future<Output = Result<T, E>>,
+) -> Result<T, E> {
+    let (release, receiver) = std::sync::mpsc::channel();
+    let gate = Arc::new(AcceptanceGate {
+        entered: tokio::sync::Notify::new(),
+        release: Mutex::new(receiver),
+    });
+    *store.acceptance_gate.lock().unwrap() = Some(gate.clone());
+    store.skip_gate.store(skip, Ordering::SeqCst);
+    // The blocker can progress only if the same current-thread executor polls this branch.
+    // Wall-clock time is only a deadlock watchdog; protocol time still uses ManualClock.
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        let (result, ()) = tokio::join!(operation, async {
+            gate.entered.notified().await;
+            release.send(()).unwrap();
+        });
+        result
+    })
+    .await
+    .expect("acceptance stalled the async executor")
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn blocking_acceptance_leaves_all_async_product_paths_responsive() -> TestResult {
+    let store = Arc::new(Double::default());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let sink = Arc::new(Producer::default());
+    let h = durable(
+        store.clone(),
+        Arc::new(ManualClock::default()),
+        "responsive",
+        good(calls.clone()),
+        standard_plan(),
+        1024,
+        sink.clone(),
+    )?;
+    let m = message()?;
+    let result = with_live_executor(
+        &store,
+        0,
+        h.process(&m, DeliveryRoute::Ingress, worker_context()),
+    )
+    .await?;
+    assert_eq!(result.content_type.as_ref(), "application/json");
+    for skip in [0, 1] {
+        assert_eq!(
+            with_live_executor(&store, skip, h.forward(&m, standard_plan().route())).await?,
+            PublishOutcome::Confirmed
+        );
+    }
+    let negotiated = host(store.clone(), good(calls.clone()), 1024)?;
+    let admitted = negotiated.admit(&m, DeliveryRoute::Forward)?;
+    let destination = discovery(2)?;
+    with_live_executor(
+        &store,
+        0,
+        negotiated.send(&admitted, Some(&destination), sink.as_ref()),
+    )
+    .await?;
+    assert!(with_live_executor(&store, 0, h.relay(&h.key(&m))).await?);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn acceptance_failure_keeps_receipt_ready_until_authority_is_confirmed() -> TestResult {
+    let store = Arc::new(Double::default());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let sink = Arc::new(Producer::default());
+    let h = durable(
+        store.clone(),
+        Arc::new(ManualClock::default()),
+        "acceptance-failure",
+        good(calls.clone()),
+        standard_plan(),
+        1024,
+        sink.clone(),
+    )?;
+    let m = message()?;
+    store.acceptance_failure.store(true, Ordering::SeqCst);
+    assert!(
+        h.process(&m, DeliveryRoute::Ingress, worker_context())
+            .await
+            .is_err()
+    );
+    let ready = store.get(&h.key(&m));
+    assert_eq!(ready.stage(), DeliveryStage::Ready);
+    assert!(ready.evidence().is_none());
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    assert_eq!(h.relay_pending(8).await?, 0);
+    assert!(sink.0.lock().unwrap().is_empty());
+    store.acceptance_failure.store(false, Ordering::SeqCst);
+    let terminal = h
+        .process(&m, DeliveryRoute::Ingress, worker_context())
+        .await?;
+    assert_eq!(terminal.content_type.as_ref(), "application/json");
+    assert_eq!(
+        h.process(&m, DeliveryRoute::Forward, worker_context())
+            .await?,
+        terminal
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(store.get(&h.key(&m)).result_id(), ready.result_id());
     Ok(())
 }

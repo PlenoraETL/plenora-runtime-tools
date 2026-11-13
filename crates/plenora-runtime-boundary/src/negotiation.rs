@@ -1,10 +1,10 @@
 //! Product delivery gate. Context is transport-owned and never reaches domain metadata.
 use crate::{AdmittedRequest, RuntimeBoundary};
 use plenora_runtime_capabilities::{
-    AcceptanceStore, CapabilityDiscovery, NegotiationContext, NegotiationError, RuntimeBinding,
-    accept_runtime_request, select_runtime_destination,
+    AcceptanceRecord, AcceptanceStore, CapabilityDiscovery, NegotiationContext, NegotiationError,
+    RuntimeBinding, accept_runtime_request, select_runtime_destination,
 };
-use plenora_runtime_messaging::{MessageProducer, PublishOutcome, SerializedMessage};
+use plenora_runtime_messaging::{MessageId, MessageProducer, PublishOutcome, SerializedMessage};
 use std::{error::Error, fmt, sync::Arc};
 
 const REQUIRES: &str = "plenora.negotiation.requires";
@@ -48,7 +48,7 @@ impl<S: AcceptanceStore> NegotiatedRuntime<S> {
         Self { boundary, store }
     }
 
-    /// Validates raw input and fixes or verifies its external context before invocation.
+    /// Synchronous admission; async hosts must use `admit_async` to avoid blocking their executor.
     /// # Errors
     /// Rejects malformed input, missing/altered context, v1, downgrade consent and store failures.
     pub fn admit(
@@ -64,8 +64,15 @@ impl<S: AcceptanceStore> NegotiatedRuntime<S> {
             .admit_message(&input)
             .map_err(NegotiatedSendError::Admission)?;
         let context = context(message)?;
+        let record = self
+            .store
+            .accept(
+                &admitted.identity().message_id,
+                matches!(route, DeliveryRoute::Ingress).then_some(context),
+            )
+            .map_err(|_| NegotiatedSendError::Storage)?;
         accept_runtime_request(
-            self.store.as_ref(),
+            &AcceptanceSnapshot(record),
             &admitted.identity().message_id,
             Some(context),
             matches!(route, DeliveryRoute::Ingress),
@@ -73,10 +80,33 @@ impl<S: AcceptanceStore> NegotiatedRuntime<S> {
             true,
         )
         .map_err(|_| NegotiatedSendError::Negotiation)?;
+        // Storage can block: recheck deadlines and host policy after its confirmed response.
+        let admitted = self
+            .boundary
+            .admit_message(&input)
+            .map_err(NegotiatedSendError::Admission)?;
         Ok(NegotiatedDelivery {
             admitted,
             message: message.clone(),
         })
+    }
+
+    /// Performs the same admission on a blocking worker, leaving the async reactor free.
+    /// # Errors
+    /// Storage failures and worker failures remain recoverable, distinct from protocol rejection.
+    pub async fn admit_async(
+        &self,
+        message: &SerializedMessage,
+        route: DeliveryRoute,
+    ) -> Result<NegotiatedDelivery, NegotiatedSendError>
+    where
+        S: Send + Sync + 'static,
+    {
+        let runtime = Self::new(self.boundary.clone(), self.store.clone());
+        let message = message.clone();
+        tokio::task::spawn_blocking(move || runtime.admit(&message, route))
+            .await
+            .map_err(|_| NegotiatedSendError::Storage)?
     }
 
     /// Rechecks authoritative acceptance and the effective destination on EVERY publication.
@@ -88,29 +118,47 @@ impl<S: AcceptanceStore> NegotiatedRuntime<S> {
         delivery: &NegotiatedDelivery,
         destination: Option<&CapabilityDiscovery>,
         producer: &P,
-    ) -> Result<PublishOutcome, NegotiatedSendError> {
-        let current = self.admit(&delivery.message, DeliveryRoute::Forward)?;
+    ) -> Result<PublishOutcome, NegotiatedSendError>
+    where
+        S: Send + Sync + 'static,
+    {
+        let current = self
+            .admit_async(&delivery.message, DeliveryRoute::Forward)
+            .await?;
         let context = context(&current.message)?;
-        accept_runtime_request(
-            self.store.as_ref(),
-            &delivery.admitted.identity().message_id,
-            Some(context),
-            false,
-            RuntimeBinding::V2,
-            true,
-        )
-        .map_err(|_| NegotiatedSendError::Negotiation)?;
         select_runtime_destination(context, destination)
             .map_err(|_| NegotiatedSendError::Negotiation)?;
         destination
             .ok_or(NegotiatedSendError::Negotiation)?
-            .validate_request(delivery.admitted.request())
+            .validate_request(current.admitted.request())
             .map_err(|_| NegotiatedSendError::Negotiation)?;
         producer
             .publish(delivery.message.clone())
             .await
             .map_err(|_| NegotiatedSendError::Publication)
     }
+}
+
+// A confirmed response is validated by the common contract, never reused across calls.
+struct AcceptanceSnapshot(AcceptanceRecord);
+impl AcceptanceStore for AcceptanceSnapshot {
+    fn accept(
+        &self,
+        _: &MessageId,
+        _: Option<NegotiationContext>,
+    ) -> Result<AcceptanceRecord, NegotiationError> {
+        Ok(self.0)
+    }
+}
+
+pub(crate) async fn lookup_acceptance<S: AcceptanceStore + Send + Sync + 'static>(
+    store: Arc<S>,
+    id: MessageId,
+) -> Result<AcceptanceRecord, NegotiatedSendError> {
+    tokio::task::spawn_blocking(move || store.accept(&id, None))
+        .await
+        .map_err(|_| NegotiatedSendError::Storage)?
+        .map_err(|_| NegotiatedSendError::Storage)
 }
 
 fn context(message: &SerializedMessage) -> Result<NegotiationContext, NegotiatedSendError> {
@@ -142,8 +190,10 @@ fn context(message: &SerializedMessage) -> Result<NegotiationContext, Negotiated
 pub enum NegotiatedSendError {
     /// Canonical boundary rejection, retaining selective reflection.
     Admission(crate::Rejection),
-    /// External context, acceptance or discovery was not confirmed.
+    /// External context, confirmed acceptance or discovery violates the contract.
     Negotiation,
+    /// Storage or its blocking worker did not confirm authority; never a durable protocol refusal.
+    Storage,
     /// Publication was not confirmed. No adapter source data escapes.
     Publication,
 }

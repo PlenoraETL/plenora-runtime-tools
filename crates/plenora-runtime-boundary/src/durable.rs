@@ -224,10 +224,11 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
                     for k in DLQ_KEYS {
                         let _ = input.headers.remove(k);
                     }
-                    let admitted = match self.negotiated.admit(&input, route) {
+                    let admitted = match self.negotiated.admit_async(&input, route).await {
                         Ok(d) => d,
                         Err(error) => {
                             let rejection = match error {
+                                crate::NegotiatedSendError::Storage => return Err(SettlementError),
                                 crate::NegotiatedSendError::Admission(r) => r,
                                 _ => Rejection::new(Category::Unsupported, &reflection(message)),
                             };
@@ -374,10 +375,8 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
             .change(key, journal.revision(), DeliveryChange::Claim)
             .await?;
         let id = claimed.result_id().parse().map_err(|_| SettlementError)?;
-        if self
-            .negotiated
-            .store
-            .accept(&id, None)
+        if crate::negotiation::lookup_acceptance(self.negotiated.store.clone(), id)
+            .await
             .map_err(|_| SettlementError)?
             != AcceptanceRecord::Existing(V2)
         {
@@ -429,7 +428,8 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
     ) -> Result<PublishOutcome, SettlementError> {
         let d = self
             .negotiated
-            .admit(message, DeliveryRoute::Forward)
+            .admit_async(message, DeliveryRoute::Forward)
+            .await
             .map_err(|_| SettlementError)?;
         let (discovery, sink) = self.routes.0.get(route).ok_or(SettlementError)?;
         self.negotiated

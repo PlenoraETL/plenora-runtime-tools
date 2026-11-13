@@ -15,8 +15,8 @@ async-trait.workspace = true
 chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-# Dispatcher timeout moved here to keep raw dispatch private.
-tokio = { workspace = true, features = ["time"] }
+# Dispatcher timeout and blocking executor for the synchronous acceptance SPI.
+tokio = { workspace = true, features = ["time", "rt"] }
 # Generic discovery, dispatcher and public error axes; no domain engine.
 plenora-runtime-capabilities = { version = "=0.1.0", path = "../plenora-runtime-capabilities" }
 # Injectable admission clock.

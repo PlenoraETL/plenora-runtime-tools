@@ -82,3 +82,12 @@ Classificazione delle superfici inventariate in `boundary-api.txt`:
 I probe locali e reali ignorati sono in `tests/integration/tests/chain_delivery.rs`.
 L'inventario classifica API, non attesta qualifica remota. Scope e condizioni
 sono in [allineamento](contract-alignment.md).
+
+La facciata negoziata distingue ora Storage da Negotiation: un guasto dello
+store non costituisce un rifiuto di protocollo. admit resta sincrono per host
+sincroni; admit_async e tutti i percorsi prodotto process/send/forward/relay
+eseguono la SPI sincrona su blocking worker. L'acceptance confermata viene
+validata dal contratto comune nella stessa chiamata, senza cache fra consegne.
+Il nuovo ingresso admit_async non bypassa policy, deadline o discovery; il
+boundary viene ricontrollato dopo l'I/O. Le nuove superfici e la categoria
+Storage sono classificate nell'inventario API.

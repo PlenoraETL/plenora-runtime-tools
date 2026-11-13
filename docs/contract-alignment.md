@@ -374,3 +374,21 @@ Le prove sono in `tests/integration/tests/chain_delivery.rs` e
 `crates/plenora-runtime-chain-store/src/delivery_tests.rs`. I doppi sono soltanto
 nei test. La rilettura indipendente ha chiuso i rilievi locali. I servizi reali e
 la CI Linux/Windows non sono eseguiti sull'host: restano gate di qualifica remota.
+
+### Rettifica CI #22: acceptance asincrona e guasti recuperabili
+
+RT-010/020/026/027: i percorsi asincroni usano admit_async e lookup su blocking
+worker per la SPI AcceptanceStore sincrona. Bloccare il reactor durante
+l'acceptance poteva impedire a una transazione concorrente di rilasciare il lock
+PostgreSQL; il conseguente errore non deve diventare un terminale unsupported.
+Ora Storage resta un errore recuperabile, con ricevuta Ready senza evidenza o
+nuova autorita di dominio. Solo rifiuti di ammissione/negoziazione confermati
+sono finalizzati. Il boundary ricontrolla deadline e policy dopo l'I/O.
+Prove current-thread con handshake verificano avanzamento del reactor in tutti
+i percorsi, guasto acceptance isolato e recovery con una sola invocazione.
+La race reale mantiene count=2, verifica anche terminali, journal e replay; lo
+stesso scenario e eseguito localmente con un doppio, senza attestare il backend.
+
+Storage significa autorita non confermata: la SPI comune aggrega anche assenza
+e scadenza oltre a errori transitori. Nessuna promessa di successo con retry;
+la finestra durevole e i tombstone continuano a impedire nuove invocazioni.

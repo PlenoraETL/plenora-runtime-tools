@@ -64,3 +64,8 @@ solo DTO outbound, discovery e contratti dell'adapter. Il metodo di dispatch
 grezzo è privato; RuntimeBoundary è il solo WorkerHandler registrato. Gli esempi
 non-runtime sono dichiarati nei manifest. Le prove di facciata stanno nel crate
 di integrazione, per non aggiungere dipendenze infrastrutturali al boundary.
+
+Per l'acceptance durevole usare admit_async negli host asincroni. admit e la
+facciata sincrona e puo bloccare. Process, send, forward e relay isolano la SPI
+sincrona sul blocking executor; Storage non viene convertito in un rifiuto
+terminale. La ricevuta rimane recuperabile senza permesso di ripetere dominio.
