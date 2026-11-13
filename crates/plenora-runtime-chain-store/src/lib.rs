@@ -24,6 +24,14 @@ use std::{fmt, str::FromStr};
 use tokio_postgres::{Client, Config, NoTls, Transaction};
 use uuid::Uuid;
 
+// Ordered source of truth shared by migration execution and qualification.
+const MIGRATIONS: &[(&str, &str)] = &[
+    ("migration.sql", include_str!("migration.sql")),
+    ("migration-v2.sql", include_str!("migration-v2.sql")),
+    ("evidence-v1.sql", include_str!("evidence-v1.sql")),
+    ("delivery-v1.sql", include_str!("delivery-v1.sql")),
+];
+
 /// Connection factory. Each operation opens a primary connection and a transaction;
 /// no cached acceptance, replica fallback, or in-memory production profile exists.
 /// Connections use PostgreSQL's local/trusted-network transport (`NoTls`); deployment
@@ -90,10 +98,9 @@ impl PostgresStore {
     pub async fn migrate(&self, retention: Retention) -> Result<(), StoreError> {
         let mut client = self.connect().await?;
         let tx = Self::transaction(&mut client).await?;
-        tx.batch_execute(include_str!("migration.sql")).await?;
-        tx.batch_execute(include_str!("migration-v2.sql")).await?;
-        tx.batch_execute(include_str!("evidence-v1.sql")).await?;
-        tx.batch_execute(include_str!("delivery-v1.sql")).await?;
+        for (_, sql) in MIGRATIONS {
+            tx.batch_execute(sql).await?;
+        }
         let old = tx.query_opt("SELECT version, delivery_seconds, report_seconds FROM plenora_chain_schema WHERE singleton", &[]).await?;
         if let Some(old) = old {
             if !matches!(old.try_get::<_, i32>(0)?, 1 | 2)
@@ -529,3 +536,6 @@ mod tests;
 
 #[cfg(test)]
 mod delivery_tests;
+
+#[cfg(test)]
+mod migration_tests;

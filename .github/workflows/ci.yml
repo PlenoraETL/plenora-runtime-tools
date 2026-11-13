@@ -253,6 +253,8 @@ jobs:
             psql -h 127.0.0.1 -U postgres -d chain_store -v ON_ERROR_STOP=1 -Atqc 'SELECT 1' >/dev/null
           port=$(docker port "$POSTGRES_CONTAINER" 5432/tcp | cut -d: -f2)
           echo "PLENORA_POSTGRES_URL=host=127.0.0.1 port=$port user=postgres password=ephemeral-ci-only dbname=chain_store" >> "$GITHUB_ENV"
+      - name: Validate all migrations on empty upgraded and already migrated databases
+        run: cargo test -p plenora-runtime-chain-store --locked postgres_migrations -- --ignored --nocapture --test-threads=1
       - name: Run real race crash restart retention and authority tests
         run: cargo test -p plenora-runtime-chain-store --locked postgres_real -- --ignored --nocapture --test-threads=1
       - name: Start ephemeral NATS for combined product qualification
@@ -355,6 +357,9 @@ jobs:
         env:
           PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
         run: cargo llvm-cov -p plenora-runtime-integration-tests --test nats_capability_e2e --locked --no-report -- --ignored --nocapture
+
+      - name: Validate and collect all migration paths
+        run: cargo llvm-cov -p plenora-runtime-chain-store --locked --no-report -- postgres_migrations --ignored --nocapture --test-threads=1
 
       - name: Collect real PostgreSQL store coverage
         run: cargo llvm-cov -p plenora-runtime-chain-store --locked --no-report -- postgres_real --ignored --nocapture --test-threads=1

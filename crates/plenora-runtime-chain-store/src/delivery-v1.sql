@@ -1,4 +1,4 @@
-﻿-- Versioned product receipt/journal. IDs and fingerprints survive report retention forever.
+-- Versioned product receipt/journal. IDs and fingerprints survive report retention forever.
 CREATE TABLE IF NOT EXISTS plenora_chain_delivery (
     key text PRIMARY KEY,
     request_id text UNIQUE,

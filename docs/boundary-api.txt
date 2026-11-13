@@ -1751,6 +1751,10 @@ crates/plenora-runtime-chain-store/src/delivery.rs | # [async_trait] impl Durabl
 crates/plenora-runtime-chain-store/src/lib.rs |  | 
 crates/plenora-runtime-chain-store/src/lib.rs |  | # [derive (Clone)] pub struct PostgresStore { config : Config , }
 crates/plenora-runtime-chain-store/src/lib.rs |  | fn validate (input : & Invocation < '_ >) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs |  | include_str ! ("delivery-v1.sql")
+crates/plenora-runtime-chain-store/src/lib.rs |  | include_str ! ("evidence-v1.sql")
+crates/plenora-runtime-chain-store/src/lib.rs |  | include_str ! ("migration-v2.sql")
+crates/plenora-runtime-chain-store/src/lib.rs |  | include_str ! ("migration.sql")
 crates/plenora-runtime-chain-store/src/lib.rs |  | mod delivery ;
 crates/plenora-runtime-chain-store/src/lib.rs |  | mod settlement ;
 crates/plenora-runtime-chain-store/src/lib.rs |  | mod types ;
@@ -1778,10 +1782,6 @@ crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async f
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn start (& self , input : Invocation < '_ >) -> Result < StartDecision , StoreError >
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn transaction (client : & mut Client) -> Result < Transaction < '_ > , StoreError >
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | fn new (connection : & str) -> Result < Self , StoreError >
-crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | include_str ! ("delivery-v1.sql")
-crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | include_str ! ("evidence-v1.sql")
-crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | include_str ! ("migration-v2.sql")
-crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | include_str ! ("migration.sql")
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | matches ! (old . try_get ::< _ , i32 > (0) ?, 1 | 2)
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub

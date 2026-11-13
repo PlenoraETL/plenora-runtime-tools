@@ -49,3 +49,22 @@ La migrazione v2 impedisce ai binari v1 di operare e controlla le collisioni con
 le primitive P2.2 in entrambi gli ordini. La retention elimina i rapporti inattivi
 conservando i tombstone. delivery_tests verifica queste proprieta sul PostgreSQL
 reale del job CI; i test di integrazione combinano anche NATS e il runner Apalis.
+
+## Qualifica delle migrazioni
+
+La lista ordinata MIGRATIONS usata da migrate e la fonte unica degli script.
+Il test offline confronta tutti i file SQL con tale lista e rifiuta BOM Unicode
+e caratteri di controllo non ammessi, senza normalizzare i sorgenti in esecuzione.
+Questo controllo di codifica non viene dichiarato un parser sintattico PostgreSQL.
+
+Prima dei test store, entrambi i job PostgreSQL e coverage eseguono
+`postgres_migrations_empty_upgrade_and_idempotence`: database temporanei da
+template0, caso vuoto e schema v1, intera migrazione ripetuta, conservazione dei
+record e della retention, cleanup anche in errore. Serve il privilegio CREATEDB
+sul servizio effimero CI. I test non modificano la policy del database usato dagli
+altri scenari. La sintassi viene verificata dal PostgreSQL reale fissato per digest.
+
+```sh
+cargo test -p plenora-runtime-chain-store --locked postgres_migrations -- --ignored --nocapture --test-threads=1
+cargo llvm-cov -p plenora-runtime-chain-store --locked --no-report -- postgres_migrations --ignored --nocapture --test-threads=1
+```
