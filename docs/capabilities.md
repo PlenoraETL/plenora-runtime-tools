@@ -17,14 +17,13 @@ let discovery = CapabilityDiscovery::from_json(component.capabilities_v2()?)?;
 let mut builder = CapabilityRegistryBuilder::new(CapabilityRegistryConfig::new(16)?)?;
 builder.register_discovered(discovery, RestToolsAdapter::new(rest_tools))?;
 
-let dispatcher = CapabilityDispatcher::with_result_sink(
-    builder.build(),
-    CapabilityDispatcherConfig::new(1024 * 1024)?,
-    confirmed_result_producer,
+let dispatcher = CapabilityDispatcher::new(
+    builder.build(), CapabilityDispatcherConfig::new(1024 * 1024)?,
 )?;
+let boundary = RuntimeBoundary::new(dispatcher, clock, admission_policy, confirmed_result_producer);
 ```
 
-`CapabilityDispatcher` implementa `WorkerHandler<CapabilityRequest>`, quindi lo stesso valore si
+`RuntimeBoundary` implementa `WorkerHandler<AdmittedRequest>` e il decoder ammesso; il valore si
 innesta nell'executor dei worker neutrale rispetto all'engine o nel runner del broker di Apalis. La
 ricerca nel registro non avvia task e non modifica il runtime. Le future dinamiche dei worker sono
 comunque ammesse solo fino al limite `max_in_flight` del worker.
@@ -78,7 +77,7 @@ chiavi di metadati portabili riservate:
 - `plenora.input.contract`.
 
 `CapabilityRequest` espone la versione dell'operazione tramite `OperationVersion` e
-lo schema di input immutabile tramite `ContractId`. Il codec rimuove le cinque chiavi riservate
+lo schema di input immutabile tramite `ContractId`. Il decoder privato del boundary rimuove le cinque chiavi riservate
 prima di passare l'input opaco a un adapter e conserva tutti gli altri metadati, compresi
 `plenora.trace.correlation_id` e i controlli di esecuzione supportati. I byte del payload e il
 content type restano neutrali rispetto al trasporto. Il dispatcher rifiuta
@@ -150,3 +149,13 @@ I test con store in memoria provano la policy, non la durabilita.
 della superficie (SB-001), oppure `None` se non annunciata. Gli override
 `plenora.surface_side_effects` devono essere strettamente maggiori dell'effetto
 dell'operazione e nominare solo superfici effettivamente annunciate.
+
+## Migrazione P2.1b
+
+CapabilityRegistry, CapabilityRegistryBuilder e CapabilityDispatcher sono ora
+esportati da plenora-runtime-boundary. CapabilityRequest resta un candidato
+outbound e CapabilityMessageCodec espone solo encode. Per ricevere usare
+RuntimeBoundary come decoder e handler, con discovery, AdmissionPolicy, clock e
+sink espliciti. Il dispatch grezzo è privato. WorkerContext.metadata contiene
+solo metadati del messaggio; le osservazioni del broker sono in broker_metadata.
+Vedere [allineamento del profilo](contract-alignment.md#p21b-confine-delle-facciate-esistenti).

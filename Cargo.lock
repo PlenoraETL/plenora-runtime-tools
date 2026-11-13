@@ -1070,6 +1070,7 @@ dependencies = [
  "async-trait",
  "axum",
  "plenora-runtime-apalis",
+ "plenora-runtime-boundary",
  "plenora-runtime-capabilities",
  "plenora-runtime-core",
  "plenora-runtime-http",
@@ -1098,6 +1099,10 @@ dependencies = [
 [[package]]
 name = "plenora-runtime-architecture-tests"
 version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "plenora-runtime-boundary"
@@ -1216,9 +1221,14 @@ dependencies = [
 name = "plenora-runtime-integration-tests"
 version = "0.1.0"
 dependencies = [
+ "async-nats",
  "async-trait",
  "axum",
+ "base64 0.23.1",
+ "bytes",
+ "chrono",
  "plenora-runtime-apalis",
+ "plenora-runtime-boundary",
  "plenora-runtime-capabilities",
  "plenora-runtime-core",
  "plenora-runtime-http",
@@ -1226,6 +1236,7 @@ dependencies = [
  "plenora-runtime-nats",
  "plenora-runtime-testkit",
  "plenora-runtime-worker",
+ "serde_json",
  "tokio",
 ]
 

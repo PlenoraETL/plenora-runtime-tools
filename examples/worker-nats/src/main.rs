@@ -14,13 +14,18 @@ use std::{
 use async_trait::async_trait;
 use axum::{Router, routing::get};
 use plenora_runtime_apalis::{ApalisAdapterConfig, BrokerWorkerRunner};
+use plenora_runtime_boundary::{
+    AdmissionPolicy, CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityRegistryBuilder,
+    RuntimeBoundary,
+};
+use plenora_runtime_capabilities::{CapabilityDiscovery, ContractId, PlenoraErrorCategory};
 use plenora_runtime_capabilities::{
-    CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityFailure, CapabilityHandler,
-    CapabilityId, CapabilityMessageCodec, CapabilityRegistryBuilder, CapabilityRegistryConfig,
-    CapabilityRemoteEffect, CapabilityRequest, CapabilityResponse,
+    CapabilityFailure, CapabilityHandler, CapabilityRemoteEffect, CapabilityRequest,
+    CapabilityResponse,
 };
 use plenora_runtime_core::{RuntimeConfig, RuntimeHandle, ServiceMetadata, SystemClock};
 use plenora_runtime_http::{HttpBootstrap, HttpServerConfig};
+use plenora_runtime_messaging::SerializedMessage;
 use plenora_runtime_messaging::{
     DEAD_LETTER_ID_METADATA_KEY, DeliveryHeartbeatConfig, ExponentialBackoff,
     ExponentialBackoffConfig, RetryErrorClass, RetryExhaustedAction,
@@ -30,8 +35,8 @@ use plenora_runtime_nats::{
     NatsConnection, NatsCredentials, NatsTlsConfig, SecretString, TlsMode,
 };
 use plenora_runtime_worker::{
-    MetadataMessageDecoder, WorkerConcurrency, WorkerConfig, WorkerContext,
-    WorkerInstanceHeartbeat, WorkerInstanceHeartbeatConfig, WorkerInstanceHeartbeatObserver,
+    WorkerConcurrency, WorkerConfig, WorkerContext, WorkerInstanceHeartbeat,
+    WorkerInstanceHeartbeatConfig, WorkerInstanceHeartbeatObserver,
 };
 use tokio::time::timeout;
 
@@ -171,7 +176,17 @@ impl CapabilityHandler for ExampleCapabilityHandler {
             context.attempt,
             request.input().len(),
         );
-        Ok(CapabilityResponse::acknowledged())
+        let output = ContractId::new("plenora-example-output-v1").map_err(|e| {
+            CapabilityFailure::new(
+                RetryErrorClass::Permanent,
+                CapabilityRemoteEffect::NotStarted,
+                e,
+            )
+        })?;
+        Ok(CapabilityResponse::new(
+            output,
+            SerializedMessage::new("application/json", "{}"),
+        ))
     }
 }
 
@@ -203,15 +218,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let http = HttpBootstrap::new(&runtime, http_config)?;
     let application =
         Router::new().route("/", get(|| async { "Plenora consumer runtime is running" }));
-    let mut capabilities = CapabilityRegistryBuilder::new(CapabilityRegistryConfig::new(16)?)?;
-    capabilities.register(
-        CapabilityId::new("plenora.example-tools", 1)?,
-        ExampleCapabilityHandler,
-    )?;
-    let dispatcher = CapabilityDispatcher::new(
-        capabilities.build(),
-        CapabilityDispatcherConfig::new(MAX_PAYLOAD_BYTES)?,
-    )?;
+    let dispatcher = boundary(&connection)?;
     let retry_policy = ExponentialBackoff::new(ExponentialBackoffConfig {
         initial_delay: Duration::from_secs(1),
         max_delay: Duration::from_secs(30),
@@ -224,7 +231,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     })?;
     let runner = BrokerWorkerRunner::new(
         consumer,
-        MetadataMessageDecoder::<_, CapabilityRequest>::new(CapabilityMessageCodec),
+        dispatcher.clone(),
         dispatcher,
         retry_policy,
         ApalisAdapterConfig::new(
@@ -474,11 +481,64 @@ fn is_nats_url(server: &str) -> bool {
         .is_some_and(|scheme| scheme.eq_ignore_ascii_case("nats://"))
 }
 
+// Fixture example schema has no embedded deadline or idempotency support.
+struct ExamplePolicy;
+impl AdmissionPolicy for ExamplePolicy {
+    fn idempotency_key_limit(&self, _: &str, _: &str, _: &str) -> Option<usize> {
+        None
+    }
+    fn validate_payload(&self, _: &CapabilityRequest) -> Result<(), PlenoraErrorCategory> {
+        Ok(())
+    }
+}
+const EXAMPLE_DISCOVERY: &[u8] = br#"{
+ "schema_version":2,"component":"plenora-example-tools","component_version":"1.0.0",
+ "interfaces":[{"kind":"runtime","contract":"plenora-runtime-binding-v1","version":1,"artifact":"plenora.example-tools"}],
+ "operations":[{"id":"example.execute","version":1,"status":"available","surfaces":["runtime"],
+ "input":{"contract":"plenora-example-input-v1","content_types":["application/json"]},
+ "output":{"contract":"plenora-example-output-v1","content_types":["application/json"]},
+ "side_effect":"none","controls":{"deadline":true,"idempotency_key":false,"cancellation":false}}]
+}"#;
+
+fn boundary(connection: &NatsConnection) -> Result<RuntimeBoundary, Box<dyn Error>> {
+    let mut capabilities = CapabilityRegistryBuilder::default();
+    capabilities.register_discovered(
+        CapabilityDiscovery::from_json(EXAMPLE_DISCOVERY)?,
+        ExampleCapabilityHandler,
+    )?;
+    let result_producer = connection.producer(JetStreamProducerConfig {
+        subject: Arc::from("plenora.work.results"),
+        max_payload_bytes: MAX_PAYLOAD_BYTES,
+        message_id_metadata_key: Some(Arc::from(
+            plenora_runtime_messaging::MESSAGE_ID_METADATA_KEY,
+        )),
+    })?;
+    Ok(RuntimeBoundary::new(
+        CapabilityDispatcher::new(
+            capabilities.build(),
+            CapabilityDispatcherConfig::new(MAX_PAYLOAD_BYTES)?,
+        )?,
+        Arc::new(SystemClock),
+        Arc::new(ExamplePolicy),
+        Arc::new(result_producer),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use plenora_runtime_capabilities::{ContractId, OperationName, OperationVersion};
-    use plenora_runtime_messaging::{CorrelationId, MessageId, MessageMetadata, SerializedMessage};
+    use plenora_runtime_capabilities::{CapabilityId, OperationName, OperationVersion};
+    use plenora_runtime_messaging::{CorrelationId, MessageId, MessageMetadata};
+
+    #[test]
+    fn frozen_example_discovery_is_valid() -> Result<(), Box<dyn Error>> {
+        let discovery = CapabilityDiscovery::from_json(EXAMPLE_DISCOVERY)?;
+        assert_eq!(
+            discovery.runtime_capability()?.name(),
+            "plenora.example-tools"
+        );
+        Ok(())
+    }
 
     #[tokio::test]
     async fn placeholder_routes_only_the_supported_operation_version() -> Result<(), Box<dyn Error>>

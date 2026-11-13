@@ -1,6 +1,9 @@
 //! Raw-ingress regressions; upstream probes are executed, not merely deserialized.
 use async_trait::async_trait;
-use plenora_runtime_boundary::{AdmissionPolicy, BoundaryResultSink, Rejection, RuntimeBoundary};
+use plenora_runtime_boundary::{
+    AdmissionPolicy, BoundaryResultSink, CapabilityDispatcher, CapabilityDispatcherConfig,
+    CapabilityRegistryBuilder, Rejection, RuntimeBoundary,
+};
 use plenora_runtime_capabilities::*;
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_messaging::{
@@ -202,39 +205,42 @@ fn reject(
     assert_eq!(message.content_type.as_ref(), PLENORA_ERROR_CONTENT_TYPE);
     assert!(!format!("{error:?} {error}").contains(SENTINEL));
     assert!(error.source().is_none());
-    // Portable worker ingress must make the same decision whenever raw values are strings.
-    if doc["metadata"]
+    let mut serialized = input(doc)?;
+    let fields: Vec<_> = doc["metadata"]
         .as_object()
         .ok_or("metadata")?
-        .values()
-        .all(Value::is_string)
-    {
-        let mut serialized = input(doc)?;
-        let mut representable = true;
-        for (key, value) in doc["metadata"].as_object().ok_or("metadata")? {
-            if serialized
-                .headers
-                .insert_text(key.clone(), value.as_str().ok_or("text")?)
-                .is_err()
-            {
-                representable = false;
-                break;
-            }
-        }
-        if representable {
-            let alternate = h
-                .boundary
-                .decode(&serialized)
-                .err()
-                .ok_or("worker ingress accepted")?;
-            assert_eq!(alternate.category(), error.category());
-            let mut a = alternate.metadata().clone();
-            let mut b = error.metadata().clone();
-            a.remove(ID);
-            b.remove(ID);
-            assert_eq!(a, b);
-        }
+        .iter()
+        .map(|(key, value)| {
+            (
+                key.clone(),
+                bytes::Bytes::from(
+                    value
+                        .as_str()
+                        .map_or_else(|| vec![255], |v| v.as_bytes().to_vec()),
+                ),
+            )
+        })
+        .collect();
+    let fits = fields.iter().all(|(key, value)| {
+        serialized
+            .headers
+            .insert(key.clone(), value.clone())
+            .is_ok()
+    });
+    if !fits {
+        serialized = input(doc)?.with_raw_metadata(fields);
     }
+    for transported in [serialized, wire(doc, usize::MAX)?] {
+        let alternate = h
+            .boundary
+            .decode(&transported)
+            .err()
+            .ok_or("worker ingress accepted")?;
+        equal_rejection(&error, &alternate, doc)?;
+        let alternate = broker_rejection(h, transported)?;
+        equal_rejection(&error, &alternate, doc)?;
+    }
+    assert_eq!(h.calls.load(Ordering::SeqCst), 0);
     Ok(error)
 }
 
@@ -499,6 +505,16 @@ fn every_p2_1_row_has_an_executed_raw_probe() -> TestResult {
     let inventory: Value =
         serde_json::from_slice(&fs::read(root().join("docs/boundary-probes.json"))?)?;
     assert_eq!(inventory["rules"], json!(RULES));
+    assert_eq!(
+        inventory["facades"],
+        json!([
+            "raw-json",
+            "portable-worker",
+            "nats-wire-worker",
+            "apalis-delivery",
+            "nats-wire-apalis-delivery"
+        ])
+    );
     let probes: &[Probe] = &[
         ("RT-012", rt012),
         ("RT-016", rt016),
@@ -665,5 +681,262 @@ async fn context_cannot_bypass_admitted_metadata() -> TestResult {
         .ok_or("ambiguous context accepted")?;
     assert_eq!(error.category(), PlenoraErrorCategory::Protocol);
     assert_eq!(h.calls.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+fn equal_rejection(expected: &Rejection, actual: &Rejection, doc: &Value) -> TestResult {
+    assert_eq!(actual.category(), expected.category());
+    assert_eq!(actual.phase(), expected.phase());
+    assert_eq!(actual.retry(), expected.retry());
+    assert_eq!(actual.remote_effect(), expected.remote_effect());
+    assert_ne!(actual.metadata()[ID], doc["metadata"][ID]);
+    assert_eq!(actual.to_message()?, actual.to_message()?);
+    let mut a = actual.metadata().clone();
+    let mut b = expected.metadata().clone();
+    a.remove(ID);
+    b.remove(ID);
+    assert_eq!(a, b);
+    Ok(())
+}
+fn broker_rejection(h: &Harness, message: SerializedMessage) -> Result<Rejection, Box<dyn Error>> {
+    let broker = plenora_runtime_testkit::FakeBroker::default();
+    broker.enqueue(message)?;
+    let mut delivery = broker.dequeue()?.ok_or("delivery")?.into_delivery();
+    // A collision is deliberately placed in the distinct operational channel.
+    delivery
+        .broker_metadata
+        .insert_text(ID, "broker-observation")?;
+    let runtime = RuntimeHandle::new(ServiceMetadata::new("parity", "1", "test"));
+    let service = plenora_runtime_apalis::BrokerDeliveryService::new(
+        h.boundary.clone(),
+        h.boundary.clone(),
+        plenora_runtime_messaging::ExponentialBackoff::new(
+            plenora_runtime_messaging::ExponentialBackoffConfig::default(),
+        )?,
+        plenora_runtime_apalis::ApalisAdapterConfig::new(
+            "parity",
+            plenora_runtime_worker::WorkerConfig::new(
+                plenora_runtime_worker::WorkerConcurrency::new(1)?,
+                std::time::Duration::from_secs(1),
+            ),
+        )?,
+        runtime.shutdown_signal(),
+    )?;
+    let executor = tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()?;
+    let error = executor
+        .block_on(service.execute(delivery))
+        .err()
+        .ok_or("broker accepted rejection")?;
+    Ok(error
+        .decoder_error()
+        .ok_or("not a decoder rejection")?
+        .clone())
+}
+
+fn wire(doc: &Value, limit: usize) -> Result<SerializedMessage, Box<dyn Error>> {
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    let mut headers = async_nats::HeaderMap::new();
+    headers.insert(
+        "Plenora-Content-Type-B64",
+        URL_SAFE_NO_PAD.encode(doc["content_type"].as_str().ok_or("type")?),
+    );
+    for (key, value) in doc["metadata"].as_object().ok_or("metadata")? {
+        let name = format!("Plenora-Meta-{}", URL_SAFE_NO_PAD.encode(key));
+        let bytes = value
+            .as_str()
+            .map_or_else(|| vec![255], |v| v.as_bytes().to_vec());
+        headers.insert(name, URL_SAFE_NO_PAD.encode(bytes));
+    }
+    Ok(plenora_runtime_nats::decode_wire(
+        Some(&headers),
+        input(doc)?.bytes,
+        limit,
+    ))
+}
+#[test]
+fn unreadable_wire_and_duplicate_fields_match_unreadable_raw() -> TestResult {
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    let h = harness()?;
+    let doc = fixture("io-read-request.json")?;
+    let expected = h
+        .boundary
+        .admit_raw(b"{", input(&doc)?)
+        .err()
+        .ok_or("accepted")?;
+    for duplicate in [false, true] {
+        let mut headers = async_nats::HeaderMap::new();
+        let name = format!("Plenora-Meta-{}", URL_SAFE_NO_PAD.encode(ID));
+        headers.append(name.clone(), "!");
+        if duplicate {
+            headers.append(
+                name,
+                URL_SAFE_NO_PAD.encode(doc["metadata"][ID].as_str().ok_or("id")?),
+            );
+        }
+        let message =
+            plenora_runtime_nats::decode_wire(Some(&headers), input(&doc)?.bytes, usize::MAX);
+        assert!(message.has_unreadable_metadata());
+        let actual = h
+            .boundary
+            .admit_message(&message)
+            .err()
+            .ok_or("wire accepted")?;
+        equal_rejection(&expected, &actual, &doc)?;
+        equal_rejection(&expected, &broker_rejection(&h, message)?, &doc)?;
+    }
+    assert_eq!(h.calls.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+#[test]
+fn wire_payload_quota_does_not_preempt_protocol_unsupported_or_timeout() -> TestResult {
+    let h = harness()?;
+    let boundary = RuntimeBoundary::new(
+        CapabilityDispatcher::new(
+            h.dispatcher.registry().clone(),
+            CapabilityDispatcherConfig::new(1)?,
+        )?,
+        h.clock.clone(),
+        Arc::new(Policy),
+        h.sink.clone(),
+    );
+    for (key, value) in [
+        (OPERATION_VERSION_METADATA_KEY, "01"),
+        (CAPABILITY_NAME_METADATA_KEY, "plenora.unknown-tools"),
+        (EXECUTION_DEADLINE_METADATA_KEY, NOW),
+        (EXECUTION_DEADLINE_METADATA_KEY, "2030-01-01T00:00:00Z"),
+    ] {
+        let mut doc = fixture("io-read-request.json")?;
+        doc["metadata"][key] = json!(value);
+        let expected = boundary
+            .admit_raw(&serde_json::to_vec(&doc["metadata"])?, input(&doc)?)
+            .err()
+            .ok_or("raw accepted")?;
+        let message = wire(&doc, 1)?;
+        assert!(message.exceeds_transport_payload_limit());
+        let actual = h
+            .boundary
+            .admit_message(&message)
+            .err()
+            .ok_or("quota accepted")?;
+        equal_rejection(&expected, &actual, &doc)?;
+        equal_rejection(&expected, &broker_rejection(&h, message)?, &doc)?;
+    }
+    assert_eq!(h.calls.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+#[tokio::test]
+async fn successful_wire_and_broker_keep_identity_and_metadata_channels() -> TestResult {
+    let h = harness()?;
+    let doc = fixture("io-read-request.json")?;
+    let broker = plenora_runtime_testkit::FakeBroker::default();
+    broker.enqueue(wire(&doc, usize::MAX)?)?;
+    let mut delivery = broker.dequeue()?.ok_or("delivery")?.into_delivery();
+    delivery
+        .broker_metadata
+        .insert_text(ID, "distinct broker observation")?;
+    let runtime = RuntimeHandle::new(ServiceMetadata::new("parity", "1", "test"));
+    let service = plenora_runtime_apalis::BrokerDeliveryService::new(
+        h.boundary.clone(),
+        h.boundary.clone(),
+        plenora_runtime_messaging::ExponentialBackoff::new(
+            plenora_runtime_messaging::ExponentialBackoffConfig::default(),
+        )?,
+        plenora_runtime_apalis::ApalisAdapterConfig::new(
+            "parity",
+            plenora_runtime_worker::WorkerConfig::new(
+                plenora_runtime_worker::WorkerConcurrency::new(1)?,
+                std::time::Duration::from_secs(1),
+            ),
+        )?,
+        runtime.shutdown_signal(),
+    )?;
+    let outcome = service.execute(delivery).await?;
+    assert_eq!(
+        outcome.disposition(),
+        plenora_runtime_apalis::ApalisDisposition::Completed
+    );
+    assert_eq!(h.calls.load(Ordering::SeqCst), 1);
+    let messages = h.sink.0.lock().map_err(|_| "sink lock")?;
+    let output = messages.first().ok_or("output")?;
+    assert_ne!(output.headers.get_text(ID)?, doc["metadata"][ID].as_str());
+    assert_eq!(
+        output.headers.get_text(CAUSE)?,
+        doc["metadata"][ID].as_str()
+    );
+    assert_eq!(
+        output.headers.get_text(CORRELATION)?,
+        doc["metadata"][CORRELATION].as_str()
+    );
+    Ok(())
+}
+
+#[test]
+fn decoded_content_type_and_invalid_metadata_keys_keep_selective_identity() -> TestResult {
+    let h = harness()?;
+    let mut doc = fixture("io-read-request.json")?;
+    doc["content_type"] = json!(format!("application/{}", "x".repeat(129)));
+    reject(&h, &doc, PlenoraErrorCategory::Unsupported)?;
+    doc = fixture("io-read-request.json")?;
+    doc["metadata"]["invalid key"] = json!("opaque");
+    reject(&h, &doc, PlenoraErrorCategory::Protocol)?;
+    Ok(())
+}
+#[test]
+fn raw_field_carrier_preserves_valid_map_and_duplicate_rejection() -> TestResult {
+    let h = harness()?;
+    let doc = fixture("io-read-request.json")?;
+    let fields: Vec<_> = doc["metadata"]
+        .as_object()
+        .ok_or("metadata")?
+        .iter()
+        .map(|(key, value)| {
+            Ok((
+                key.clone(),
+                bytes::Bytes::copy_from_slice(value.as_str().ok_or("text")?.as_bytes()),
+            ))
+        })
+        .collect::<Result<_, Box<dyn Error>>>()?;
+    let message = input(&doc)?.with_raw_metadata(fields.clone());
+    assert!(message.raw_metadata().is_none());
+    h.boundary.admit_message(&message)?;
+    let mut duplicate = fields.clone();
+    duplicate.extend(fields);
+    let rejected = input(&doc)?.with_raw_metadata(duplicate);
+    let expected = h
+        .boundary
+        .admit_raw(b"{", input(&doc)?)
+        .err()
+        .ok_or("raw accepted")?;
+    equal_rejection(&expected, &broker_rejection(&h, rejected)?, &doc)?;
+    Ok(())
+}
+
+#[test]
+fn raw_allocation_budgets_are_measured_before_encoding_expansion() -> TestResult {
+    let h = harness()?;
+    let mut doc = fixture("io-read-request.json")?;
+    doc["metadata"][OPERATION_VERSION_METADATA_KEY] = json!("9".repeat(160_000));
+    reject(&h, &doc, PlenoraErrorCategory::Protocol)?;
+    doc = fixture("io-read-request.json")?;
+    doc["content_type"] =
+        json!("x".repeat(plenora_runtime_messaging::MAX_INGRESS_CONTENT_TYPE_BYTES + 1));
+    reject(&h, &doc, PlenoraErrorCategory::Protocol)?;
+    let oversized = input(&doc)?.with_raw_metadata(vec![(
+        ID.into(),
+        bytes::Bytes::from(vec![
+            b'x';
+            plenora_runtime_messaging::MAX_METADATA_TOTAL_BYTES * 6
+                + 1
+        ]),
+    )]);
+    let error = h
+        .boundary
+        .admit_message(&oversized)
+        .err()
+        .ok_or("oversized carrier accepted")?;
+    assert_eq!(error.category(), PlenoraErrorCategory::Protocol);
+    assert_eq!(error.metadata().len(), 2);
     Ok(())
 }

@@ -40,7 +40,7 @@ La serializzazione ripetuta della stessa istanza conserva l'identità.
 
 ## Ambito delle prove e gate aperti
 
-[I probe](tests/raw_ingress.rs) eseguono i 21 vettori upstream e la tabella
+[I probe](../../tests/integration/tests/boundary_facades.rs) eseguono i 21 vettori upstream e la tabella
 RT-012/016…023 dell'[inventario](../../docs/boundary-probes.json), con metadati
 grezzi, dispatcher reale e sink fixture. Non sono una prova di persistenza,
 replay dopo restart, CAS o pubblicazione terminale del runner.
@@ -52,3 +52,9 @@ Regole, rischi e condizioni di chiusura sono in
 [contract-alignment](../../docs/contract-alignment.md),
 [qualification](../../docs/qualification.md) e
 [security-review](../../docs/security-review.md).
+
+P2.1b sposta qui CapabilityRegistry e CapabilityDispatcher: capabilities conserva
+solo DTO outbound, discovery e contratti dell'adapter. Il metodo di dispatch
+grezzo è privato; RuntimeBoundary è il solo WorkerHandler registrato. Gli esempi
+non-runtime sono dichiarati nei manifest. Le prove di facciata stanno nel crate
+di integrazione, per non aggiungere dipendenze infrastrutturali al boundary.

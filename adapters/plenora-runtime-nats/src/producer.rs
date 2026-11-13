@@ -48,7 +48,7 @@ impl MessageProducer for JetStreamProducer {
             ));
         }
 
-        let headers = metadata::encode(&message.content_type, &message.headers)?;
+        let headers = metadata::encode_wire(&message)?;
         let mut publication = jetstream::message::PublishMessage::build()
             .payload(message.bytes)
             .headers(headers);

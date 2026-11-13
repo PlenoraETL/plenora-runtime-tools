@@ -55,7 +55,9 @@ impl CapabilityResponse {
         self.output.as_ref()
     }
 
-    pub(crate) fn into_parts(self) -> Option<(ContractId, SerializedMessage)> {
+    /// Consume the adapter response without interpreting its opaque output.
+    #[must_use]
+    pub fn into_parts(self) -> Option<(ContractId, SerializedMessage)> {
         self.output_contract.zip(self.output)
     }
 }
@@ -81,7 +83,10 @@ pub struct CapabilityResult {
 }
 
 impl CapabilityResult {
-    pub(crate) fn new(
+    /// Construct outbound result metadata; this does not confirm publication.
+    /// # Errors
+    /// Rejects metadata that cannot fit in the portable message.
+    pub fn new(
         operation: OperationName,
         operation_version: OperationVersion,
         output_contract: ContractId,

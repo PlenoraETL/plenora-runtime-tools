@@ -216,3 +216,15 @@ per RT-019/020. Il progetto assegna store a P2.2 e finalizzatore a P2.4;
 queste parti non sono attestate da P2.1. CI Linux e Windows sul medesimo SHA,
 NATS reale e prove del profilo di deployment restano gate separati non eseguiti
 dalla suite locale del boundary.
+
+## P2.1b: ammissione e limiti della prova
+
+Regola RT-012/016..023: il dispatch registrato richiede il tipo ammesso dal
+boundary. Ambito: API Rust, wire NATS e delivery Apalis locali. La raccolta
+completa precede la migrazione del registro/dispatcher; i metadati operativi del
+broker sono separati da quelli ammessi. Rischio residuo: attribuire a questa
+prova la durabilità o la pubblicazione terminale, oppure estenderla ai futuri
+adapter di dominio. Condizione di chiusura: P2.2 (CAS/digest, race e restart),
+P2.4 (settlement terminale confermato), S3 (schemi reali), CI Linux/Windows e
+profilo del broker effettivo. Questi gate rimangono aperti; nessuna garanzia
+end-to-end è dedotta dalla sola parità locale delle facciate.

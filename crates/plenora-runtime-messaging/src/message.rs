@@ -16,6 +16,10 @@ pub const CORRELATION_ID_METADATA_KEY: &str = "plenora.trace.correlation_id";
 /// Portable metadata key containing the optional causation identifier.
 pub const CAUSATION_ID_METADATA_KEY: &str = "plenora.message.causation_id";
 
+/// Raw ingress budget for a decoded media type, shared with transport decoders.
+/// This is an allocation bound, not a claim that discovery supports such a media type.
+pub const MAX_INGRESS_CONTENT_TYPE_BYTES: usize = crate::MAX_METADATA_TOTAL_BYTES;
+
 /// Serialized message data passed to broker adapters.
 #[derive(Clone, Eq, PartialEq)]
 pub struct SerializedMessage {
@@ -25,6 +29,9 @@ pub struct SerializedMessage {
     pub bytes: Bytes,
     /// Namespaced transport headers.
     pub headers: MessageMetadata,
+    raw_metadata: Option<Vec<(String, Bytes)>>,
+    unreadable_metadata: bool,
+    transport_payload_limit_exceeded: bool,
 }
 
 impl SerializedMessage {
@@ -35,6 +42,9 @@ impl SerializedMessage {
             content_type: content_type.into(),
             bytes: bytes.into(),
             headers: MessageMetadata::new(),
+            raw_metadata: None,
+            unreadable_metadata: false,
+            transport_payload_limit_exceeded: false,
         }
     }
 
@@ -43,6 +53,53 @@ impl SerializedMessage {
     pub fn with_headers(mut self, headers: MessageMetadata) -> Self {
         self.headers = headers;
         self
+    }
+
+    /// Retain raw transport fields that have not passed portable-map admission.
+    /// The receiving transport must bound allocation before constructing this carrier.
+    #[must_use]
+    pub fn with_raw_metadata(mut self, fields: Vec<(String, Bytes)>) -> Self {
+        let mut metadata = MessageMetadata::new();
+        let fits = fields.iter().all(|(key, value)| {
+            !metadata.contains_key(key) && metadata.insert(key.clone(), value.clone()).is_ok()
+        });
+        if fits {
+            self.headers = metadata;
+            self.raw_metadata = None;
+        } else {
+            self.raw_metadata = Some(fields);
+            self.headers = MessageMetadata::new();
+        }
+        self
+    }
+    /// Raw fields awaiting canonical boundary validation, when present.
+    #[must_use]
+    pub fn raw_metadata(&self) -> Option<&[(String, Bytes)]> {
+        self.raw_metadata.as_deref()
+    }
+
+    /// Preserve a wire decoding failure for the admission boundary, without diagnostics.
+    #[must_use]
+    pub fn with_unreadable_metadata(mut self) -> Self {
+        self.unreadable_metadata = true;
+        self.headers = MessageMetadata::new();
+        self
+    }
+    /// Preserve an exceeded transport bound until admission establishes error precedence.
+    #[must_use]
+    pub fn with_exceeded_transport_payload_limit(mut self) -> Self {
+        self.transport_payload_limit_exceeded = true;
+        self
+    }
+    /// Whether wire metadata could not be decoded without loss.
+    #[must_use]
+    pub const fn has_unreadable_metadata(&self) -> bool {
+        self.unreadable_metadata
+    }
+    /// Whether the receiving transport's payload quota was exceeded.
+    #[must_use]
+    pub const fn exceeds_transport_payload_limit(&self) -> bool {
+        self.transport_payload_limit_exceeded
     }
 
     /// Returns the encoded payload size in bytes.

@@ -21,3 +21,5 @@ pub use consumer::JetStreamConsumer;
 pub use error::{NatsAdapterError, NatsErrorCategory, NatsOperation};
 pub use producer::JetStreamProducer;
 pub use replay::capabilities;
+
+pub use metadata::{decode_wire, encode_wire};

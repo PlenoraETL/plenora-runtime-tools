@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use futures_util::StreamExt as _;
 use plenora_runtime_messaging::{
     AckError, AckOperation, Delivery, DeliveryAcknowledger, DeliveryHeartbeatConfig,
-    MessageConsumer, MessageMetadata, NackReason, SerializedMessage,
+    MessageConsumer, MessageMetadata, NackReason,
 };
 
 use crate::{
@@ -354,27 +354,13 @@ async fn convert_delivery(
         Ok(facts) => facts,
         Err(rejection) => return reject_delivery(acker, rejection).await,
     };
-    if message.payload.len() > max_payload_bytes {
-        return reject_delivery(
-            acker,
-            NatsAdapterError::new(
-                NatsErrorCategory::Protocol,
-                NatsOperation::Receive,
-                "JetStream delivery exceeds the configured payload limit",
-            ),
-        )
-        .await;
-    }
-    let (content_type, headers) = match metadata::decode(message.headers.as_ref()) {
-        Ok(decoded) => decoded,
-        Err(rejection) => return reject_delivery(acker, rejection).await,
-    };
     let broker_metadata = match broker_metadata(&message.subject, &facts) {
         Ok(metadata) => metadata,
         Err(rejection) => return reject_delivery(acker, rejection).await,
     };
     let attempt = facts.attempt;
-    let message = SerializedMessage::new(content_type, message.payload).with_headers(headers);
+    let message =
+        metadata::decode_wire(message.headers.as_ref(), message.payload, max_payload_bytes);
     let acknowledger = NatsAcknowledger {
         acker,
         shutdown_nak_delay,

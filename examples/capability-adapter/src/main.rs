@@ -15,9 +15,8 @@ use std::{
 
 use async_trait::async_trait;
 use plenora_runtime_capabilities::{
-    CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityFailure, CapabilityHandler,
-    CapabilityId, CapabilityRegistryBuilder, CapabilityRegistryConfig, CapabilityRemoteEffect,
-    CapabilityRequest, CapabilityResponse, ContractId, OperationName, OperationVersion,
+    CapabilityFailure, CapabilityHandler, CapabilityId, CapabilityRemoteEffect, CapabilityRequest,
+    CapabilityResponse, ContractId, OperationName, OperationVersion,
 };
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_messaging::{
@@ -226,7 +225,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "local-example",
     ));
     let library = ExampleLibrary::default();
-    let dispatcher = dispatcher(library.clone())?;
+    let dispatcher = dispatcher(library.clone());
     let executor = WorkerExecutor::new(
         dispatcher,
         ExponentialBackoff::new(ExponentialBackoffConfig::default())?,
@@ -250,16 +249,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn dispatcher(library: ExampleLibrary) -> Result<CapabilityDispatcher, Box<dyn Error>> {
-    let mut registry = CapabilityRegistryBuilder::new(CapabilityRegistryConfig::new(4)?)?;
-    registry.register(
-        CapabilityId::new(CAPABILITY_NAME, CAPABILITY_VERSION)?,
-        ExampleLibraryAdapter::new(library),
-    )?;
-    Ok(CapabilityDispatcher::new(
-        registry.build(),
-        CapabilityDispatcherConfig::new(1024 * 1024)?,
-    )?)
+// Deliberately outside the qualified runtime profile: direct library adapter example.
+struct LegacyAdapter(ExampleLibraryAdapter);
+#[async_trait]
+impl plenora_runtime_worker::WorkerHandler<CapabilityRequest> for LegacyAdapter {
+    type Error = CapabilityFailure;
+    async fn handle(
+        &self,
+        context: WorkerContext,
+        request: CapabilityRequest,
+    ) -> Result<(), Self::Error> {
+        self.0.invoke(context, request).await.map(|_| ())
+    }
+}
+fn dispatcher(library: ExampleLibrary) -> LegacyAdapter {
+    LegacyAdapter(ExampleLibraryAdapter::new(library))
 }
 
 fn request(
@@ -293,12 +297,16 @@ mod tests {
     use plenora_runtime_worker::WorkerHandler as _;
 
     use super::*;
+    #[test]
+    fn example_is_explicitly_outside_qualified_profile() {
+        assert!(include_str!("../README.md").contains("OUTSIDE-QUALIFIED-BOUNDARY"));
+    }
 
     #[tokio::test]
     async fn unsupported_version_never_reaches_the_library() -> Result<(), Box<dyn Error>> {
         let runtime = RuntimeHandle::new(ServiceMetadata::new("test", "0.1.0", "instance"));
         let library = ExampleLibrary::default();
-        let dispatcher = dispatcher(library.clone())?;
+        let dispatcher = dispatcher(library.clone());
         let original = request(PROCESS_OPERATION, CONTENT_TYPE, b"valid")?;
         let request = CapabilityRequest::new(
             original.capability().clone(),
@@ -321,7 +329,7 @@ mod tests {
     async fn success_reaches_the_library_once() -> Result<(), Box<dyn Error>> {
         let runtime = RuntimeHandle::new(ServiceMetadata::new("test", "0.1.0", "instance"));
         let library = ExampleLibrary::default();
-        let dispatcher = dispatcher(library.clone())?;
+        let dispatcher = dispatcher(library.clone());
 
         dispatcher
             .handle(
@@ -338,7 +346,7 @@ mod tests {
     async fn invalid_routing_is_rejected_before_library_invocation() -> Result<(), Box<dyn Error>> {
         let runtime = RuntimeHandle::new(ServiceMetadata::new("test", "0.1.0", "instance"));
         let library = ExampleLibrary::default();
-        let dispatcher = dispatcher(library.clone())?;
+        let dispatcher = dispatcher(library.clone());
 
         let failure = dispatcher
             .handle(
@@ -359,7 +367,7 @@ mod tests {
     async fn failure_mapping_is_explicit_and_fail_closed() -> Result<(), Box<dyn Error>> {
         let runtime = RuntimeHandle::new(ServiceMetadata::new("test", "0.1.0", "instance"));
         let library = ExampleLibrary::default();
-        let dispatcher = dispatcher(library)?;
+        let dispatcher = dispatcher(library);
 
         let transient = dispatcher
             .handle(

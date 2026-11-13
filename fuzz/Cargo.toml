@@ -20,6 +20,9 @@ libfuzzer-sys = "=0.4.13"
 # Trait Injector/Extractor della propagazione W3C per il target
 # propagation_carrier; stesso pin e stesse feature del workspace.
 opentelemetry = { version = "=0.32.0", default-features = false, features = ["trace"] }
+# Boundary raw admission replaces the removed public bypass codec; fake sink/clock only.
+plenora-runtime-boundary = { version = "=0.1.0", path = "../crates/plenora-runtime-boundary" }
+plenora-runtime-testkit = { version = "=0.1.0", path = "../crates/plenora-runtime-testkit" }
 # Crate del workspace sotto fuzz, per percorso e versione esatta.
 plenora-runtime-capabilities = { version = "=0.1.0", path = "../crates/plenora-runtime-capabilities" }
 plenora-runtime-control = { version = "=0.1.0", path = "../crates/plenora-runtime-control" }

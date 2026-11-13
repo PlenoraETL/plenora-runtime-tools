@@ -3,7 +3,34 @@
 //! Order is protocol, unsupported, timeout, then pure domain validation. No handler
 //! or resolver runs during admission. Durable acceptance and terminal settlement
 //! remain separate gates in docs/qualification.md and docs/contract-alignment.md.
+//! Raw candidates cannot be dispatched through the public runtime:
+//! ```compile_fail
+//! use plenora_runtime_boundary::CapabilityDispatcher;
+//! use plenora_runtime_capabilities::CapabilityRequest;
+//! use plenora_runtime_worker::{WorkerHandler, WorkerContext};
+//! async fn bypass(d: CapabilityDispatcher, c: WorkerContext, r: CapabilityRequest) {
+//!     d.handle(c, r).await;
+//! }
+//! ```
+//! Nor can callers manufacture an admitted request:
+//! ```compile_fail
+//! use plenora_runtime_boundary::AdmittedRequest;
+//! fn bypass(r: plenora_runtime_capabilities::CapabilityRequest) -> AdmittedRequest { r.into() }
+//! ```
 #![forbid(unsafe_code)]
+
+mod codec;
+mod dispatcher;
+mod registry;
+pub use dispatcher::{
+    CapabilityDispatchError, CapabilityDispatchErrorCategory, CapabilityDispatcher,
+    CapabilityDispatcherConfig, CapabilityDispatcherConfigError, CapabilityResponseRejection,
+    MAX_CAPABILITY_PAYLOAD_BYTES,
+};
+pub use registry::{
+    CapabilityRegistry, CapabilityRegistryBuilder, CapabilityRegistryConfig,
+    CapabilityRegistryError, MAX_REGISTERED_CAPABILITIES,
+};
 
 mod error;
 mod lexical;
@@ -13,15 +40,15 @@ mod sink;
 pub use error::{Rejection, ResultEncodingError};
 use plenora_runtime_capabilities::{
     CAPABILITY_NAME_METADATA_KEY as NAME, CAPABILITY_OPERATION_METADATA_KEY as OPERATION,
-    CAPABILITY_VERSION_METADATA_KEY as WIRE, CapabilityDispatcher, CapabilityMessageCodec,
-    CapabilityRequest, ContractId, EXECUTION_DEADLINE_METADATA_KEY as DEADLINE,
-    IDEMPOTENCY_KEY_METADATA_KEY as KEY, INPUT_CONTRACT_METADATA_KEY as CONTRACT,
-    OPERATION_VERSION_METADATA_KEY as VERSION, PlenoraErrorCategory as Category,
+    CAPABILITY_VERSION_METADATA_KEY as WIRE, CapabilityRequest, ContractId,
+    EXECUTION_DEADLINE_METADATA_KEY as DEADLINE, IDEMPOTENCY_KEY_METADATA_KEY as KEY,
+    INPUT_CONTRACT_METADATA_KEY as CONTRACT, OPERATION_VERSION_METADATA_KEY as VERSION,
+    PlenoraErrorCategory as Category,
 };
 use plenora_runtime_core::Clock;
 use plenora_runtime_messaging::{
     CAUSATION_ID_METADATA_KEY as CAUSE, CORRELATION_ID_METADATA_KEY as CORRELATION,
-    MAX_METADATA_TOTAL_BYTES, MESSAGE_ID_METADATA_KEY as ID, MessageCodec, SerializedMessage,
+    MAX_METADATA_TOTAL_BYTES, MESSAGE_ID_METADATA_KEY as ID, SerializedMessage,
 };
 use plenora_runtime_worker::{DecodedWorkerMessage, WorkerContextIdentity, WorkerMessageDecoder};
 use serde_json::{Map, Value};
@@ -105,26 +132,36 @@ impl RuntimeBoundary {
     pub fn admit_raw(
         &self,
         metadata: &[u8],
-        mut input: SerializedMessage,
+        input: SerializedMessage,
     ) -> Result<AdmittedRequest, Rejection> {
-        if metadata.len() > MAX_METADATA_TOTAL_BYTES * 6 {
+        if input.content_type.len() > plenora_runtime_messaging::MAX_INGRESS_CONTENT_TYPE_BYTES
+            || metadata.len() > MAX_METADATA_TOTAL_BYTES * 6
+        {
             return Err(Rejection::new(Category::Protocol, &Map::new()));
         }
         let raw::Metadata(raw) = serde_json::from_slice(metadata)
             .map_err(|_| Rejection::new(Category::Protocol, &Map::new()))?;
-        if input.headers.iter().next().is_some() {
+        if input.raw_metadata().is_some() || input.headers.iter().next().is_some() {
             return Err(Rejection::new(Category::Protocol, &raw));
         }
-        for (key, value) in &raw {
+        self.materialize(&raw, input)
+    }
+
+    fn materialize(
+        &self,
+        raw: &Map<String, Value>,
+        mut input: SerializedMessage,
+    ) -> Result<AdmittedRequest, Rejection> {
+        for (key, value) in raw {
             let text = value
                 .as_str()
-                .ok_or_else(|| Rejection::new(Category::Protocol, &raw))?;
+                .ok_or_else(|| Rejection::new(Category::Protocol, raw))?;
             input
                 .headers
                 .insert_text(key.clone(), text)
-                .map_err(|_| Rejection::new(Category::Protocol, &raw))?;
+                .map_err(|_| Rejection::new(Category::Protocol, raw))?;
         }
-        self.admit(&raw, input)
+        self.admit(raw, input)
     }
 
     /// Admit the transport-neutral message used by NATS/Apalis and other worker adapters.
@@ -132,7 +169,40 @@ impl RuntimeBoundary {
     /// # Errors
     /// Returns exactly the same public rejection as the raw JSON metadata facade.
     pub fn admit_message(&self, input: &SerializedMessage) -> Result<AdmittedRequest, Rejection> {
+        if input.content_type.len() > plenora_runtime_messaging::MAX_INGRESS_CONTENT_TYPE_BYTES
+            || input.has_unreadable_metadata()
+        {
+            return Err(Rejection::new(Category::Protocol, &Map::new()));
+        }
         let mut raw = Map::new();
+        if let Some(fields) = input.raw_metadata() {
+            let raw_size = fields.iter().fold(0usize, |size, (key, value)| {
+                size.saturating_add(key.len()).saturating_add(value.len())
+            });
+            if raw_size > MAX_METADATA_TOTAL_BYTES * 6 {
+                return Err(Rejection::new(Category::Protocol, &Map::new()));
+            }
+            if !input.headers.is_empty()
+                || fields.len() > plenora_runtime_messaging::MAX_METADATA_ENTRIES
+            {
+                return Err(Rejection::new(Category::Protocol, &Map::new()));
+            }
+            for (key, value) in fields {
+                if raw.contains_key(key) {
+                    return Err(Rejection::new(Category::Protocol, &Map::new()));
+                }
+                raw.insert(
+                    key.clone(),
+                    std::str::from_utf8(value).map_or(Value::Null, |v| Value::String(v.into())),
+                );
+            }
+            let mut materialized =
+                SerializedMessage::new(input.content_type.clone(), input.bytes.clone());
+            if input.exceeds_transport_payload_limit() {
+                materialized = materialized.with_exceeded_transport_payload_limit();
+            }
+            return self.materialize(&raw, materialized);
+        }
         for (key, value) in input.headers.iter() {
             raw.insert(
                 key.into(),
@@ -147,6 +217,11 @@ impl RuntimeBoundary {
         raw: &Map<String, Value>,
         input: SerializedMessage,
     ) -> Result<AdmittedRequest, Rejection> {
+        if input.content_type.len() > plenora_runtime_messaging::MAX_INGRESS_CONTENT_TYPE_BYTES
+            || input.has_unreadable_metadata()
+        {
+            return Err(Rejection::new(Category::Protocol, &Map::new()));
+        }
         let reject = |category| Rejection::new(category, raw);
         if raw.values().any(|v| !v.is_string()) {
             return Err(reject(Category::Protocol));
@@ -199,9 +274,7 @@ impl RuntimeBoundary {
         }
         // Conversion happens only after all lexical checks. A canonical integer outside
         // the generic u16 representation denotes an unavailable selector, not protocol.
-        let request = CapabilityMessageCodec
-            .decode(&input)
-            .map_err(|_| reject(Category::Unsupported))?;
+        let request = codec::decode(&input).map_err(|_| reject(Category::Unsupported))?;
         let discovery = self
             .dispatcher
             .registry()
@@ -218,7 +291,9 @@ impl RuntimeBoundary {
         }) {
             return Err(reject(Category::Timeout));
         }
-        if input.len() > self.dispatcher.config().max_payload_bytes {
+        if input.exceeds_transport_payload_limit()
+            || input.len() > self.dispatcher.config().max_payload_bytes
+        {
             return Err(reject(Category::ResourceLimit));
         }
         self.policy.validate_payload(&request).map_err(reject)?;
@@ -301,3 +376,37 @@ impl WorkerMessageDecoder<AdmittedRequest> for RuntimeBoundary {
         Ok(DecodedWorkerMessage::new(admitted.identity, admitted))
     }
 }
+
+#[cfg(test)]
+mod test_registry_dispatch;
+#[cfg(test)]
+mod test_rest_discovery;
+
+#[cfg(test)]
+mod test_contracts;
+#[cfg(test)]
+mod test_runtime_binding_vectors;
+#[cfg(test)]
+mod test_codec {
+    pub struct Codec;
+    impl plenora_runtime_messaging::MessageCodec<plenora_runtime_capabilities::CapabilityRequest>
+        for Codec
+    {
+        type Error = plenora_runtime_capabilities::CapabilityMessageCodecError;
+        fn encode(
+            &self,
+            request: &plenora_runtime_capabilities::CapabilityRequest,
+        ) -> Result<plenora_runtime_messaging::SerializedMessage, Self::Error> {
+            plenora_runtime_capabilities::CapabilityMessageCodec.encode(request)
+        }
+        fn decode(
+            &self,
+            message: &plenora_runtime_messaging::SerializedMessage,
+        ) -> Result<plenora_runtime_capabilities::CapabilityRequest, Self::Error> {
+            crate::codec::decode(message)
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_fake_capability;

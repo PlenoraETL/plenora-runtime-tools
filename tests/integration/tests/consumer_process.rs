@@ -1,4 +1,6 @@
 //! Process-shaped acceptance test for an embedding Plenora consumer.
+mod support;
+use plenora_runtime_boundary::Rejection as CapabilityDispatchError;
 
 use std::{
     error::Error,
@@ -10,18 +12,17 @@ use std::{
 use axum::{Router, routing::get};
 use plenora_runtime_apalis::{ApalisAdapterConfig, BrokerWorkerRunner};
 use plenora_runtime_capabilities::{
-    CapabilityDispatchError, CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityId,
-    CapabilityMessageCodec, CapabilityRegistryBuilder, CapabilityRegistryConfig, CapabilityRequest,
-    ContractId, OperationName, OperationVersion,
+    CapabilityId, CapabilityMessageCodec, CapabilityRequest, ContractId, OperationName,
+    OperationVersion,
 };
 use plenora_runtime_core::{RuntimeHandle, ServiceMetadata};
 use plenora_runtime_http::{HttpBootstrap, HttpServeOutcome, HttpServerConfig};
 use plenora_runtime_messaging::{
-    CORRELATION_ID_METADATA_KEY, CorrelationId, MESSAGE_ID_METADATA_KEY, MessageCodec, MessageId,
-    RetryDecision, RetryPolicy, SerializedMessage,
+    CORRELATION_ID_METADATA_KEY, CorrelationId, MESSAGE_ID_METADATA_KEY, MessageId, RetryDecision,
+    RetryPolicy, SerializedMessage,
 };
 use plenora_runtime_testkit::{AckEvent, FakeBroker, FakeCapabilityHandler, ManualClock};
-use plenora_runtime_worker::{MetadataMessageDecoder, WorkerConcurrency, WorkerConfig};
+use plenora_runtime_worker::{WorkerConcurrency, WorkerConfig};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -59,16 +60,15 @@ async fn consumer_process_serves_readiness_processes_work_and_stops_together()
     let broker = FakeBroker::new(ManualClock::default());
     let _delivery_id = broker.enqueue(worker_message("consumer-poc")?)?;
     let capability = FakeCapabilityHandler::default();
-    let mut capabilities = CapabilityRegistryBuilder::new(CapabilityRegistryConfig::new(1)?)?;
-    capabilities.register(
-        CapabilityId::new("plenora.example-tools", 1)?,
+    let dispatcher = support::host(
+        "plenora.example-tools",
+        "plenora-example-execute-input-v1",
+        &["example.execute"],
         capability.clone(),
     )?;
-    let dispatcher =
-        CapabilityDispatcher::new(capabilities.build(), CapabilityDispatcherConfig::new(1024)?)?;
     let runner = BrokerWorkerRunner::new(
         broker.consumer(),
-        MetadataMessageDecoder::<_, CapabilityRequest>::new(CapabilityMessageCodec),
+        dispatcher.clone(),
         dispatcher,
         NoRetry,
         ApalisAdapterConfig::new(

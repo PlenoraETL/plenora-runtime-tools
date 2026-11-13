@@ -37,10 +37,10 @@ impl Rejection {
         }
     }
     pub(crate) fn from_dispatch(
-        error: &plenora_runtime_capabilities::CapabilityDispatchError,
+        error: &crate::CapabilityDispatchError,
         raw: &Map<String, Value>,
     ) -> Self {
-        use plenora_runtime_capabilities::CapabilityDispatchError as E;
+        use crate::CapabilityDispatchError as E;
         if matches!(
             error,
             E::UnknownCapability { .. }

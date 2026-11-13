@@ -3,8 +3,7 @@ use std::{error::Error, str::FromStr};
 use async_nats::{HeaderMap, HeaderName, HeaderValue};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use plenora_runtime_messaging::{
-    MAX_METADATA_ENTRIES, MAX_METADATA_KEY_BYTES, MAX_METADATA_TOTAL_BYTES,
-    MAX_METADATA_VALUE_BYTES, MessageMetadata,
+    MAX_METADATA_ENTRIES, MAX_METADATA_KEY_BYTES, MAX_METADATA_TOTAL_BYTES, MessageMetadata,
 };
 
 use crate::{NatsAdapterError, NatsErrorCategory, NatsOperation};
@@ -12,11 +11,6 @@ use crate::{NatsAdapterError, NatsErrorCategory, NatsOperation};
 const METADATA_PREFIX: &str = "Plenora-Meta-";
 const CONTENT_TYPE: &str = "Plenora-Content-Type-B64";
 const MAX_CONTENT_TYPE_BYTES: usize = MAX_METADATA_KEY_BYTES;
-const MAX_ENCODED_CONTENT_TYPE_BYTES: usize = base64_no_pad_encoded_limit(MAX_CONTENT_TYPE_BYTES);
-const MAX_ENCODED_METADATA_KEY_BYTES: usize = base64_no_pad_encoded_limit(MAX_METADATA_KEY_BYTES);
-const MAX_ENCODED_METADATA_VALUE_BYTES: usize =
-    base64_no_pad_encoded_limit(MAX_METADATA_VALUE_BYTES);
-
 pub(crate) fn encode(
     content_type: &str,
     metadata: &MessageMetadata,
@@ -42,11 +36,11 @@ pub(crate) fn encode(
     Ok(headers)
 }
 
-pub(crate) fn decode(
+fn decode_raw(
     headers: Option<&HeaderMap>,
-) -> Result<(String, MessageMetadata), NatsAdapterError> {
+) -> Result<(String, Vec<(String, bytes::Bytes)>), NatsAdapterError> {
     let mut content_type = String::from("application/octet-stream");
-    let mut metadata = MessageMetadata::new();
+    let mut metadata = Vec::<(String, bytes::Bytes)>::new();
     let Some(headers) = headers else {
         return Ok((content_type, metadata));
     };
@@ -71,7 +65,11 @@ pub(crate) fn decode(
                 return Err(protocol_limit("duplicate encoded content type"));
             }
             content_type_seen = true;
-            if value.as_str().len() > MAX_ENCODED_CONTENT_TYPE_BYTES {
+            if value.as_str().len()
+                > base64_no_pad_encoded_limit(
+                    plenora_runtime_messaging::MAX_INGRESS_CONTENT_TYPE_BYTES,
+                )
+            {
                 return Err(protocol_limit(
                     "encoded content type exceeds the configured byte limit",
                 ));
@@ -88,22 +86,14 @@ pub(crate) fn decode(
                     "encoded metadata exceeds the configured entry limit",
                 ));
             }
-            if encoded_key.len() > MAX_ENCODED_METADATA_KEY_BYTES {
+            if encoded_key.len() > base64_no_pad_encoded_limit(MAX_METADATA_TOTAL_BYTES * 6) {
                 return Err(protocol_limit(
                     "encoded metadata key exceeds the configured byte limit",
                 ));
             }
-            if value.as_str().len() > MAX_ENCODED_METADATA_VALUE_BYTES {
+            if value.as_str().len() > base64_no_pad_encoded_limit(MAX_METADATA_TOTAL_BYTES * 6) {
                 return Err(protocol_limit(
                     "encoded metadata value exceeds the configured byte limit",
-                ));
-            }
-            let entry_decoded_bytes = decoded_len_upper_bound(encoded_key.len())
-                .saturating_add(decoded_len_upper_bound(value.as_str().len()));
-            metadata_decoded_bytes = metadata_decoded_bytes.saturating_add(entry_decoded_bytes);
-            if metadata_decoded_bytes > MAX_METADATA_TOTAL_BYTES {
-                return Err(protocol_limit(
-                    "encoded metadata exceeds the configured total byte limit",
                 ));
             }
             let key = URL_SAFE_NO_PAD
@@ -114,13 +104,34 @@ pub(crate) fn decode(
             let value = URL_SAFE_NO_PAD
                 .decode(value.as_str())
                 .map_err(|error| protocol("invalid encoded metadata value", error))?;
-            if metadata.contains_key(&key) {
+            metadata_decoded_bytes = metadata_decoded_bytes
+                .saturating_add(key.len())
+                .saturating_add(value.len());
+            if metadata_decoded_bytes > MAX_METADATA_TOTAL_BYTES * 6 {
+                return Err(protocol_limit("raw metadata allocation limit exceeded"));
+            }
+            if metadata.iter().any(|(present, _)| present == &key) {
                 return Err(protocol_limit("duplicate decoded metadata"));
             }
-            metadata
-                .insert(key, value)
-                .map_err(|error| protocol("invalid decoded metadata key", error))?;
+            metadata.push((key, value.into()));
         }
+    }
+    Ok((content_type, metadata))
+}
+
+#[cfg(test)]
+fn decode(headers: Option<&HeaderMap>) -> Result<(String, MessageMetadata), NatsAdapterError> {
+    let (content_type, raw) = decode_raw(headers)?;
+    if content_type.len() > MAX_CONTENT_TYPE_BYTES {
+        return Err(protocol_limit(
+            "content type exceeds portable encoder limit",
+        ));
+    }
+    let mut metadata = MessageMetadata::new();
+    for (key, value) in raw {
+        metadata
+            .insert(key, value)
+            .map_err(|e| protocol("invalid decoded metadata", e))?;
     }
     Ok((content_type, metadata))
 }
@@ -135,10 +146,6 @@ const fn base64_no_pad_encoded_limit(decoded_limit: usize) -> usize {
             1 => 2,
             _ => 3,
         })
-}
-
-const fn decoded_len_upper_bound(encoded_len: usize) -> usize {
-    encoded_len.saturating_mul(3) / 4
 }
 
 fn insert_header(headers: &mut HeaderMap, name: &str, value: &str) -> Result<(), NatsAdapterError> {
@@ -177,15 +184,66 @@ fn protocol_limit(message: &'static str) -> NatsAdapterError {
     )
 }
 
+/// Decode the real NATS wire representation into an unadmitted message.
+/// Lossy/unreadable metadata is carried explicitly to the canonical admission decoder.
+/// This function does not invoke handlers or settle deliveries.
+#[must_use]
+pub fn decode_wire(
+    headers: Option<&HeaderMap>,
+    payload: bytes::Bytes,
+    max_payload_bytes: usize,
+) -> plenora_runtime_messaging::SerializedMessage {
+    use plenora_runtime_messaging::SerializedMessage;
+    let over_limit = payload.len() > max_payload_bytes;
+    let message = match decode_raw(headers) {
+        Ok((content_type, raw)) => {
+            let mut metadata = MessageMetadata::new();
+            let fits = raw
+                .iter()
+                .all(|(key, value)| metadata.insert(key.clone(), value.clone()).is_ok());
+            let message = SerializedMessage::new(content_type, payload);
+            if fits {
+                message.with_headers(metadata)
+            } else {
+                message.with_raw_metadata(raw)
+            }
+        }
+        Err(_) => {
+            SerializedMessage::new("application/octet-stream", payload).with_unreadable_metadata()
+        }
+    };
+    if over_limit {
+        message.with_exceeded_transport_payload_limit()
+    } else {
+        message
+    }
+}
+/// Encode the NATS metadata wire representation without performing admission.
+/// # Errors
+/// Rejects invalid sizes or an input already rejected by a receiving transport.
+pub fn encode_wire(
+    message: &plenora_runtime_messaging::SerializedMessage,
+) -> Result<HeaderMap, NatsAdapterError> {
+    if message.raw_metadata().is_some()
+        || message.has_unreadable_metadata()
+        || message.exceeds_transport_payload_limit()
+    {
+        return Err(protocol_limit(
+            "rejected transport message cannot be forwarded",
+        ));
+    }
+    encode(&message.content_type, &message.headers)
+}
+
 #[cfg(test)]
 mod tests {
     use async_nats::HeaderMap;
-    use plenora_runtime_messaging::MessageMetadata;
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    use plenora_runtime_messaging::{MAX_METADATA_KEY_BYTES, MessageMetadata};
 
     use super::{
-        CONTENT_TYPE, MAX_CONTENT_TYPE_BYTES, MAX_ENCODED_CONTENT_TYPE_BYTES,
-        MAX_ENCODED_METADATA_KEY_BYTES, MAX_ENCODED_METADATA_VALUE_BYTES, METADATA_PREFIX, decode,
-        encode, insert_header,
+        CONTENT_TYPE, MAX_CONTENT_TYPE_BYTES, METADATA_PREFIX, decode, decode_wire, encode,
+        insert_header,
     };
 
     #[test]
@@ -231,53 +289,46 @@ mod tests {
     }
 
     #[test]
-    fn oversized_encoded_content_type_is_rejected_before_decoding()
+    fn decoded_content_type_above_encoder_bound_is_preserved_for_admission()
     -> Result<(), Box<dyn std::error::Error>> {
+        let text = "a".repeat(MAX_CONTENT_TYPE_BYTES + 1);
+        let mut headers = HeaderMap::new();
+        insert_header(&mut headers, CONTENT_TYPE, &URL_SAFE_NO_PAD.encode(&text))?;
+        let message = decode_wire(Some(&headers), bytes::Bytes::new(), 1);
+        assert_eq!(message.content_type.as_ref(), text);
+        assert!(!message.has_unreadable_metadata());
+        Ok(())
+    }
+    #[test]
+    fn decoded_key_above_portable_bound_is_retained_raw() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let key = "a".repeat(MAX_METADATA_KEY_BYTES + 1);
         let mut headers = HeaderMap::new();
         insert_header(
             &mut headers,
-            CONTENT_TYPE,
-            &"A".repeat(MAX_ENCODED_CONTENT_TYPE_BYTES.saturating_add(1)),
+            &format!("{METADATA_PREFIX}{}", URL_SAFE_NO_PAD.encode(&key)),
+            "eA",
         )?;
-        let error = decode(Some(&headers)).err().ok_or("decode must fail")?;
-        assert_eq!(
-            error.message(),
-            "encoded content type exceeds the configured byte limit"
-        );
+        let message = decode_wire(Some(&headers), bytes::Bytes::new(), 1);
+        let raw = message.raw_metadata().ok_or("raw fields lost")?;
+        assert_eq!(raw.first().ok_or("field")?.0, key);
+        assert!(!message.has_unreadable_metadata());
         Ok(())
     }
-
     #[test]
-    fn oversized_encoded_metadata_key_is_rejected_before_decoding()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let mut headers = HeaderMap::new();
-        let name = format!(
-            "{METADATA_PREFIX}{}",
-            "A".repeat(MAX_ENCODED_METADATA_KEY_BYTES.saturating_add(1))
-        );
-        insert_header(&mut headers, &name, "AA")?;
-        let error = decode(Some(&headers)).err().ok_or("decode must fail")?;
-        assert_eq!(
-            error.message(),
-            "encoded metadata key exceeds the configured byte limit"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn oversized_encoded_metadata_value_is_rejected_before_decoding()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn decoded_value_above_portable_bound_is_retained_raw() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let value = vec![b'x'; plenora_runtime_messaging::MAX_METADATA_VALUE_BYTES + 1];
         let mut headers = HeaderMap::new();
         insert_header(
             &mut headers,
             &format!("{METADATA_PREFIX}dGVzdA"),
-            &"A".repeat(MAX_ENCODED_METADATA_VALUE_BYTES.saturating_add(1)),
+            &URL_SAFE_NO_PAD.encode(&value),
         )?;
-        let error = decode(Some(&headers)).err().ok_or("decode must fail")?;
-        assert_eq!(
-            error.message(),
-            "encoded metadata value exceeds the configured byte limit"
-        );
+        let message = decode_wire(Some(&headers), bytes::Bytes::new(), 1);
+        let raw = message.raw_metadata().ok_or("raw fields lost")?;
+        assert_eq!(raw.first().ok_or("field")?.1.as_ref(), value);
+        assert!(!message.has_unreadable_metadata());
         Ok(())
     }
 }

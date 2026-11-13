@@ -47,3 +47,13 @@ ammessi sono in [architecture](architecture.md#strato-catene-proposto-p11).
 I divieti sopra continuano ad applicarsi alle fondamenta generiche.
 `scripts/check_chain_graph.py` aggiunge i confini del prodotto e la ricerca
 transitiva di dipendenze ETL/Arrow nei generici, senza alterare i test Rust.
+
+## Migrazione P2.1b
+
+CapabilityRegistry, CapabilityRegistryBuilder e CapabilityDispatcher sono ora
+esportati da plenora-runtime-boundary. CapabilityRequest resta un candidato
+outbound e CapabilityMessageCodec espone solo encode. Per ricevere usare
+RuntimeBoundary come decoder e handler, con discovery, AdmissionPolicy, clock e
+sink espliciti. Il dispatch grezzo è privato. WorkerContext.metadata contiene
+solo metadati del messaggio; le osservazioni del broker sono in broker_metadata.
+Vedere [allineamento del profilo](contract-alignment.md#p21b-confine-delle-facciate-esistenti).

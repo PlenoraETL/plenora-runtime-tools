@@ -21,8 +21,8 @@ pub use dead_letter::{
 };
 pub use identifiers::{CausationId, CorrelationId, MessageId};
 pub use message::{
-    CAUSATION_ID_METADATA_KEY, CORRELATION_ID_METADATA_KEY, MESSAGE_ID_METADATA_KEY, MessageCodec,
-    MessageEnvelope, SerializedMessage,
+    CAUSATION_ID_METADATA_KEY, CORRELATION_ID_METADATA_KEY, MAX_INGRESS_CONTENT_TYPE_BYTES,
+    MESSAGE_ID_METADATA_KEY, MessageCodec, MessageEnvelope, SerializedMessage,
 };
 pub use metadata::{
     MAX_METADATA_ENTRIES, MAX_METADATA_KEY_BYTES, MAX_METADATA_TOTAL_BYTES,

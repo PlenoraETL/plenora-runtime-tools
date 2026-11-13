@@ -16,8 +16,8 @@ use futures_util::{StreamExt as _, stream};
 use plenora_runtime_core::{Clock, ServiceMetadata, ShutdownSignal, SystemClock};
 use plenora_runtime_messaging::{
     AckError, DeadLetter, DeadLetterPublishError, DeadLetterSink, Delivery,
-    DeliveryHeartbeatConfig, MessageConsumer, MessageMetadata, MetadataKeyError, NackReason,
-    PublishOutcome, RetryPolicy,
+    DeliveryHeartbeatConfig, MessageConsumer, MetadataKeyError, NackReason, PublishOutcome,
+    RetryPolicy,
 };
 use plenora_runtime_worker::{
     TaskCancellationReason, TaskCancellationToken, TaskLifecycleObserver, WorkerAdmissionHandle,
@@ -154,17 +154,6 @@ impl<E> BrokerWorkerError<E> {
         }
     }
 
-    fn metadata(error: MetadataKeyError) -> Self {
-        Self {
-            kind: BrokerWorkerErrorKind::Metadata,
-            decoder: None,
-            metadata: Some(error),
-            heartbeat: None,
-            dead_letter: None,
-            acknowledgement: None,
-        }
-    }
-
     fn settlement(error: AckError) -> Self {
         Self {
             kind: BrokerWorkerErrorKind::Settlement,
@@ -181,17 +170,6 @@ impl<E> BrokerWorkerError<E> {
             kind: BrokerWorkerErrorKind::DecodeSettlement,
             decoder: Some(decoder),
             metadata: None,
-            heartbeat: None,
-            dead_letter: None,
-            acknowledgement: Some(acknowledgement),
-        }
-    }
-
-    fn metadata_settlement(metadata: MetadataKeyError, acknowledgement: AckError) -> Self {
-        Self {
-            kind: BrokerWorkerErrorKind::MetadataSettlement,
-            decoder: None,
-            metadata: Some(metadata),
             heartbeat: None,
             dead_letter: None,
             acknowledgement: Some(acknowledgement),
@@ -579,10 +557,7 @@ where
             Ok(decoded) => decoded,
             Err(error) => return reject_decode(delivery, error).await,
         };
-        let metadata = match combined_metadata(&delivery) {
-            Ok(metadata) => metadata,
-            Err(error) => return reject_metadata(delivery, error).await,
-        };
+        let metadata = delivery.message.headers.clone();
         let cancellation = TaskCancellationToken::new();
         let context = WorkerContext::from_identity(
             decoded.identity,
@@ -590,6 +565,7 @@ where
             metadata,
             self.shutdown.clone(),
         )
+        .with_broker_metadata(delivery.broker_metadata.clone())
         .with_cancellation(cancellation.clone());
         let execution = self
             .worker
@@ -1049,14 +1025,6 @@ where
     ApalisError::ServiceError(Arc::new(error))
 }
 
-fn combined_metadata(delivery: &Delivery) -> Result<MessageMetadata, MetadataKeyError> {
-    let mut metadata = delivery.message.headers.clone();
-    for (key, value) in delivery.broker_metadata.iter() {
-        let _replaced = metadata.insert(key, value.clone())?;
-    }
-    Ok(metadata)
-}
-
 #[allow(
     clippy::result_large_err,
     reason = "BrokerWorkerError conserva per valore le sorgenti di decode, metadati, heartbeat, DLQ e settlement; è un percorso di errore freddo, e inscatolarlo cambierebbe l'API pubblica senza beneficio misurato"
@@ -1068,23 +1036,6 @@ async fn reject_decode<E, H>(
     match delivery.nack(NackReason::ConsumerRejected).await {
         Ok(()) => Err(BrokerWorkerError::decode(error)),
         Err(acknowledgement) => Err(BrokerWorkerError::decode_settlement(error, acknowledgement)),
-    }
-}
-
-#[allow(
-    clippy::result_large_err,
-    reason = "BrokerWorkerError conserva per valore le sorgenti di decode, metadati, heartbeat, DLQ e settlement; è un percorso di errore freddo, e inscatolarlo cambierebbe l'API pubblica senza beneficio misurato"
-)]
-async fn reject_metadata<E, H>(
-    delivery: Delivery,
-    error: MetadataKeyError,
-) -> Result<ApalisExecutionOutcome<H>, BrokerWorkerError<E>> {
-    match delivery.nack(NackReason::ConsumerRejected).await {
-        Ok(()) => Err(BrokerWorkerError::metadata(error)),
-        Err(acknowledgement) => Err(BrokerWorkerError::metadata_settlement(
-            error,
-            acknowledgement,
-        )),
     }
 }
 

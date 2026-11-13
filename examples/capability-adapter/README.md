@@ -29,3 +29,5 @@ non valide no, i fallimenti transitori restano ritentabili e gli effetti esterni
 vengono mai ritentati alla cieca.
 La checklist di integrazione in [`docs/integrating-a-library.md`](../../docs/integrating-a-library.md)
 definisce i test aggiuntivi richiesti per un adapter reale.
+
+OUTSIDE-QUALIFIED-BOUNDARY: esempio di adattamento diretto della libreria, non ingresso Runtime Binding qualificato. Non costruisce AdmittedRequest e non usa il registro runtime.

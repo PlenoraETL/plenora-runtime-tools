@@ -819,6 +819,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "plenora-runtime-boundary"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "plenora-runtime-capabilities",
+ "plenora-runtime-core",
+ "plenora-runtime-messaging",
+ "plenora-runtime-worker",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "plenora-runtime-capabilities"
 version = "0.1.0"
 dependencies = [
@@ -858,6 +873,7 @@ dependencies = [
  "bytes",
  "libfuzzer-sys",
  "opentelemetry",
+ "plenora-runtime-boundary",
  "plenora-runtime-capabilities",
  "plenora-runtime-control",
  "plenora-runtime-messaging",
@@ -865,6 +881,7 @@ dependencies = [
  "plenora-runtime-observability",
  "plenora-runtime-scheduler",
  "plenora-runtime-subprocess",
+ "plenora-runtime-testkit",
 ]
 
 [[package]]
@@ -903,6 +920,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "plenora-runtime-outbox"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "plenora-runtime-messaging",
+ "uuid",
+]
+
+[[package]]
 name = "plenora-runtime-resources"
 version = "0.1.0"
 dependencies = [
@@ -928,6 +955,18 @@ name = "plenora-runtime-subprocess"
 version = "0.1.0"
 dependencies = [
  "tokio",
+]
+
+[[package]]
+name = "plenora-runtime-testkit"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "plenora-runtime-capabilities",
+ "plenora-runtime-core",
+ "plenora-runtime-messaging",
+ "plenora-runtime-outbox",
+ "plenora-runtime-worker",
 ]
 
 [[package]]

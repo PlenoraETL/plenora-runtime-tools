@@ -30,7 +30,55 @@ Il registro sorgente e [contracts/adoption-source.json](../contracts/adoption-so
 
 Il profilo resta `plenora-runtime-tools-profile-v1`; al pin non esiste alcun catalogo runtime-tools, ne vecchio ne nuovo. Public Catalogs 2.0 governa la selezione del consumer dai documenti capability. Sono copiate le nuove identita database-tools-v2, data-tools-v3, io-tools-v3, senza inventare operazioni runtime.
 
-## Stato per requisito
+## P2.1b: confine delle facciate esistenti
+
+Regola: RT-012/016..023, stesso ingresso canonico prima del dispatch registrato.
+Ambito implementato: JSON raw, decoder worker, decoder wire NATS effettivamente
+usato da receive/replay, BrokerDeliveryService Apalis e composizioni di processo.
+[Prove eseguibili](../tests/integration/tests/boundary_facades.rs) confrontano
+categoria/fase/retry/remote_effect, riflessione e identità, con zero invoke sui
+rifiuti; includono quota trasporto con difetti multipli e metadati broker distinti.
+Il nuovo result ID è diverso dalla richiesta e stabile nella singola istanza:
+non è un attestato di persistenza o replay dopo restart.
+
+Modifica deliberata dei generici: registro e dispatcher trasferiti da capabilities
+al boundary, decodifica del codec privata, CapabilityRequest solo candidato
+outbound. Il dispatcher non implementa più WorkerHandler sul candidato e il
+lookup degli handler resta privato. Il trait CapabilityHandler è un'estensione
+applicativa: una chiamata diretta al proprio adapter non è un ingresso del
+registro runtime. I parser di documenti e i worker generici non producono il tipo
+AdmittedRequest; nessun executor catene o adapter di dominio viene inventato.
+
+Messaging conserva campi wire decodificabili prima dei limiti della mappa, oppure
+un errore wire esplicito; il boundary applica lo stesso materializzatore. NATS
+non elimina più il contesto del rifiuto per un valore decodificabile oltre limite.
+WorkerContext separa metadata ammessi e broker_metadata; Apalis non li sovrascrive.
+Il limite payload del trasporto segue protocol, unsupported e timeout.
+Il profilo raw impone al media type decodificato lo stesso budget di 32768 byte
+in ogni facciata; oltre budget il documento di metadati non viene riflesso.
+Il budget raw metadata è 196608 byte; i limiti base64 derivano dal budget
+decodificato, senza confrontare byte encoded con byte decoded. Sono limiti
+locali di allocazione, non estensioni della grammatica dei contratti upstream. Nessun
+nuovo client infrastrutturale, nessun arco generico verso il prodotto o engine.
+
+Rischio residuo: confondere questa prova locale con un deploy NATS, con le policy
+di schemi dei cinque adapter futuri o con un risultato terminale pubblicato.
+Condizione di chiusura di questi ambiti: CI Linux/Windows sul commit, prove del
+broker reale configurato e passi P2.2/P2.4/S3. CAS/digest durevole, restart e
+settlement terminale rimangono aperti. Le righe globali sotto non vengono promosse
+per effetto dei soli test del profilo locale. Le note P2.1a sui bypass legacy sono
+storiche: P2.1b sostituisce quei percorsi pubblici, non qualifica gli esempi esclusi.
+
+L'esempio capability-adapter resta esplicitamente OUTSIDE-QUALIFIED-BOUNDARY e
+chiama il proprio adapter senza registro. Ogni esempio dichiara il profilo nel
+manifest, verificato da test; worker-nats usa il boundary e un producer confermato
+per i successi. Gli errori terminali non sono pubblicati dal runner: gate P2.4.
+L'inventario AST [boundary-api.txt](boundary-api.txt) enumera dichiarazioni, firme,
+visibilità, costruttori, derive e macro; variazioni richiedono nuova raccolta e
+prove, non basta aggiungere un nome a una lista. Test compile_fail impediscono
+costruzione di AdmittedRequest e dispatch pubblico del candidato.
+
+## Stato per requisito del profilo complessivo
 
 | Regola | Stato | Ambito ed evidenza |
 |---|---|---|
@@ -45,18 +93,18 @@ Il profilo resta `plenora-runtime-tools-profile-v1`; al pin non esiste alcun cat
 | RT-009 | implemented | API Rust discovered: Contratto, content type e correlazione preservati nel risultato. |
 | RT-010 | deviation | runtime: Modello pubblico e mappature presenti; settlement non pubblica ogni errore terminale. |
 | RT-011 | implemented | API Rust discovered: Routing incompatibile rifiutato prima di chiamare handler. |
-| RT-012 | deviation | runtime: Il codec capability non verifica tutte le identita dell envelope. |
+| RT-012 | deviation | runtime: P2.1b verifica le identita a ogni ingresso registrato; deployment e CI remota non attestati. |
 | RT-013 | deviation | runtime: Payload di dominio opachi; nessuna risoluzione autorizzata comune di riferimenti/credenziali. |
 | RT-014 | implemented | API Rust discovered: Payload artefatto opaco e metadati risultato preservati, senza reinterpretazione. |
 | RT-015 | implemented | API Rust discovered: Resolver e adapter appartengono all applicazione; nessuna dipendenza di dominio. |
-| RT-016 | deviation | runtime: Rifiuti preesistenti usano quarantine o prepare anziche validate/none/never. |
-| RT-017 | deviation | runtime: Parsing u16 e UUID generici non garantisce tutta la grammatica canonica. |
-| RT-018 | deviation | runtime: Ordine globale protocol/unsupported/timeout non qualificato su tutti i probe. |
+| RT-016 | deviation | runtime: P2.1b uniforma i rifiuti locali a validate/none/never; pubblicazione terminale ancora P2.4. |
+| RT-017 | deviation | runtime: Parsing canonico unico provato nelle facciate esistenti; generici documentali non sono ingressi ammessi. |
+| RT-018 | deviation | runtime: Ordine protocol/unsupported/timeout provato localmente sulle facciate; profilo di deploy non qualificato. |
 | RT-019 | deviation | runtime: Serializzazione del rifiuto e riflessione selettiva non integrate nel settlement. |
 | RT-020 | deviation | runtime: Identita nuova e causation dei risultati non qualificate end-to-end. |
-| RT-021 | deviation | runtime: Il parser RFC3339 esistente non rifiuta tutti gli offset vietati. |
-| RT-022 | deviation | runtime: Supporto controllo verificato, ma chiave vuota/limite specifico/conflitto input non qualificati. |
-| RT-023 | deviation | runtime: Input opaco: il runtime non riconosce un secondo campo deadline di dominio. |
+| RT-021 | deviation | runtime: P2.1b usa il parser UTC unico prima del dispatch; deployment e superfici prodotto future restano da qualificare. |
+| RT-022 | deviation | runtime: Grammatica e limite della chiave provati localmente; digest/CAS e conflitto durevole restano P2.2. |
+| RT-023 | deviation | runtime: Policy di schema fixture provata prima di invoke; i cinque adapter di dominio reali restano da implementare. |
 | RT-024 | deviation | runtime: OutputTooLarge e resource_limit e mai troncato; fase finalize ed effetto unknown conservativi, non quelli provati dal componente. |
 | RT-025 | implemented | API Rust discovered: Coppie binding v1/1 e v2/2 ammesse; capability wire sempre 1. |
 | RT-026 | deviation | runtime: Policy pubblica select_runtime_destination implementata; i percorsi legacy non la chiamano. |
@@ -87,10 +135,10 @@ Regola: RT-010. Ambito: runtime. Modello pubblico e mappature presenti; settleme
 ### RT-012
 
 Profilo boundary P2.1: grammatica e riflessione provate all'ingresso grezzo da
-`rt012`/`rt019` in [raw_ingress.rs](../crates/plenora-runtime-boundary/tests/raw_ingress.rs).
-La chiusura è limitata a `RuntimeBoundary`; decoder UUID legacy non attestati.
+`rt012`/`rt019` in [boundary_facades.rs](../tests/integration/tests/boundary_facades.rs).
+P2.1b estende la prova al wire NATS e ad Apalis; i decoder UUID generici non possono costruire AdmittedRequest.
 
-Regola: RT-012. Ambito: runtime. Il codec capability non verifica tutte le identita dell envelope. Hazard: Identita non canoniche possono attraversare un adapter. Rientro: Eseguire tutti i probe sulle vere frontiere codec/trasporto.
+Regola: RT-012. Ambito: runtime. P2.1b verifica le identita a ogni ingresso registrato; deployment e CI remota non attestati. Hazard: Identita non canoniche possono attraversare un adapter. Rientro: Eseguire tutti i probe sulle vere frontiere codec/trasporto.
 
 ### RT-013
 
@@ -102,7 +150,7 @@ Profilo boundary P2.1: rifiuti validate/none/never provati dai 21 probe upstream
 e da `rt016`/`rt018`; il wrapper rimappa anche il timeout pre-invoke del dispatcher.
 La pubblicazione dei rifiuti da parte del runner resta il gate RT-019.
 
-Regola: RT-016. Ambito: runtime. Rifiuti preesistenti usano quarantine o prepare anziche validate/none/never. Hazard: Semantica pubblica del rifiuto diversa da RT-016. Rientro: Uniformare codec, dispatcher e settlement e provare tutti i probe.
+Regola: RT-016. Ambito: runtime. P2.1b uniforma i rifiuti locali a validate/none/never; pubblicazione terminale ancora P2.4. Hazard: Semantica pubblica del rifiuto diversa da RT-016. Rientro: Uniformare codec, dispatcher e settlement e provare tutti i probe.
 
 ### RT-017
 
@@ -111,18 +159,17 @@ Profilo boundary P2.1: `rt017` prova JSON stringa, duplicati e versioni fino a
 rifiuta valori riservati multipli prima della mappa: prova
 `duplicate_reserved_wire_values_are_rejected_before_map_construction` in
 [metadata.rs](../adapters/plenora-runtime-nats/src/metadata.rs).
-Il codec generico diretto resta legacy; nessuna chiusura globale.
+P2.1b rimuove il decoder pubblico grezzo: il codec generico conserva solo encode. Nessuna chiusura di deployment.
 
-Regola: RT-017. Ambito: runtime. Parsing u16 e UUID generici non garantisce tutta la grammatica canonica. Hazard: Normalizzazione di valori come 01. Rientro: Validazione lessicale esatta prima della conversione in tutto il workspace.
+Regola: RT-017. Ambito: runtime. Parsing canonico unico provato nelle facciate esistenti; generici documentali non sono ingressi ammessi. Hazard: Normalizzazione di valori come 01. Rientro: Validazione lessicale esatta prima della conversione in tutto il workspace.
 
 ### RT-018
 
 Profilo boundary P2.1: `rt018` esegue le otto combinazioni
 protocol/unsupported/timeout su raw JSON e decoder worker; protocol precede
-anche un selettore numerico canonico oltre u16. Le composizioni legacy non
-passate attraverso il boundary restano fuori dall'evidenza.
+anche un selettore numerico canonico oltre u16. P2.1b prova anche worker, wire NATS e delivery Apalis; gli esempi esclusi dichiarano il proprio profilo.
 
-Regola: RT-018. Ambito: runtime. Ordine globale protocol/unsupported/timeout non qualificato su tutti i probe. Hazard: Categoria dipende dal percorso adapter. Rientro: Applicare un unico ordine e provare difetti multipli.
+Regola: RT-018. Ambito: runtime. Ordine protocol/unsupported/timeout provato localmente sulle facciate; profilo di deploy non qualificato. Hazard: Categoria dipende dal percorso adapter. Rientro: Applicare un unico ordine e provare difetti multipli.
 
 ### RT-019
 
@@ -150,16 +197,15 @@ Profilo boundary P2.1: `rt021` usa ManualClock; riceve T/t, Z/z e +00:00,
 frazione 1–9 cifre, rifiuta -00:00, offset non zero e secondi intercalari.
 Motivo dell'esclusione: SystemTime non ne conserva l'identità temporale.
 La regressione `absolute_deadlines_are_evaluated_with_the_injected_clock`
-prova uguaglianza e superamento anche nel dispatcher generico. La sola modifica
-del generico impedisce il poll di invoke tramite timeout(0); non sostituisce
-il suo parser legacy con una dichiarazione di conformità.
+prova uguaglianza e superamento anche nel dispatcher generico. P2.1b rende privato il dispatch grezzo: ogni richiesta registrata passa dal
+parser UTC comune prima del calcolo della durata e del poll di invoke.
 La deadline resta `DateTime<Utc>` fino al calcolo della durata, senza conversione
 anticipata in SystemTime: `nanosecond_deadline_is_not_rounded_by_dispatcher`
 prova il caso futuro di un nanosecondo anche su Windows. La prova
 `deadline_reached_between_boundary_and_dispatcher_never_polls_handler` controlla
 la scadenza fra le due letture dell'orologio.
 
-Regola: RT-021. Ambito: runtime. Il parser RFC3339 esistente non rifiuta tutti gli offset vietati. Hazard: Deadline non UTC accettata. Rientro: Parser esatto UTC e prova ManualClock su <= now.
+Regola: RT-021. Ambito: runtime. P2.1b usa il parser UTC unico prima del dispatch; deployment e superfici prodotto future restano da qualificare. Hazard: Deadline non UTC accettata. Rientro: Parser esatto UTC e prova ManualClock su <= now.
 
 ### RT-022
 
@@ -169,7 +215,7 @@ dell'host è obbligatoria e non inventa dedup remota. Digest/CAS autorevole,
 conflitto, race, restart e at-most-one-start restano aperti (P2.2).
 La riga complessiva resta deviation.
 
-Regola: RT-022. Ambito: runtime. Supporto controllo verificato, ma chiave vuota/limite specifico/conflitto input non qualificati. Hazard: Deduplicazione non garantita. Rientro: Qualificare grammatica, limiti e store deduplicazione del componente.
+Regola: RT-022. Ambito: runtime. Grammatica e limite della chiave provati localmente; digest/CAS e conflitto durevole restano P2.2. Hazard: Deduplicazione non garantita. Rientro: Qualificare grammatica, limiti e store deduplicazione del componente.
 
 ### RT-023
 
@@ -178,7 +224,7 @@ prima di invoke, con deadline uguali e diverse; nessuna ricerca di campi
 arbitrari nel boundary. I cinque adapter reali devono implementare la policy
 del proprio schema prima dei resolver: questa prova non li qualifica.
 
-Regola: RT-023. Ambito: runtime. Input opaco: il runtime non riconosce un secondo campo deadline di dominio. Hazard: Doppio canale deadline. Rientro: Adapter rifiuta campo payload e metadata insieme.
+Regola: RT-023. Ambito: runtime. Policy di schema fixture provata prima di invoke; i cinque adapter di dominio reali restano da implementare. Hazard: Doppio canale deadline. Rientro: Adapter rifiuta campo payload e metadata insieme.
 
 ### RT-024
 
@@ -200,7 +246,7 @@ Regola: ADOPTION-v4. Ambito: release. Registro sorgente locale, non manifesto v4
 
 Wire e selettori restano versione 1. Policy host RT-026/027 testata sulle 21 sequenze comuni tramite API pubbliche e fake atomico; il fake non prova durabilita. Ingress minimo 2.0 e finestra acceptance **non configurati nei trasporti**. Nessuna finestra di retention viene promessa. Limite dispatcher: 1 MiB predefinito, massimo 64 MiB, configurabile per input/output; limiti ulteriori del sink non qualificati.
 
-Tutti i 33 vettori runtime-v1 e i due runtime-v2 passano per codec/modello pubblico; i probe runtime-probes-v1 sono copiati e verificati per hash, ma non sono una suite runtime passata (RT-016..023 aperti). ERR-015/016 sono prove di preservazione delle assi, non di pubblicazione terminale.
+I 33 vettori runtime-v1 e i due runtime-v2 restano coperti dai test interni del codec/modello. P2.1b esegue i 21 probe runtime-probes-v1 attraverso le facciate locali; non attesta settlement, durabilita o deployment. ERR-015/016 sono prove di preservazione delle assi, non di pubblicazione terminale.
 
 Decisioni 0015, 0017..0021 confrontate nella copia locale; 0016 non e presente al pin. Interoperabilita Arrow (#34) e adapter REST/Arrow non applicabili al trasporto opaco. #39 e #40 riguardano i gate upstream: non introducono wire o capability nuovi. Nessuna dipendenza Rust aggiunta. Nessun budget di dimensione del codice trovato nei gate o nelle policy locali.
 

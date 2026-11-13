@@ -90,6 +90,12 @@ where
     type Error = MetadataMessageDecodeError<C::Error>;
 
     fn decode(&self, message: &SerializedMessage) -> Result<DecodedWorkerMessage<T>, Self::Error> {
+        if message.raw_metadata().is_some()
+            || message.has_unreadable_metadata()
+            || message.exceeds_transport_payload_limit()
+        {
+            return Err(MetadataMessageDecodeError::InvalidTransport);
+        }
         let identity = WorkerContextIdentity::new(
             required_message_id::<C::Error>(&message.headers)?,
             required_correlation_id::<C::Error>(&message.headers)?,
@@ -105,6 +111,8 @@ where
 
 /// Failure while decoding canonical worker identity metadata or a typed payload.
 pub enum MetadataMessageDecodeError<E> {
+    /// Wire decoding or a transport quota failed before payload decoding.
+    InvalidTransport,
     /// A required identity key is absent.
     MissingIdentity(&'static str),
     /// An identity value is not UTF-8.
@@ -124,6 +132,7 @@ impl<E> MetadataMessageDecodeError<E> {
             | Self::InvalidIdentityEncoding(key)
             | Self::InvalidIdentity(key) => key,
             Self::Codec(_) => "payload",
+            Self::InvalidTransport => "transport",
         }
     }
 }
@@ -154,7 +163,8 @@ where
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Codec(error) => Some(error),
-            Self::MissingIdentity(_)
+            Self::InvalidTransport
+            | Self::MissingIdentity(_)
             | Self::InvalidIdentityEncoding(_)
             | Self::InvalidIdentity(_) => None,
         }

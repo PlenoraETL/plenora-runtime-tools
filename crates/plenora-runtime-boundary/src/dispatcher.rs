@@ -1,3 +1,4 @@
+use crate::CapabilityRegistry;
 use std::{
     error::Error,
     fmt::{self, Debug, Display, Formatter},
@@ -9,19 +10,17 @@ use std::{
 // negotiated transport, durable acceptance store, domain payload validator,
 // or terminal public-error publisher. A green model test does not close them.
 
-use async_trait::async_trait;
 use chrono::DateTime;
 use plenora_runtime_core::{Clock, SystemClock};
 use plenora_runtime_messaging::{ClassifyRetry, CorrelationId, PublishOutcome, RetryErrorClass};
-use plenora_runtime_worker::{WorkerContext, WorkerHandler};
+use plenora_runtime_worker::WorkerContext;
 
-use crate::{
-    CapabilityFailure, CapabilityId, CapabilityPayload, CapabilityRegistry, CapabilityRemoteEffect,
-    CapabilityRequest, CapabilityRequestRejection, CapabilityResponse, CapabilityResult,
-    CapabilityResultBuildError, CapabilityResultPublishError, CapabilityResultSink,
-    EXECUTION_DEADLINE_METADATA_KEY, OperationName, OperationVersion, PlenoraError,
-    PlenoraErrorCategory, PlenoraErrorPhase, PlenoraErrorRemoteEffect, PlenoraErrorRetry,
-    PlenoraErrorValidationError,
+use plenora_runtime_capabilities::{
+    CapabilityFailure, CapabilityId, CapabilityPayload, CapabilityRemoteEffect, CapabilityRequest,
+    CapabilityRequestRejection, CapabilityResponse, CapabilityResult, CapabilityResultBuildError,
+    CapabilityResultPublishError, CapabilityResultSink, EXECUTION_DEADLINE_METADATA_KEY,
+    OperationName, OperationVersion, PlenoraError, PlenoraErrorCategory, PlenoraErrorPhase,
+    PlenoraErrorRemoteEffect, PlenoraErrorRetry, PlenoraErrorValidationError,
 };
 
 /// Hard upper bound for opaque input passed to one capability adapter: 64 MiB.
@@ -277,15 +276,16 @@ impl Debug for CapabilityDispatcher {
     }
 }
 
-#[async_trait]
-impl WorkerHandler<CapabilityRequest> for CapabilityDispatcher {
-    type Error = CapabilityDispatchError;
-
-    async fn handle(
+impl CapabilityDispatcher {
+    #[allow(
+        clippy::result_large_err,
+        reason = "Private dispatch preserves typed evidence by value until the boundary maps it once"
+    )]
+    pub(crate) async fn handle(
         &self,
         context: WorkerContext,
         request: CapabilityRequest,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), CapabilityDispatchError> {
         let capability = request.capability().clone();
         let operation = request.operation().clone();
         let operation_version = request.operation_version();
