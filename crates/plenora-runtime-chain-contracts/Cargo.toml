@@ -1,0 +1,20 @@
+[package]
+name = "plenora-runtime-chain-contracts"
+description = "Closed chain documents and offline preventive validation against fixture discovery."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+# SHA-256 of CHAIN-C14N-1; same exact version already resolved in the workspace.
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+# Linear-time matching of the pinned contract grammars; no runtime schema loading.
+regex = { version = "=1.13.1", default-features = false, features = ["std", "perf"] }
+
+[lints]
+workspace = true

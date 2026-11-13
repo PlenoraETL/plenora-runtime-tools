@@ -53,3 +53,17 @@ class ChainInventoryTests(unittest.TestCase):
         cell["status"] = "implementata"
         with self.assertRaises(ValueError):
             validate(self.data)
+
+    def test_fixture_evidence_is_scoped_and_requires_files(self):
+        feature = next(f for f in self.data["features"] if f["id"] == "validate")
+        cell = feature["surfaces"]["rust"]
+        self.assertEqual(cell["status"], "provata su fixture")
+        validate(self.data)
+        broken = copy.deepcopy(self.data)
+        target = next(f for f in broken["features"] if f["id"] == "validate")
+        target["surfaces"]["cli"] = copy.deepcopy(cell)
+        with self.assertRaises(ValueError):
+            validate(broken)
+        cell["evidence"]["positive"] = "missing-evidence.rs"
+        with self.assertRaises(ValueError):
+            validate(self.data)

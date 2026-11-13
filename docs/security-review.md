@@ -117,3 +117,17 @@ Rischio: usare `reference_only` come ammissione di produzione o considerare
 `reports_complete` una prova autenticata. Chiusura: validatore P1.3 e host con
 registry congelato, resolver autorizzati, barriere effettive, store e adapter
 qualificati. Nessuna promessa runtime o chiusura delle deviazioni RT legacy.
+
+## P1.3: limite della validazione Rust
+
+Regola: nessuna failure silenziosa e nessun invoke non ammesso. Ambito:
+`plenora-runtime-chain-contracts`, registro fixture indipendente dal piano.
+I tipi wire sono privati: il parser rifiuta duplicati e valori non canonici
+prima della conversione; `Debug` ed errori sono senza dati. Non esistono
+callback invoke, resolver o client infrastrutturali nel crate.
+Rischio residuo: una discovery sintetica non prova payload, fidelity Arrow,
+autorizzazione del consenso, disponibilità dei rapporti o quote effettive.
+`ValidationReport` dichiara `reference_only`, barriere schema e fidelity da
+provare; non è un token di esecuzione. Condizione di chiusura: host e adapter
+qualificati che eseguano tali verifiche prima dell'invoke e rifiutino mutazioni
+di discovery/input/consenso. Nessuna garanzia runtime è promossa da queste prove.

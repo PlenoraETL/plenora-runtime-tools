@@ -132,6 +132,9 @@ classe operazione. GeoParquet senza primaria: `unsupported`. Mai invalid_plan.
 Sink mono-geometria non scarta le altre; hop senza claim Primary Geometry
 non garantisce conservazione semantica solo perché trasporta byte sconosciuti.
 
+Il controllo del claim del produttore e del requisito Primary Geometry vale
+anche per gli output pubblici del piano, senza un consumer step successivo.
+
 STORAGE→IO richiede integrità, pubblicazione confermata, identificazione formato
 e descrittore file-pipeline. REST→Arrow deve consumare il risultato completo,
 ordine/cardinalità/errori record/parzialità. Arrow→REST ha contratto distinto
@@ -198,6 +201,9 @@ non equivale a uguaglianza semantica. Lease fan-out dura fino all'ultimo consume
 `succeeded` richiede tutti gli step riusciti, tutti gli output confermati,
 rapporti completi e nessun errore; losses=present rende visibili perdite consentite.
 Report non disponibile NON equivale a zero perdite. Losses è none/present/unavailable;
+
+La completezza comprende anche i rapporti dentro ogni errore primario e negli
+altri errori di catena e step: `reports_complete=true` non può ignorarli.
 aggregazione per step/output/regola nei documenti completi, nessun totale inventato.
 `rejected` prima degli effetti; `failed` fallimento noto; `partial` completamento
 parziale noto; `cancelled` solo arresto confermato; `requires_recovery` per ignoto.

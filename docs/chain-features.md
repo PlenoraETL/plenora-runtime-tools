@@ -1,6 +1,6 @@
 # Inventario delle funzionalità catene
 
-Vista generata da [chain-features.json](chain-features.json), versione 1. Le celle **specificata** rimandano a [CHAIN-PLAN-2.0](specs/CHAIN-PLAN-2.0.md), bozza locale; le altre restano **da fare**. Nessuno stato attesta implementazione o prove delle superfici: P/R/L/E restano requisiti da soddisfare.
+Vista generata da [chain-features.json](chain-features.json), versione 1. Le celle **specificata** rimandano a [CHAIN-PLAN-2.0](specs/CHAIN-PLAN-2.0.md), bozza locale; **provata su fixture** attesta solo l'ambito statico Rust descritto nella cella JSON, senza host o adapter reali. Le altre restano **da fare**. P/R/L/E restano requisiti delle superfici complete.
 
 Fonte: PROGETTO-CATENE del 12 novembre 2026, sezioni indicate per riga. Perimetro e decisioni: [ADR 0008](adr/0008-chain-product-scope.md). Le operazioni sono proposte da ratificare e provare sulle discovery effettive.
 
@@ -19,7 +19,7 @@ Ogni cella richiede quattro prove: positiva (P), rifiuto (R), limite (L), effett
 | ID / funzione / owner / fonte | Rust | CLI | SDK sync | SDK async | Runtime |
 |---|---|---|---|---|---|
 | discovery — Discovery effettiva / `plenora-runtime-chain-host` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| validate — Validazione preventiva / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| validate — Validazione preventiva / `plenora-runtime-chains` / E.1 | provata su fixture (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | submit — Avvio durevole / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | run — Esecuzione con attesa / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | status — Stato / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
@@ -60,8 +60,8 @@ Ogni cella richiede quattro prove: positiva (P), rifiuto (R), limite (L), effett
 | rest.enrich@1 — rest.enrich@1 / `plenora-runtime-adapter-rest` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | rest.download@1 — rest.download@1 / `plenora-runtime-adapter-rest` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | rest.upload@1 — rest.upload@1 / `plenora-runtime-adapter-rest` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| plan-canonical — Piano chiuso, digest e assi di versione / `plenora-runtime-chain-contracts` / B.1 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
-| dag-ports — DAG, porte e dipendenze di controllo / `plenora-runtime-chains` / B.1/B.7/C.1 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| plan-canonical — Piano chiuso, digest e assi di versione / `plenora-runtime-chain-contracts` / B.1 | provata su fixture (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| dag-ports — DAG, porte e dipendenze di controllo / `plenora-runtime-chains` / B.1/B.7/C.1 | provata su fixture (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
 | admission — Ammissione e barriere schema / `plenora-runtime-chains` / B.7 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | budgets — Budget cumulativi e prenotazioni / `plenora-runtime-chains` / B.4 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
 | deadlines — Deadline e timeout di attesa distinti / `plenora-runtime-boundary` / B.4/D.2/E.1 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
@@ -123,6 +123,15 @@ Validazione preventiva
 - **rejection**: ciclo, porta assente, versione non esatta
 - **limit**: quota richiesta/risposta e timeout attesa finiti; nessun troncamento
 - **effect**: nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown
+
+Ambito Rust provato: Validazione preventiva offline contro registro/discovery fixture: versioni, confini, claim Primary Geometry, consenso scoped, budget e barriere schema; fidelity esplicitamente da provare. Nessun invoke.
+
+Resta da qualificare: Host e facciata chains, discovery reali, payload e autorizzazione autenticata, prenotazioni e fidelity Arrow effettiva; CLI/Python/runtime e qualifica Linux/Windows sullo SHA non attestati.
+
+- Evidenza positive: [crates/plenora-runtime-chain-contracts/tests/parity.rs](../crates/plenora-runtime-chain-contracts/tests/parity.rs)
+- Evidenza rejection: [crates/plenora-runtime-chain-contracts/tests/parity.rs](../crates/plenora-runtime-chain-contracts/tests/parity.rs)
+- Evidenza limit: [crates/plenora-runtime-chain-contracts/tests/limits.rs](../crates/plenora-runtime-chain-contracts/tests/limits.rs)
+- Evidenza effect: [crates/plenora-runtime-chain-contracts/tests/limits.rs](../crates/plenora-runtime-chain-contracts/tests/limits.rs)
 
 ### submit
 
@@ -493,6 +502,15 @@ Piano chiuso, digest e assi di versione
 - **limit**: 1024 step, 64 porte/step, profondità 64, 1 MiB e restrizioni host
 - **effect**: rifiuto prima di resolver/invoke
 
+Ambito Rust provato: Tipi pubblici e parser chiuso Rust, duplicati e numeri canonici, limiti, CHAIN-C14N-1/SHA-256; 88 verdetti condivisi con la referenza Python.
+
+Resta da qualificare: Host e facciata chains, discovery reali, payload e autorizzazione autenticata, prenotazioni e fidelity Arrow effettiva; CLI/Python/runtime e qualifica Linux/Windows sullo SHA non attestati.
+
+- Evidenza positive: [crates/plenora-runtime-chain-contracts/tests/parity.rs](../crates/plenora-runtime-chain-contracts/tests/parity.rs)
+- Evidenza rejection: [crates/plenora-runtime-chain-contracts/tests/parity.rs](../crates/plenora-runtime-chain-contracts/tests/parity.rs)
+- Evidenza limit: [crates/plenora-runtime-chain-contracts/tests/limits.rs](../crates/plenora-runtime-chain-contracts/tests/limits.rs)
+- Evidenza effect: [crates/plenora-runtime-chain-contracts/tests/limits.rs](../crates/plenora-runtime-chain-contracts/tests/limits.rs)
+
 ### dag-ports
 
 DAG, porte e dipendenze di controllo
@@ -501,6 +519,15 @@ DAG, porte e dipendenze di controllo
 - **rejection**: cicli, sorgenti multiple per porta e output obbligatorio mancante
 - **limit**: step e porte al limite e oltre
 - **effect**: stop al primo errore: blocked discendenti, skipped altri; successi precedenti conservati
+
+Ambito Rust provato: Unicita, porte nominate, riferimenti e cicli dati/controllo; ordine topologico lessicografico deterministico fino a 1024 step.
+
+Resta da qualificare: Host e facciata chains, discovery reali, payload e autorizzazione autenticata, prenotazioni e fidelity Arrow effettiva; CLI/Python/runtime e qualifica Linux/Windows sullo SHA non attestati.
+
+- Evidenza positive: [crates/plenora-runtime-chain-contracts/tests/parity.rs](../crates/plenora-runtime-chain-contracts/tests/parity.rs)
+- Evidenza rejection: [crates/plenora-runtime-chain-contracts/tests/parity.rs](../crates/plenora-runtime-chain-contracts/tests/parity.rs)
+- Evidenza limit: [crates/plenora-runtime-chain-contracts/tests/limits.rs](../crates/plenora-runtime-chain-contracts/tests/limits.rs)
+- Evidenza effect: [crates/plenora-runtime-chain-contracts/tests/limits.rs](../crates/plenora-runtime-chain-contracts/tests/limits.rs)
 
 ### admission
 

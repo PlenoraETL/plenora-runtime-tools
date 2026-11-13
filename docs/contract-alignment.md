@@ -169,3 +169,17 @@ Rischio: confondere validità della forma o del registro sintetico con disponibi
 e interoperabilità reali. Chiusura: ratifica centrale di piano/esito/eventi/errori,
 catalogo e descrittori degli archi, distinta dalla ratifica DB write@2 e dei suoi
 input/result v2 e WriteOutcome v3, poi pin adottato e prove P1.3/S3.
+
+## P1.3: validatore Rust su fixture
+
+Regola: ammissione esatta della bozza locale, nessuna reinterpretazione upstream.
+Ambito: [chain-contracts](../crates/plenora-runtime-chain-contracts/README.md).
+Tipi, parser chiuso, digest e semantica preventiva implementati; 88 verdetti
+concordi con l'oracolo. Rust e referenza controllano anche claim del produttore
+sugli output pubblici e disponibilità dei rapporti negli errori; regressioni
+aggiuntive, nessuna modifica ai verdetti o schemi delle 88 fixture.
+Non è una deviazione dal contratto: sono applicazioni delle regole Primary
+Geometry e completezza dei rapporti a tutte le uscite e a tutti gli errori.
+Rischio: confondere controllo statico con interoperabilità reale. Condizione
+di chiusura: ratifica e adapter S3, host con prove su payload, discovery,
+fidelity e autorizzazioni reali. Le deviazioni RT dei generici restano aperte.

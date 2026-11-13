@@ -184,3 +184,17 @@ conservazione geometrica, pubblicazione o ripresa reali. Condizione di chiusura
 successiva: P1.3 per registri/barriere effettivi, P2.x per boundary/store e S3
 per adapter e ratifica centrale. CI Linux e Windows sullo SHA resta obbligatoria
 prima del merge; un test locale non chiude quel gate.
+
+## Gate P1.3: tipi e validazione preventiva Rust
+
+Regola: rifiuto statico prima di invoke, parità delle 88 fixture e nessuna
+dipendenza vietata. Ambito: nuovo `plenora-runtime-chain-contracts`, parser,
+registro fixture, DAG/confini/claim/consenso/budget, esiti/eventi/errori e digest.
+Prove versionate: [parità](../crates/plenora-runtime-chain-contracts/tests/parity.rs)
+e [limiti e regressioni](../crates/plenora-runtime-chain-contracts/tests/limits.rs).
+Rischio: estendere l'evidenza fixture a provider, autorizzazioni, fidelity reale
+o runtime. Condizione di chiusura dei gate successivi: host/adapter S3 con
+barriere effettive, P2.x per boundary/store, ratifica centrale e CI sul medesimo
+SHA Linux e Windows. Schema dinamico e fidelity hanno verdetti rinviati espliciti;
+non sono compatibilità provate. Le sole celle Rust statiche dell'inventario sono
+marcate `provata su fixture`; le altre superfici restano da qualificare.

@@ -238,6 +238,12 @@ def validate_plan(plan, context):
             reject("CHAIN_REFERENCE")
         if steps[source["step"]]["outputs"][source["port"]] != output["expected"]:
             reject("CHAIN_BOUNDARY")
+        if output["expected"]["primary_geometry"]:
+            producer = steps[source["step"]]
+            claim = "plenora-arrow-primary-geometry-v1"
+            if (claim not in plan["requirements"]["contracts"] or
+                    claim not in plan["components"][producer["component"]]["claims"]):
+                reject("CHAIN_BOUNDARY")
     grants = plan["loss_policy"]["grants"]
     _unique([g["step"] for g in grants])
     by_step = {g["step"]: g for g in grants}
@@ -356,10 +362,12 @@ def validate_result(result, plan, context):
             all_reports.extend(artifact["reports"])
         for error in [step["error"], *step["other_errors"]]:
             if error is not None:
+                all_reports.extend(error["reports"])
                 validate_error(error)
                 reconcile_error(step, error)
     for error in [result["error"], *result["other_errors"]]:
         if error is not None:
+            all_reports.extend(error["reports"])
             validate_error(error)
             reconcile_error(result, error)
     effects = [s["remote_effect"] for s in result["steps"]]
