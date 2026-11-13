@@ -1809,7 +1809,7 @@ crates/plenora-runtime-chain-store/src/types.rs |  | pub struct StartPermit { pu
 crates/plenora-runtime-chain-store/src/types.rs | impl Default for Retention { } | 
 crates/plenora-runtime-chain-store/src/types.rs | impl Default for Retention { } | fn default () -> Self
 crates/plenora-runtime-chain-store/src/types.rs | impl From < tokio_postgres :: Error > for StoreError { } | 
-crates/plenora-runtime-chain-store/src/types.rs | impl From < tokio_postgres :: Error > for StoreError { } | fn from (_ : tokio_postgres :: Error) -> Self
+crates/plenora-runtime-chain-store/src/types.rs | impl From < tokio_postgres :: Error > for StoreError { } | fn from (error : tokio_postgres :: Error) -> Self
 crates/plenora-runtime-chain-store/src/types.rs | impl Retention { } | fn reduced (delivery_seconds : u32 , report_seconds : u32) -> Result < Self , StoreError >
 crates/plenora-runtime-chain-store/src/types.rs | impl Retention { } | pub
 crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Debug for Publication { } | 

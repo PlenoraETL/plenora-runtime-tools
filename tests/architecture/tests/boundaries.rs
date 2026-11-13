@@ -485,6 +485,14 @@ fn all_dependency_versions_are_exactly_pinned_or_workspace_inherited() -> Result
                     relative_path(&root, &manifest_path)
                 ));
             }
+            if quoted_assignment_value(trimmed, "path").is_some()
+                && quoted_assignment_value(trimmed, "version").is_none()
+            {
+                violations.push(format!(
+                    "{} contains a path dependency without an exact version",
+                    relative_path(&root, &manifest_path)
+                ));
+            }
             if let Some(version) = quoted_assignment_value(trimmed, "version")
                 .or_else(|| bare_dependency_version(trimmed))
                 && !version.starts_with('=')

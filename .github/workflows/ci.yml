@@ -239,13 +239,18 @@ jobs:
         run: |
           docker run -d --name "$POSTGRES_CONTAINER" \
             -e POSTGRES_PASSWORD=ephemeral-ci-only -e POSTGRES_DB=chain_store \
+            -e POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 \
             -p 127.0.0.1::5432 \
             postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+          # The initdb server accepts socket connections before the final TCP server starts.
+          # Authenticate against the actual database; pg_isready alone does not check credentials.
           for attempt in $(seq 1 60); do
-            if docker exec "$POSTGRES_CONTAINER" pg_isready -U postgres -d chain_store; then break; fi
+            if docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" \
+              psql -h 127.0.0.1 -U postgres -d chain_store -v ON_ERROR_STOP=1 -Atqc 'SELECT 1' >/dev/null; then break; fi
             sleep 1
           done
-          docker exec "$POSTGRES_CONTAINER" pg_isready -U postgres -d chain_store
+          docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" \
+            psql -h 127.0.0.1 -U postgres -d chain_store -v ON_ERROR_STOP=1 -Atqc 'SELECT 1' >/dev/null
           port=$(docker port "$POSTGRES_CONTAINER" 5432/tcp | cut -d: -f2)
           echo "PLENORA_POSTGRES_URL=host=127.0.0.1 port=$port user=postgres password=ephemeral-ci-only dbname=chain_store" >> "$GITHUB_ENV"
       - name: Run real race crash restart retention and authority tests
@@ -307,13 +312,18 @@ jobs:
         run: |
           docker run -d --name "$POSTGRES_CONTAINER" \
             -e POSTGRES_PASSWORD=ephemeral-ci-only -e POSTGRES_DB=chain_store \
+            -e POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 \
             -p 127.0.0.1::5432 \
             postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+          # The initdb server accepts socket connections before the final TCP server starts.
+          # Authenticate against the actual database; pg_isready alone does not check credentials.
           for attempt in $(seq 1 60); do
-            if docker exec "$POSTGRES_CONTAINER" pg_isready -U postgres -d chain_store; then break; fi
+            if docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" \
+              psql -h 127.0.0.1 -U postgres -d chain_store -v ON_ERROR_STOP=1 -Atqc 'SELECT 1' >/dev/null; then break; fi
             sleep 1
           done
-          docker exec "$POSTGRES_CONTAINER" pg_isready -U postgres -d chain_store
+          docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" \
+            psql -h 127.0.0.1 -U postgres -d chain_store -v ON_ERROR_STOP=1 -Atqc 'SELECT 1' >/dev/null
           port=$(docker port "$POSTGRES_CONTAINER" 5432/tcp | cut -d: -f2)
           echo "PLENORA_POSTGRES_URL=host=127.0.0.1 port=$port user=postgres password=ephemeral-ci-only dbname=chain_store" >> "$GITHUB_ENV"
       - name: Collect normal workspace coverage
@@ -347,7 +357,7 @@ jobs:
         run: cargo llvm-cov -p plenora-runtime-integration-tests --test nats_capability_e2e --locked --no-report -- --ignored --nocapture
 
       - name: Collect real PostgreSQL store coverage
-        run: cargo llvm-cov -p plenora-runtime-chain-store --locked --no-report postgres_real -- --ignored --nocapture --test-threads=1
+        run: cargo llvm-cov -p plenora-runtime-chain-store --locked --no-report -- postgres_real --ignored --nocapture --test-threads=1
 
       - name: Collect product state machine and combined transport coverage
         env:

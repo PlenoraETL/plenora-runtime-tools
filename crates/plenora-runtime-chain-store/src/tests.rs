@@ -124,6 +124,14 @@ mod cases {
             validate(&invocation(id, "run", "step", Some(""), b"input")),
             Err(StoreError::Invalid)
         );
+        let driver_error = Config::from_str("sentinel=sentinel").unwrap_err();
+        let converted = StoreError::from(driver_error);
+        assert_eq!(converted, StoreError::Unavailable);
+        assert!(converted.source().is_none());
+        assert_eq!(
+            format!("{converted:?} {converted}"),
+            "Unavailable chain store Unavailable"
+        );
         let store = PostgresStore::new("host=localhost user=sentinel password=sentinel").unwrap();
         assert!(!format!("{store:?}").contains("sentinel"));
         for error in [
