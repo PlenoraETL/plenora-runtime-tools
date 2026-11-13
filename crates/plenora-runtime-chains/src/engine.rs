@@ -61,6 +61,8 @@ pub trait Adapter: Send + Sync + 'static {
     async fn prepare(&self, invocation: &Invocation) -> Result<(), Error>;
     /// Invoke through the protected runtime dispatcher. The key in `RunOptions` is not forwarded.
     /// Counters describe this attempt (`max_attempts=1`); the coordinator aggregates the public result.
+    /// Preparation must guarantee the complete serialized receipt fits `limits.result_bytes`;
+    /// this finite limit also reserves journal, aggregate result and report retrieval space.
     /// An error means no complete evidence was confirmed, not that effects were absent.
     async fn invoke(&self, invocation: &Invocation) -> Result<StepResult, Error>;
     /// Ask the running provider to stop; acceptance is not confirmation of termination.
@@ -76,6 +78,7 @@ pub struct ChainEngine<S: plenora_runtime_boundary::DurableExecutionStore> {
     tenant: String,
     executor: Arc<crate::execution::StepExecutor<S>>,
     lease: Option<crate::RunLease>,
+    journal_bytes: usize,
 }
 impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> {
     /// Bind trusted tenant policy and a frozen independently obtained registry.
@@ -102,11 +105,20 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         Ok(Self {
             executor: Arc::new(executor),
             lease: None,
+            journal_bytes: crate::JOURNAL_BYTES,
             store,
             registry,
             clock,
             tenant: tenant.into(),
         })
+    }
+    /// Set the finite journal budget for new submissions only. Existing quotas are immutable.
+    /// # Errors
+    /// Rejects zero or limits exceeding the host ceiling.
+    pub fn with_journal_budget(mut self, bytes: usize) -> Result<Self, Error> {
+        crate::accounting::Allocation::new(bytes)?;
+        self.journal_bytes = bytes;
+        Ok(self)
     }
     fn now(&self) -> Result<u64, Error> {
         u64::try_from(
@@ -133,6 +145,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             tenant: self.tenant.clone(),
             executor: self.executor.clone(),
             lease: Some(lease.clone()),
+            journal_bytes: self.journal_bytes,
         };
         let result = worker.work_claimed(lease.run_id()).await;
         // Uncertain active work stays leased until expiry, preventing a busy reconciliation loop.
@@ -149,8 +162,14 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         }
     }
     async fn work_claimed(&self, run_id: &str) -> Result<RunHandle, Error> {
-        let j = self.load(run_id).await?;
+        let mut j = self.load(run_id).await?;
         self.delivery(&j)?;
+        if j.active.is_some() && j.allocation.is_none() {
+            j.reserve_effect()?;
+            j = self
+                .save(j, "recovery_required", "requires_recovery")
+                .await?;
+        }
         if let Some(intent) = &j.active {
             let invocation = self.invocation(
                 &j,
@@ -227,22 +246,6 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             return previous.handle();
         }
         self.executor.authorize(&self.tenant, plan).await?;
-        let reserved = plan
-            .steps
-            .iter()
-            .try_fold(8 * 1024 * 1024_u64, |sum, step| {
-                sum.checked_add(
-                    step.budgets
-                        .result_bytes
-                        .checked_mul(32)
-                        .and_then(|n| n.checked_mul(step.retry_policy.max_attempts))
-                        .ok_or(Error::ResourceLimit)?,
-                )
-                .ok_or(Error::ResourceLimit)
-            })?;
-        if reserved > crate::JOURNAL_BYTES as u64 {
-            return Err(Error::ResourceLimit);
-        }
         let now = self.now()?;
         let deadline = now
             .checked_add(plan.budgets.elapsed_ms)
@@ -253,6 +256,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         }
         let view = initial(plan, &validated, &options.run_id, now)?;
         let mut j = Journal {
+            allocation: Some(crate::accounting::Allocation::new(self.journal_bytes)?),
             version: 1,
             tenant: self.tenant.clone(),
             options,
@@ -276,7 +280,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         j.to_json()?;
         self.store.create(crate::Submission(j)).await?.handle()
     }
-    async fn load(&self, id: &str) -> Result<Journal, Error> {
+    pub(crate) async fn load(&self, id: &str) -> Result<Journal, Error> {
         if !crate::uuid(id) {
             return Err(Error::Invalid);
         }
@@ -450,7 +454,12 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         if now >= step_deadline {
             return self.reject(j, index, Error::Timeout).await;
         }
+        let result_limit = match j.report_limit(id) {
+            Ok(limit) => limit,
+            Err(error) => return self.reject(j, index, error).await,
+        };
         let intent = Intent {
+            result_limit: Some(result_limit),
             index,
             message_id: uuid::Uuid::new_v4().to_string(),
             started: now,
@@ -459,6 +468,9 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             causation,
             deadline: step_deadline,
         };
+        if let Err(error) = j.reserve_effect() {
+            return self.reject(j, index, error).await;
+        }
         let invocation = match self.invocation(&j, &plan, &view, &intent) {
             Ok(i) => i,
             Err(e) => return self.reject(j, index, e).await,
@@ -619,8 +631,12 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
     ) -> Result<RunHandle, Error> {
         let plan = parse_plan(&started.plan)?;
         let intent = started.active.as_ref().ok_or(Error::Invalid)?;
-        self.record_evidence(started, invocation, encode(&evidence)?)
-            .await?;
+        let raw = encode(&evidence)?;
+        let raw_size = u64::try_from(raw.len()).map_err(|_| Error::ResourceLimit)?;
+        self.record_evidence(started, invocation, raw).await?;
+        if raw_size > invocation.reservation.limits.result_bytes {
+            return Err(Error::Recovery);
+        }
         let now = self.now()?;
         if now >= invocation.reservation.deadline_ms {
             evidence.counters.elapsed_ms = now
@@ -675,6 +691,10 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             summarize(&mut view, &plan, self.now()?, j.revision + 1)?;
             validate_result(&view, &plan, &self.registry).map_err(|_| Error::Recovery)?;
             j.view = encode(&view)?;
+            if let Some(allocation) = &mut j.allocation {
+                allocation.recovery = None;
+                allocation.recovery_limit = None;
+            }
             let unknown = evidence.remote_effect == "unknown";
             j.waiting_recovery = unknown;
             if !unknown {
@@ -772,7 +792,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             return Err(Error::Conflict);
         }
         if let Some(intent) = &j.active {
-            let invocation = self.invocation(
+            let mut invocation = self.invocation(
                 &j,
                 &parse_plan(&j.plan)?,
                 &parse_result(&intent.prior)?,
@@ -786,7 +806,42 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             {
                 return self.complete(&j, &invocation, evidence).await;
             }
-            let evidence = self.executor.recover(&j).await?.ok_or(Error::Recovery)?;
+            let mut j = j;
+            if self.executor.needs_recovery(&j).await?
+                && j.allocation.as_ref().is_none_or(|a| a.recovery.is_none())
+            {
+                j.reserve_effect()?;
+                let limit = j.report_limit(&invocation.step.id)?;
+                j.allocation.as_mut().ok_or(Error::Invalid)?.recovery_limit = Some(limit);
+                j.allocation.as_mut().ok_or(Error::Invalid)?.recovery =
+                    Some(uuid::Uuid::new_v4().to_string());
+                j = self
+                    .save(j, "recovery_required", "requires_recovery")
+                    .await?;
+            }
+            let proof = match self.executor.recover(&j).await {
+                Ok(proof) => proof,
+                Err(error) => {
+                    if self.executor.inquiry_rejected(&j).await? {
+                        j.allocation.as_mut().ok_or(Error::Invalid)?.recovery = None;
+                        j.allocation.as_mut().ok_or(Error::Invalid)?.recovery_limit = None;
+                        self.save(j, "recovery_required", "requires_recovery")
+                            .await?;
+                    }
+                    return Err(error);
+                }
+            };
+            let Some(evidence) = proof else {
+                j.allocation.as_mut().ok_or(Error::Invalid)?.recovery = None;
+                j.allocation.as_mut().ok_or(Error::Invalid)?.recovery_limit = None;
+                self.save(j, "recovery_required", "requires_recovery")
+                    .await?;
+                return Err(Error::Recovery);
+            };
+            if let Some(limit) = j.allocation.as_ref().and_then(|a| a.recovery_limit) {
+                invocation.reservation.limits.result_bytes =
+                    invocation.reservation.limits.result_bytes.min(limit);
+            }
             return self.complete(&j, &invocation, evidence).await;
         }
         if j.terminal {
@@ -799,7 +854,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
 fn retry(kind: &str) -> Retry {
     Retry::Variant0(Retry0 { kind: kind.into() })
 }
-fn problem(error: Error, effect: &str, step: Option<&str>) -> ChainError {
+pub(crate) fn problem(error: Error, effect: &str, step: Option<&str>) -> ChainError {
     ChainError {
         contract: "plenora-chain-error-v2".into(),
         schema_version: 2,
@@ -1077,7 +1132,7 @@ pub(crate) fn resolve_invocation(
     let retained = retained.values().try_fold(0_u64, |sum, (bytes, _)| {
         sum.checked_add(*bytes).ok_or(Error::ResourceLimit)
     })?;
-    let reservation = Reservation::new(
+    let mut reservation = Reservation::new(
         &plan.budgets,
         &step.budgets,
         &view.counters,
@@ -1086,6 +1141,13 @@ pub(crate) fn resolve_invocation(
         intent.started,
         intent.deadline,
     )?;
+    reservation.limits.result_bytes = reservation
+        .limits
+        .result_bytes
+        .min(crate::accounting::result_limit(plan, view, &step)?);
+    if let Some(limit) = intent.result_limit {
+        reservation.limits.result_bytes = reservation.limits.result_bytes.min(limit);
+    }
     Ok(Invocation {
         tenant: tenant.to_owned(),
         run_id: run_id.to_owned(),

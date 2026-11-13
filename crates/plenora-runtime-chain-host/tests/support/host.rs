@@ -16,6 +16,7 @@ use primary::ScriptStore;
 type ResultTest = Result<(), Box<dyn StdError>>;
 fn config(tenant: &str) -> ScriptedConfig {
     ScriptedConfig {
+        journal_bytes: plenora_runtime_chains::JOURNAL_BYTES,
         database: "host=127.0.0.1 port=1".into(),
         tenant: tenant.into(),
         registry: include_str!("../../../../contracts/chains-v2/fixtures/context.json").into(),
@@ -389,5 +390,75 @@ async fn complete_plan_confirmation_is_default_deny_and_cannot_authorize_a_chang
     }
     assert!(store.0.lock().map_err(|_| "primary")?.is_empty());
     assert_eq!(domain_attempts(&store)?, 0);
+    Ok(())
+}
+
+#[path = "../../../plenora-runtime-chains/tests/support/large_report.rs"]
+mod large_report;
+#[tokio::test]
+async fn oversized_fault_report_is_fully_recoverable_through_bounded_host_pages() -> ResultTest {
+    let store = Arc::new(ScriptStore::default());
+    let engine = ChainEngine::new(
+        store.clone(),
+        Arc::new(large_report::Oversized),
+        parse_registry(config("large").registry.as_bytes())?,
+        Arc::new(ManualClock::new(UNIX_EPOCH + Duration::from_hours(498_492))),
+        "large",
+    )?;
+    let plan = plenora_runtime_chains::contracts::parse_plan(include_bytes!(
+        "../../../../contracts/chains-v2/fixtures/plan-valid.json"
+    ))?;
+    let accepted = engine
+        .submit(
+            &plan,
+            RunOptions {
+                run_id: uuid::Uuid::new_v4().to_string(),
+                idempotency_key: None,
+                deadline_ms: None,
+            },
+        )
+        .await?;
+    assert_eq!(engine.advance(&accepted.run_id).await, Err(Error::Recovery));
+    let expected = serde_json::to_vec(&large_report::outcome()?)?;
+    assert!(expected.len() > 400 * 1024 && expected.len() < 1024 * 1024);
+    assert_eq!(
+        engine.report(&accepted.run_id).await?,
+        vec![expected.clone()]
+    );
+    let host = host(store, "large")?;
+    let mut cursor = Some(plenora_runtime_chains::ReportCursor {
+        index: 0,
+        offset: 0,
+    });
+    let mut bytes = Vec::new();
+    while let Some(at) = cursor {
+        let response = host
+            .execute(Request::Report {
+                run_id: accepted.run_id.clone(),
+                cursor: Some(at),
+            })
+            .await;
+        assert_eq!(response.error, None);
+        assert!(serde_json::to_vec(&response)?.len() < 1024 * 1024);
+        let page: plenora_runtime_chains::ReportPage = serde_json::from_value(response.value)?;
+        assert_eq!(page.cursor.offset, bytes.len());
+        assert_eq!(page.report_bytes, expected.len());
+        assert!(page.bytes.len() <= 64 * 1024);
+        bytes.extend(page.bytes);
+        cursor = page.next;
+    }
+    assert_eq!(bytes, expected);
+    assert_eq!(
+        host.execute(Request::Report {
+            run_id: accepted.run_id,
+            cursor: Some(plenora_runtime_chains::ReportCursor {
+                index: 0,
+                offset: usize::MAX
+            })
+        })
+        .await
+        .error,
+        Some(Error::Invalid)
+    );
     Ok(())
 }

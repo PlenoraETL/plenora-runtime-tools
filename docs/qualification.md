@@ -286,8 +286,9 @@ chiusura: integrazione e prove mancanti, rilettura senza rilievi bloccanti, CI
 Linux/Windows sul candidato. Il resoconto locale e target/P1-4-5.md. Nessun gate
 reale o non eseguito e attestato dai doppi scriptati.
 
-La prenotazione del journal e ancora da qualificare contro la dimensione reale
-dei rapporti degli adapter; un esito oltre il canale puo richiedere recovery.
+Il sotto-passo P1.4c-1 implementa e prova localmente prenotazione e misura
+del journal serializzato; rapporti oltre il canale intero sono leggibili a chunk.
+La prova reale e installata e cablata in CI, non attestata come eseguita localmente.
 Il lookup idempotente precede ora il controllo della nuova deadline; il loop del
 server drena i task accettati dopo errore di pubblicazione, con regressioni locali
 scriptate. Restano non qualificati abort/drop esterni del server e settlement
@@ -295,7 +296,7 @@ end-to-end del nuovo host. I gate aperti impediscono la chiusura del blocco anch
 in presenza di compilazione verde.
 
 P1.4c remains OPEN. Complete-plan confirmation is explicit and default-deny in
-the scripted profile; this does not close actual journal reservation or the
-resource resolver/lease/cleanup gates above. Tests of immutable plan confirmation
+the scripted profile. P1.4c-1 separately covers the serialized journal only;
+the resource resolver/lease/cleanup gates above remain open. Tests of immutable plan confirmation
 and pre-invocation denial are incremental evidence only. Real PostgreSQL/NATS
 coverage remains ignored locally and wired to the existing CI job.

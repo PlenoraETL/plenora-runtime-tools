@@ -182,6 +182,19 @@
                 "crates/plenora-runtime-chains/tests/sequential.rs"
               ],
               "remaining": "Criterion 3 open: journal reservations, resolver/digest/schema/fidelity, artifact lease/fan-out/cleanup."
+            },
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
             }
           }
         },
@@ -253,6 +266,19 @@
                 "crates/plenora-runtime-chains/tests/sequential.rs"
               ],
               "remaining": "Criterion 3 open: journal reservations, resolver/digest/schema/fidelity, artifact lease/fan-out/cleanup."
+            },
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
             }
           }
         },
@@ -659,7 +685,20 @@
           "incremental_evidence": {
             "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
             "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
-            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale",
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
+            }
           }
         },
         "cli": {
@@ -781,6 +820,21 @@
             "rejection": "report indisponibile distinto da zero perdite",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "incremental_evidence": {
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
+            }
           }
         },
         "cli": {
@@ -2838,7 +2892,22 @@
             "limit": "fan-out, join espansivo, retry e fallimenti consumano quote globali",
             "effect": "resource_limit con fase/effetto provati, nessun reset al retry"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
+            }
+          }
         },
         "cli": {
           "status": "specificata",

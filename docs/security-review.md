@@ -223,3 +223,14 @@ writer. Shutdown cooperativo drena il lavoro corrente; nessun claim di hard kill
 Chiusura: qualifica dei provider/OS e deployment reale, separata dal criterio 2
 provato con adapter scriptati. PostgreSQL/NATS effimeri in CI non attestano TLS,
 permessi o failover di produzione.
+
+### P1.4c-1 journal scope
+
+The finite quota covers serialized run state, including original raw evidence,
+not PostgreSQL physical/WAL storage or total process RSS. A defective adapter's
+oversized but structurally accepted receipt is retained in a separately reserved
+slot and recoverable through bounded native report pages; it cannot be declared
+successful merely by understating counters. Legacy intents without a proven
+report reservation cannot start new work. Real provider containment, resource
+leases and cleanup remain open. Closure of those risks requires their separate
+qualification; no library artifact is attested by the scripted profile.

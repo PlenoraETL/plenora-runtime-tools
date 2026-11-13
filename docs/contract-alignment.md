@@ -537,3 +537,70 @@ not qualified by this change. The existing real PostgreSQL/NATS test now include
 rejection of an unconfirmed plan, but was not executed locally. Closure requires
 these missing resource guarantees and their tests; real library adoption remains
 a separate qualification gate.
+
+## P1.4c-1: serialized journal reservations and complete raw report recovery
+
+Scope: the authoritative run snapshot, not database WAL/index overhead, process
+RSS, artifact leases or real provider buffers. `ScriptedConfig.journal_bytes`
+(default 64 MiB, finite and no greater than 64 MiB) and Rust
+`with_journal_budget` apply to new submissions. The accepted quota is persisted
+and cannot be increased or removed by CAS or a host restart. It is a separate
+host storage budget; raw receipts also consume the plan/step result-byte budgets
+using measured bytes, independently of adapter-supplied counters.
+
+The serializer measures every JSON byte before allocating the output buffer.
+An exhaustive Journal destructure accounts for every field and its JSON key,
+separator, array expansion and optional-field presence. Each byte in a Vec<u8>
+can require four JSON bytes. Fixed slots cover view, intention/prior and current
+raw evidence (each at most 1 MiB before byte-array encoding); metadata bounds use
+maximum numeric widths and all plan step identities. History slots are at most
+1 MiB each, event slots 4 KiB each. Slot counts are bounded independently of the
+serialized quota (1024 history, 16384 events); the byte quota can bind sooner.
+
+Before every new invocation/inquiry, the same primary CAS reserves a history
+slot and six event/revision positions for admission, raw receipt, classification,
+recovery, concurrent cancellation and terminal rejection. No effect can spend
+that reservation on another new invocation. Each stored state is checked against
+its exact per-field allocation and total quota. The terminal view and current
+raw evidence slots remain protected when history capacity is exhausted.
+
+The effective raw-result limit also reserves the aggregate view: current view,
+plan alias keys/IDs, measured maximum control envelopes and copies of the raw
+result in its step, primary error and named outputs. The limit is fixed in the
+new intention. Existing intents omit the optional field without changing their
+carrier; an unreserved legacy intent cannot start a new receipt, only consume
+proof of work already started. Legacy state remains readable within its old
+hard ceiling; migration does not manufacture prior reservations.
+
+A reconciliation has a separately reserved stable carrier. Uncertain delivery
+reuses it. Confirmed null or a pre-invocation rejection releases it with a CAS,
+allowing a later bounded inquiry. Unknown original effects are never reinvoked.
+Reports are attributed to their coordinator finalizing events, not to untrusted
+step_id claims inside a report. Compliant aggregate report responses reserve
+512 KiB, leaving control-envelope space; no original evidence is truncated to
+satisfy that convenience limit.
+
+A defective adapter can violate its announced result limit. Its structurally
+accepted raw receipt (within the runtime's 1 MiB input/output ceiling) remains
+in the reserved journal slot and the run requires recovery. All surfaces can
+read it with the same native byte-page implementation, including when the full
+report response is too large. Existing report calls keep their full-response
+shape. Optional cursor `{index: 0, offset: 0}` returns `ReportPage`: cursor,
+bytes, report_bytes, total_reports and next. Chunks are at most 64 KiB; offsets
+are bytes, and report indices remain stable as new evidence is appended.
+
+CLI: `plenora-runtime chain report --run UUID --report-index 0 --offset 0
+--config profile.json --json` (or the existing remote endpoint options).
+Python sync/async: `client.report(run_id=run_id, cursor={"index": 0, "offset": 0})`,
+awaited for the async client. Continue with `next`; concatenate bytes for each
+report index. Rust exposes `ReportCursor`, `ReportPage` and `report_page`.
+This extends report retrieval only; it does not close criteria 5-6.
+
+Local evidence: exhaustive serializer/slot tests, exact quota and pre-effect
+rejection, cumulative recovery exhaustion, cancel/crash regressions, legacy
+carrier guard, confirmed-empty/denied inquiry renewal and complete recovery of
+a declared defective adapter report over 400 KiB through the durable host.
+Real PostgreSQL/NATS tests and installed wheel/bin byte-for-byte reconstruction
+are wired in the existing infrastructure job and remain ignored locally.
+Resource resolver/digest/schema/fidelity, artifact lease/fan-out/cleanup and
+real-library qualification remain open.

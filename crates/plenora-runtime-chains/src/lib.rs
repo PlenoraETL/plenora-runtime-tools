@@ -23,13 +23,16 @@
 //! ```
 #![forbid(unsafe_code)]
 
+mod accounting;
 mod budget;
 mod client;
 mod engine;
 mod execution;
 mod journal;
 mod protocol;
+mod reports;
 mod retry;
+pub use reports::{ReportCursor, ReportPage};
 mod work;
 pub use work::RunLease;
 

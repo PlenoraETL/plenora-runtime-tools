@@ -9,6 +9,7 @@ async fn nats_real_scripted_calls_preserve_errors_and_discovery() -> Result<(), 
     let server = std::env::var("PLENORA_NATS_URL")?;
     let subject = format!("scripted.{}", uuid::Uuid::new_v4().simple());
     let config = ScriptedConfig {
+        journal_bytes: plenora_runtime_chains::JOURNAL_BYTES,
         database: std::env::var("PLENORA_POSTGRES_URL")?,
         tenant: format!("qualification-{}", uuid::Uuid::new_v4()),
         registry: include_str!("../../../contracts/chains-v2/fixtures/context.json").into(),
@@ -100,3 +101,6 @@ async fn nats_real_scripted_calls_preserve_errors_and_discovery() -> Result<(), 
     assert!(task.await.is_err_and(|error| error.is_cancelled()));
     Ok(())
 }
+
+#[path = "support/journal_real.rs"]
+mod journal_real;

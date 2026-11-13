@@ -20,6 +20,7 @@ mod primary;
 use primary::ScriptStore;
 struct ScriptAdapter {
     denied: AtomicUsize,
+    empty_recoveries: usize,
     calls: AtomicUsize,
     recoveries: AtomicUsize,
     unknown: bool,
@@ -70,8 +71,11 @@ impl Adapter for ScriptAdapter {
         Ok(())
     }
     async fn recover(&self, i: &Invocation) -> Result<Option<StepResult>, Error> {
-        self.recoveries.fetch_add(1, Ordering::SeqCst);
-        Ok(self
+        let count = self.recoveries.fetch_add(1, Ordering::SeqCst) + 1;
+        if count <= self.empty_recoveries {
+            return Ok(None);
+        }
+        let mut proof = self
             .recovery
             .then(|| {
                 self.outcomes
@@ -79,7 +83,14 @@ impl Adapter for ScriptAdapter {
                     .find(|s| s.step_id == i.step.id)
                     .cloned()
             })
-            .flatten())
+            .flatten();
+        // Explicit fake: each unknown inquiry reports newly observed read work.
+        if let Some(proof) = &mut proof
+            && proof.remote_effect == "unknown"
+        {
+            proof.counters.rows_read = count as u64;
+        }
+        Ok(proof)
     }
 }
 fn plan() -> Result<Plan, Rejection> {
@@ -95,6 +106,7 @@ fn registry() -> Result<Registry, Rejection> {
 fn adapter(unknown: bool, recovery: bool) -> Result<Arc<ScriptAdapter>, Rejection> {
     Ok(Arc::new(ScriptAdapter {
         denied: AtomicUsize::new(0),
+        empty_recoveries: 0,
         calls: AtomicUsize::new(0),
         recoveries: AtomicUsize::new(0),
         delay: None,
@@ -706,5 +718,199 @@ async fn revoked_admission_after_intent_never_mints_unknown_or_recovery_authorit
         assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
         assert_eq!(adapter.recoveries.load(Ordering::SeqCst), 0);
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn journal_reservation_rejects_before_effect_and_preserves_reports()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let adapter = adapter(false, false)?;
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock(),
+        "tenant",
+    )?;
+    let accepted = engine.submit(&plan()?, options()).await?;
+    let initial = Store::load(store.as_ref(), "tenant", &accepted.run_id).await?;
+    assert_eq!(initial.encoded_size()?, initial.to_json()?.len());
+    let cap = initial.reserved_bytes()?;
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock(),
+        "tenant",
+    )?
+    .with_journal_budget(cap)?;
+    let limited = engine.submit(&plan()?, options()).await?;
+    let rejected = engine.advance(&limited.run_id).await?;
+    assert_eq!(rejected.state, "rejected");
+    assert_eq!(
+        engine
+            .result(&limited.run_id)
+            .await?
+            .error
+            .ok_or("error")?
+            .category,
+        "resource_limit"
+    );
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
+    // An accepted quota cannot be increased by a restarted host with a larger default.
+    let restarted = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock(),
+        "tenant",
+    )?;
+    assert_eq!(restarted.advance(&limited.run_id).await?, rejected);
+    // The original run has a full allocation; complete raw receipts remain retrievable.
+    restarted.advance(&accepted.run_id).await?;
+    let raw = restarted.report(&accepted.run_id).await?;
+    assert_eq!(raw.len(), 1);
+    assert_eq!(parse_step_result(&raw[0])?.step_id, "read");
+    let stored = Store::load(store.as_ref(), "tenant", &accepted.run_id).await?;
+    assert_eq!(stored.encoded_size()?, stored.to_json()?.len());
+    assert!(stored.encoded_size()? <= stored.reserved_bytes()?);
+    let mut forged: serde_json::Value = serde_json::from_slice(&stored.to_json()?)?;
+    forged["allocation"]["limit"] = serde_json::json!(1);
+    assert!(matches!(
+        Journal::from_json(&serde_json::to_vec(&forged)?),
+        Err(Error::ResourceLimit)
+    ));
+    Ok(())
+}
+
+#[tokio::test]
+async fn confirmed_empty_recovery_allows_a_new_reserved_inquiry() -> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let mut adapter = adapter(true, true)?;
+    Arc::get_mut(&mut adapter)
+        .ok_or("unique fake")?
+        .empty_recoveries = 1;
+    let engine = ChainEngine::new(store, adapter.clone(), registry()?, clock(), "tenant")?;
+    let accepted = engine.submit(&plan()?, options()).await?;
+    assert_eq!(engine.advance(&accepted.run_id).await, Err(Error::Recovery));
+    let status = engine.status(&accepted.run_id).await?;
+    assert_eq!(
+        engine.resume(&accepted.run_id, status.revision).await,
+        Err(Error::Recovery)
+    );
+    let status = engine.status(&accepted.run_id).await?;
+    engine.resume(&accepted.run_id, status.revision).await?;
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(adapter.recoveries.load(Ordering::SeqCst), 2);
+    assert_eq!(engine.report(&accepted.run_id).await?.len(), 1);
+    Ok(())
+}
+#[tokio::test]
+async fn recovery_growth_stops_before_inquiry_and_keeps_every_original_report()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let mut adapter = adapter(false, true)?;
+    Arc::get_mut(&mut adapter).ok_or("unique fake")?.outcomes = parse_result(include_bytes!(
+        "../../../contracts/chains-v2/fixtures/result-recovery-valid.json"
+    ))?
+    .steps;
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock(),
+        "tenant",
+    )?;
+    let options = options();
+    assert_eq!(
+        engine.run(&plan()?, options.clone()).await?.state,
+        "requires_recovery"
+    );
+    let original = engine.report(&options.run_id).await?;
+    let mut exhausted = false;
+    for _ in 0..20 {
+        let status = engine.status(&options.run_id).await?;
+        let calls = adapter.recoveries.load(Ordering::SeqCst);
+        match engine.resume(&options.run_id, status.revision).await {
+            Ok(_) => {}
+            Err(Error::ResourceLimit) => {
+                assert_eq!(adapter.recoveries.load(Ordering::SeqCst), calls);
+                exhausted = true;
+                break;
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+    assert!(exhausted);
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 3);
+    let reports = engine.report(&options.run_id).await?;
+    assert!(reports.starts_with(&original));
+    assert_eq!(
+        reports.len(),
+        original.len() + adapter.recoveries.load(Ordering::SeqCst)
+    );
+    assert!(serde_json::to_vec(&reports)?.len() <= 1024 * 1024 / 2);
+    let journal = Store::load(store.as_ref(), "tenant", &options.run_id).await?;
+    assert!(journal.encoded_size()? <= journal.reserved_bytes()?);
+    assert!(journal.reserved_bytes()? <= plenora_runtime_chains::JOURNAL_BYTES);
+    Ok(())
+}
+
+#[tokio::test]
+async fn denied_recovery_can_be_reauthorized_without_reinvoking_the_original()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let adapter = adapter(true, true)?;
+    let engine = ChainEngine::new(store, adapter.clone(), registry()?, clock(), "tenant")?;
+    let accepted = engine.submit(&plan()?, options()).await?;
+    assert_eq!(engine.advance(&accepted.run_id).await, Err(Error::Recovery));
+    adapter.denied.store(1, Ordering::SeqCst);
+    let status = engine.status(&accepted.run_id).await?;
+    assert_eq!(
+        engine.resume(&accepted.run_id, status.revision).await,
+        Err(Error::Recovery)
+    );
+    assert_eq!(adapter.recoveries.load(Ordering::SeqCst), 0);
+    adapter.denied.store(0, Ordering::SeqCst);
+    let status = engine.status(&accepted.run_id).await?;
+    engine.resume(&accepted.run_id, status.revision).await?;
+    assert_eq!(adapter.recoveries.load(Ordering::SeqCst), 1);
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+#[tokio::test]
+async fn legacy_unreserved_intention_never_starts_a_new_receipt() -> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    store.3.advance(Duration::from_hours(498_492))?;
+    let adapter = adapter(false, true)?;
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock(),
+        "tenant",
+    )?;
+    let accepted = engine.submit(&plan()?, options()).await?;
+    store.5.store(true, Ordering::SeqCst);
+    assert_eq!(engine.advance(&accepted.run_id).await, Err(Error::Recovery));
+    {
+        let mut rows = store.0.lock().map_err(|_| "primary")?;
+        let old = rows
+            .get_mut(&("tenant".into(), accepted.run_id.clone()))
+            .ok_or("run")?;
+        let mut value = serde_json::to_value(&*old)?;
+        value.as_object_mut().ok_or("object")?.remove("allocation");
+        value["active"]
+            .as_object_mut()
+            .ok_or("intent")?
+            .remove("result_limit");
+        *old = Journal::from_json(&serde_json::to_vec(&value)?)?;
+    }
+    engine
+        .work_once(&uuid::Uuid::new_v4().to_string(), 30_000)
+        .await?;
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
+    assert!(store.1.lock().map_err(|_| "receipts")?.is_empty());
     Ok(())
 }

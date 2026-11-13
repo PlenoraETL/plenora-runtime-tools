@@ -85,6 +85,9 @@ pub enum Request {
     Report {
         /// Canonical run UUID.
         run_id: String,
+        /// Optional bounded byte cursor; absence preserves the complete legacy response.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<crate::ReportCursor>,
     },
 }
 /// Identical facade envelope; failed runs retain the complete domain result in `value`.
@@ -152,7 +155,10 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             Request::Artifact { reference } => {
                 serde_json::to_value(self.artifact(&reference).await?)
             }
-            Request::Report { run_id } => serde_json::to_value(self.report(&run_id).await?),
+            Request::Report { run_id, cursor } => match cursor {
+                Some(cursor) => serde_json::to_value(self.report_page(&run_id, cursor).await?),
+                None => serde_json::to_value(self.report(&run_id).await?),
+            },
         };
         value.map_err(|_| Error::Invalid)
     }

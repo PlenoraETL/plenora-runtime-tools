@@ -303,6 +303,11 @@ jobs:
         run: |
           PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_surfaces}" \
             cargo test -p plenora-runtime-chain-host --test remote --test worker --locked -- --ignored --nocapture
+      - name: Verify installed journal report pages after real fault injection
+        env:
+          PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime
+          PLENORA_JOURNAL_REPORT: ${{ github.workspace }}/target/p14c1-journal-real.json
+        run: python -m unittest discover -s crates/plenora-runtime-chain-python/tests -p 'test_journal_report.py'
       - name: Run product PostgreSQL and NATS settlement tests
         env:
           PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}

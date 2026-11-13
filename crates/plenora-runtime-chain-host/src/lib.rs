@@ -21,6 +21,9 @@ use std::{collections::BTreeMap, sync::Arc};
 pub struct ScriptedConfig {
     /// PostgreSQL connection configuration; never included in errors or Debug.
     pub database: String,
+    /// Finite serialized run-journal reservation budget; immutable for accepted runs.
+    #[serde(default = "journal_budget")]
+    pub journal_bytes: usize,
     /// Host-authorized tenant.
     pub tenant: String,
     /// Closed registry JSON from the fixture qualification corpus.
@@ -38,6 +41,9 @@ pub struct ScriptedConfig {
     pub attempts: Vec<String>,
     /// Tenant-local immutable fixture resources, identified only by opaque references.
     pub artifacts: BTreeMap<String, Vec<u8>>,
+}
+fn journal_budget() -> usize {
+    plenora_runtime_chains::JOURNAL_BYTES
 }
 struct ScriptedAdapter {
     tenant: String,
@@ -98,11 +104,19 @@ impl Adapter for ScriptedAdapter {
         Ok(())
     }
     async fn recover(&self, i: &Invocation) -> Result<Option<StepResult>, Error> {
-        Ok(self
+        let proof = self
             .recovery
             .iter()
-            .find(|s| s.step_id == i.step.id && s.attempt == i.attempt)
-            .cloned())
+            .find(|s| s.step_id == i.step.id && s.attempt == i.attempt);
+        if let Some(proof) = proof {
+            let bytes = serde_json::to_vec(proof).map_err(|_| Error::Invalid)?;
+            if u64::try_from(bytes.len()).map_err(|_| Error::ResourceLimit)?
+                > i.reservation.limits.result_bytes
+            {
+                return Err(Error::ResourceLimit);
+            }
+        }
+        Ok(proof.cloned())
     }
     async fn artifact(
         &self,
@@ -188,13 +202,16 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ScriptedHost<S>
             recovery,
             artifacts: config.artifacts,
         });
-        let engine = Arc::new(ChainEngine::new(
-            store.clone(),
-            adapter,
-            registry,
-            clock.clone(),
-            &config.tenant,
-        )?);
+        let engine = Arc::new(
+            ChainEngine::new(
+                store.clone(),
+                adapter,
+                registry,
+                clock.clone(),
+                &config.tenant,
+            )?
+            .with_journal_budget(config.journal_bytes)?,
+        );
         let runtime = control::runtime(store.clone(), engine.clone(), clock, &config.tenant)?;
         Ok(Self {
             runtime,

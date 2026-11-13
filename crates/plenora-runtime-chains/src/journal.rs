@@ -47,6 +47,8 @@ pub struct RunHandle {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Intent {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_limit: Option<u64>,
     pub index: usize,
     pub message_id: String,
     pub started: u64,
@@ -68,6 +70,8 @@ pub(crate) struct StepProgress {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Journal {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) allocation: Option<crate::accounting::Allocation>,
     pub(crate) version: u8,
     pub(crate) tenant: String,
     pub(crate) options: RunOptions,
@@ -164,6 +168,13 @@ impl Journal {
     pub fn validate_successor(&self, next: &Self) -> Result<(), Error> {
         self.validate()?;
         next.validate()?;
+        if self.allocation.as_ref().is_some_and(|a| {
+            next.allocation
+                .as_ref()
+                .is_none_or(|b| a.limit != b.limit || b.events < a.events || b.history < a.history)
+        }) {
+            return Err(Error::Conflict);
+        }
         if !self.same_submission(next)
             || self.run_id() != next.run_id()
             || self.created != next.created
@@ -183,6 +194,15 @@ impl Journal {
                 .is_none_or(|new| new.started != old.started || new.deadline != old.deadline)
         }) {
             return Err(Error::Conflict);
+        }
+        if let Some(old) = &self.allocation {
+            let new = next.allocation.as_ref().ok_or(Error::Conflict)?;
+            if old.recovery.is_some()
+                && new.recovery.is_some()
+                && (old.recovery != new.recovery || old.recovery_limit != new.recovery_limit)
+            {
+                return Err(Error::Conflict);
+            }
         }
         if let (Some(old), Some(new)) = (&self.active, &next.active)
             && encode(old)? != encode(new)?
@@ -228,6 +248,13 @@ impl Journal {
         }
         if starting {
             let intent = next.active.as_ref().ok_or(Error::Conflict)?;
+            if intent.result_limit
+                != Some(
+                    self.report_limit(&plan.steps.get(intent.index).ok_or(Error::Conflict)?.id)?,
+                )
+            {
+                return Err(Error::Conflict);
+            }
             let definition = plan.steps.get(intent.index).ok_or(Error::Conflict)?;
             let step = before.steps.get(intent.index).ok_or(Error::Conflict)?;
             let previous = self
@@ -346,8 +373,7 @@ impl Journal {
     /// Corrupt or oversized state is never silently persisted.
     pub fn to_json(&self) -> Result<Vec<u8>, Error> {
         self.validate()?;
-        let mut counter = Size(0);
-        serde_json::to_writer(&mut counter, self).map_err(|_| Error::ResourceLimit)?;
+        self.encoded_size()?;
         let bytes = encode(self)?;
         if bytes.len() > JOURNAL_BYTES {
             return Err(Error::ResourceLimit);
@@ -362,10 +388,14 @@ impl Journal {
             return Err(Error::ResourceLimit);
         }
         let j: Self = serde_json::from_slice(bytes).map_err(|_| Error::Storage)?;
+        if j.allocation.as_ref().is_some_and(|a| bytes.len() > a.limit) {
+            return Err(Error::ResourceLimit);
+        }
         j.validate()?;
         Ok(j)
     }
     pub(crate) fn validate(&self) -> Result<(), Error> {
+        self.check_allocation()?;
         if self.version != 1
             || !crate::scope(&self.tenant)
             || !crate::uuid(self.run_id())
@@ -590,21 +620,6 @@ impl Change {
     #[must_use]
     pub fn into_journal(self) -> Journal {
         self.0
-    }
-}
-
-struct Size(usize);
-impl std::io::Write for Size {
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        self.0 = self
-            .0
-            .checked_add(bytes.len())
-            .filter(|n| *n <= JOURNAL_BYTES)
-            .ok_or_else(|| std::io::Error::other("journal limit"))?;
-        Ok(bytes.len())
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
     }
 }
 

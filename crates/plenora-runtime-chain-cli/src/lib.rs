@@ -106,6 +106,16 @@ pub fn parse(
             run_id: required(&mut options, "--run")?,
         },
         "report" => Request::Report {
+            cursor: options
+                .remove("--report-index")
+                .map(|index| {
+                    let offset = required(&mut options, "--offset")?;
+                    Ok::<_, Error>(plenora_runtime_chains::ReportCursor {
+                        index: usize::try_from(number(&index)?).map_err(|_| Error::Invalid)?,
+                        offset: usize::try_from(number(&offset)?).map_err(|_| Error::Invalid)?,
+                    })
+                })
+                .transpose()?,
             run_id: required(&mut options, "--run")?,
         },
         "artifact" => Request::Artifact {
@@ -212,6 +222,40 @@ mod tests {
                     .map(str::to_owned)
                     .collect();
             assert!(parse(&args, |_| Ok("{}".into())).is_err());
+        }
+        Ok(())
+    }
+    #[test]
+    fn report_cursor_is_only_parsed_here_and_shared_by_both_endpoints() -> Result<(), Error> {
+        for endpoint in ["--config fake", "--server local --subject requests"] {
+            let args =
+                format!("chain report --run id --report-index 2 --offset 65536 {endpoint} --json")
+                    .split_whitespace()
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>();
+            let parsed = parse(&args, |_| Err(Error::Invalid))?;
+            assert!(matches!(
+                parsed.request,
+                Request::Report {
+                    cursor: Some(plenora_runtime_chains::ReportCursor {
+                        index: 2,
+                        offset: 65536
+                    }),
+                    ..
+                }
+            ));
+        }
+        for flags in [
+            "--report-index 0",
+            "--offset 0",
+            "--report-index 01 --offset 0",
+            "--report-index 0 --offset -1",
+        ] {
+            let args = format!("chain report --run id {flags} --config fake --json")
+                .split_whitespace()
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            assert!(parse(&args, |_| Err(Error::Invalid)).is_err());
         }
         Ok(())
     }

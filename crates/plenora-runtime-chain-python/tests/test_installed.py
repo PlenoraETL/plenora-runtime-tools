@@ -54,6 +54,29 @@ class Installed(unittest.IsolatedAsyncioTestCase):
                     client.call(function, **arguments)
                 self.assertEqual(caught.exception.code, "storage")
 
+    async def test_report_cursor_on_installed_bindings(self):
+        sync, asynchronous = Client(CONFIG), AsyncClient(CONFIG)
+        for cursor, expected in [({"index": 0, "offset": 0}, "not_found" if os.environ.get("PLENORA_POSTGRES_URL") else "storage"),
+                                 ({"index": 0, "offset": -1}, "invalid")]:
+            with self.assertRaises(ChainError) as error:
+                await asyncio.to_thread(sync.report, run_id=OPTIONS["run_id"], cursor=cursor)
+            self.assertEqual(error.exception.code, expected)
+            with self.assertRaises(ChainError) as error:
+                await asynchronous.report(run_id=OPTIONS["run_id"], cursor=cursor)
+            self.assertEqual(error.exception.code, expected)
+            if os.environ.get("PLENORA_CHAIN_BIN"):
+                def binary():
+                    with tempfile.TemporaryDirectory(dir=ROOT / "target") as folder:
+                        config = Path(folder) / "config.json"
+                        config.write_text(json.dumps(CONFIG), encoding="utf-8")
+                        return subprocess.run([os.environ["PLENORA_CHAIN_BIN"], "chain", "report",
+                            "--run", OPTIONS["run_id"], "--report-index", str(cursor["index"]),
+                            "--offset", str(cursor["offset"]), "--config", str(config), "--json"],
+                            capture_output=True, text=True, encoding="utf-8", check=False)
+                result = await asyncio.to_thread(binary)
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(json.loads(result.stdout)["error"], expected)
+
     async def test_sync_async_error_parity_for_every_function(self):
         sync = Client(CONFIG)
         asynchronous = AsyncClient(CONFIG)
@@ -223,6 +246,30 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await binary("chain", "result", "--run", started["run_id"]))["state"], "cancelled")
         finally:
             await asyncio.to_thread(config_path.unlink)
+
+    async def test_journal_budget_rejects_on_installed_surfaces(self):
+        config = dict(CONFIG, tenant="journal-" + str(uuid.uuid4()), journal_bytes=1)
+        client = AsyncClient(config)
+        await client.migrate()
+        sync = Client(config)
+        with self.assertRaises(ChainError) as rejected:
+            await asyncio.to_thread(sync.submit, plan=PLAN, options=dict(OPTIONS, run_id=str(uuid.uuid4())))
+        self.assertEqual(rejected.exception.code, "resource_limit")
+        with self.assertRaises(ChainError) as rejected:
+            await client.submit(plan=PLAN, options=dict(OPTIONS, run_id=str(uuid.uuid4())))
+        self.assertEqual(rejected.exception.code, "resource_limit")
+        def binary():
+            with tempfile.TemporaryDirectory(dir=ROOT / "target") as folder:
+                profile = Path(folder) / "config.json"
+                profile.write_text(json.dumps(config), encoding="utf-8")
+                return subprocess.run([os.environ["PLENORA_CHAIN_BIN"], "chain", "submit",
+                    "--plan", str(FIXTURES / "plan-valid.json"), "--run", str(uuid.uuid4()),
+                    "--config", str(profile), "--json"], capture_output=True, text=True,
+                    encoding="utf-8", check=False)
+        rejected = await asyncio.to_thread(binary)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertEqual(rejected.stderr, "")
+        self.assertEqual(json.loads(rejected.stdout)["error"], "resource_limit")
 
     async def test_retry_accounting_from_installed_sync_async_and_binary(self):
         plan = json.loads(PLAN)

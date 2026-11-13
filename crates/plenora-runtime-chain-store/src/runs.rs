@@ -286,6 +286,30 @@ mod tests {
             clock.clone(),
             &tenant,
         )?;
+        // Real primary: no acceptance is persisted when the journal cannot reserve its tail.
+        let limited = ChainEngine::new(
+            store.clone(),
+            Arc::new(NoInvocation),
+            parse_registry(include_bytes!(
+                "../../../contracts/chains-v2/fixtures/context.json"
+            ))?,
+            clock.clone(),
+            &tenant,
+        )?
+        .with_journal_budget(1)?;
+        assert_eq!(
+            limited
+                .submit(
+                    &plan,
+                    RunOptions {
+                        run_id: uuid::Uuid::new_v4().to_string(),
+                        idempotency_key: None,
+                        deadline_ms: None
+                    }
+                )
+                .await,
+            Err(Error::ResourceLimit)
+        );
         let options = || RunOptions {
             run_id: uuid::Uuid::new_v4().to_string(),
             idempotency_key: Some("same-key".into()),
@@ -293,6 +317,9 @@ mod tests {
         };
         let (left, right) = tokio::join!(a.submit(&plan, options()), b.submit(&plan, options()));
         let left = left?;
+        let snapshot = Store::load(store.as_ref(), &tenant, &left.run_id).await?;
+        assert_eq!(snapshot.encoded_size()?, snapshot.to_json()?.len());
+        assert!(snapshot.encoded_size()? <= snapshot.reserved_bytes()?);
         assert_eq!(left, right?);
         let cancelled = b.cancel(&left.run_id, left.revision).await?;
         assert_eq!(

@@ -41,6 +41,7 @@ async fn postgres_nats_real_worker_restarts_and_retries_persisted_runs()
     failure["error"] = serde_json::json!({"contract":"plenora-chain-error-v2","schema_version":2,"category":"io","phase":"read","code":"CHAIN_UPSTREAM","remote_effect":"none","retry":{"kind":"safe"},"message":"Chain operation rejected or incomplete.","step_id":"transform","upstream_error":null,"reports":[]});
     outcomes["steps"][1] = failure;
     let config = ScriptedConfig {
+        journal_bytes: plenora_runtime_chains::JOURNAL_BYTES,
         database: database.clone(),
         tenant: tenant.clone(),
         registry: include_str!("../../../contracts/chains-v2/fixtures/context.json").into(),
@@ -113,7 +114,10 @@ async fn postgres_nats_real_worker_restarts_and_retries_persisted_runs()
     assert_eq!(result.value["steps"][1]["attempt"], 2);
     assert_eq!(result.value["counters"]["max_attempts"], 4);
     let reports = client
-        .exchange(Request::Report { run_id: id.clone() })
+        .exchange(Request::Report {
+            run_id: id.clone(),
+            cursor: None,
+        })
         .await?;
     assert_eq!(reports.error, None);
     assert_eq!(reports.value.as_array().ok_or("reports")?.len(), 4);
