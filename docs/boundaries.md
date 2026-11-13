@@ -57,3 +57,37 @@ RuntimeBoundary come decoder e handler, con discovery, AdmissionPolicy, clock e
 sink espliciti. Il dispatch grezzo è privato. WorkerContext.metadata contiene
 solo metadati del messaggio; le osservazioni del broker sono in broker_metadata.
 Vedere [allineamento del profilo](contract-alignment.md#p21b-confine-delle-facciate-esistenti).
+
+
+## API negoziata e durevole P2.3/P2.4
+
+Classificazione delle superfici inventariate in `boundary-api.txt`:
+
+- NegotiatedRuntime e NegotiatedDelivery: ammissione e invio canonici con
+  acceptance autorevole; carrier ammesso senza accesso mutabile.
+- DurableRuntime, DurableWorker, RawDelivery, SettlementRetry: coordinamento
+  del journal e integrazione runner; RawDelivery non ha costruttore pubblico,
+  il decoder conserva il carrier per finalizzare anche rifiuti anteriori all'ammissione.
+- DeliveryPlan e RouteTable: configurazione host validata e congelata prima del
+  dominio. NegotiatedForwarder usa soltanto una route di questa tabella.
+- EvidenceComponent, OutcomeBudget e ComponentOutcome: adapter con evidenze;
+  esiti costruiti entro il budget, autorita d'invocazione soltanto dal wrapper.
+- DurableExecutionStore, DeliveryOpen, DeliveryChange, DeliveryStage e
+  DeliveryJournal: SPI PostgreSQL e riduttore con CAS; nessuna autorita di
+  dominio nasce da una lettura. PreparedResult e StoredMessage sono codec
+  persistiti, validati dal riduttore, non ingressi alternativi al dispatcher.
+- PostgresStore record_evidence/evidence_report: primitive legacy fenced;
+  schema v2 impedisce doppia autorita tra legacy e nuova facciata.
+
+I probe locali e reali ignorati sono in `tests/integration/tests/chain_delivery.rs`.
+L'inventario classifica API, non attesta qualifica remota. Scope e condizioni
+sono in [allineamento](contract-alignment.md).
+
+La facciata negoziata distingue ora Storage da Negotiation: un guasto dello
+store non costituisce un rifiuto di protocollo. admit resta sincrono per host
+sincroni; admit_async e tutti i percorsi prodotto process/send/forward/relay
+eseguono la SPI sincrona su blocking worker. L'acceptance confermata viene
+validata dal contratto comune nella stessa chiamata, senza cache fra consegne.
+Il nuovo ingresso admit_async non bypassa policy, deadline o discovery; il
+boundary viene ricontrollato dopo l'I/O. Le nuove superfici e la categoria
+Storage sono classificate nell'inventario API.

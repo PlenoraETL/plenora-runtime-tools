@@ -1,0 +1,32 @@
+[package]
+name = "plenora-runtime-chain-store"
+description = "PostgreSQL durable chain acceptance, execution fences and result outbox."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+# Exact workspace JSON pin for the bounded versioned delivery journal.
+serde_json.workspace = true
+# Durable dispatcher ledger interfaces, with no dependency back from boundary to infrastructure.
+plenora-runtime-boundary = { version = "=0.1.0", path = "../plenora-runtime-boundary" }
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../plenora-runtime-capabilities" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+plenora-runtime-outbox = { version = "=0.1.0", path = "../plenora-runtime-outbox" }
+async-trait.workspace = true
+tokio = { workspace = true, features = ["rt", "net", "time"] }
+uuid.workspace = true
+# Operational PostgreSQL driver, independent of ETL. ADR: docs/adr/0009-chain-postgres.md.
+tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
+# Fingerprint of the complete canonical invocation supplied by the boundary.
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
+
+[lints]
+workspace = true

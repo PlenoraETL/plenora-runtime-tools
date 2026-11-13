@@ -6,6 +6,9 @@ con un nuovo strato prodotto di orchestrazione catene progettato nello stesso re
 sono presenti contratti catene e ammissione runtime locale; engine e host restano
 da realizzare. Il [boundary](crates/plenora-runtime-boundary/README.md) dichiara
 prove e limiti del profilo P2.1, senza attestare settlement o dedup durevoli.
+Lo [store catene](crates/plenora-runtime-chain-store/README.md) implementa le
+primitive PostgreSQL di P2.2; le prove sul backend reale sono demandate al job CI
+dedicato, distinto dal futuro cablaggio di host e settlement.
 Il progetto è agnostico rispetto all'infrastruttura ai propri confini pubblici: le tecnologie
 concrete di HTTP, worker, broker e persistenza stanno dietro gli adapter.
 

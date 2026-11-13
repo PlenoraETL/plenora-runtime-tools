@@ -148,6 +148,28 @@
             "rejection": "store indisponibile",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "p2_2_primitives": {
+            "implementation": "crates/plenora-runtime-chain-store/src/lib.rs",
+            "tests": "crates/plenora-runtime-chain-store/src/tests.rs",
+            "scope": "Primitive PostgreSQL implementate; test backend reale ignorati e demandati alla CI, non eseguiti localmente. Nessuna facciata host o superficie promossa.",
+            "rt_register": [
+              "RT-022",
+              "RT-027"
+            ]
+          },
+          "p2_3_4_boundary": {
+            "implementation": "crates/plenora-runtime-boundary/src/durable.rs",
+            "tests": "tests/integration/tests/chain_delivery.rs",
+            "scope": "Facciata durevole P2.3/P2.4: rifiuti, retry, recovery, budget JSON, Apalis/DLQ e relay instradato provati localmente. Servizi reali ignorati e cablati in CI, non eseguiti localmente; scope host idempotenza P1.4/P1.5 ancora rifiutato; nessuna superficie promossa.",
+            "rt_register": [
+              "RT-026",
+              "RT-027",
+              "RT-010",
+              "RT-019",
+              "RT-020",
+              "RT-024"
+            ]
           }
         },
         "cli": {
@@ -264,6 +286,28 @@
             "rejection": "run di altro tenant",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "p2_2_primitives": {
+            "implementation": "crates/plenora-runtime-chain-store/src/lib.rs",
+            "tests": "crates/plenora-runtime-chain-store/src/tests.rs",
+            "scope": "Primitive PostgreSQL implementate; test backend reale ignorati e demandati alla CI, non eseguiti localmente. Nessuna facciata host o superficie promossa.",
+            "rt_register": [
+              "RT-022",
+              "RT-027"
+            ]
+          },
+          "p2_3_4_boundary": {
+            "implementation": "crates/plenora-runtime-boundary/src/durable.rs",
+            "tests": "tests/integration/tests/chain_delivery.rs",
+            "scope": "Facciata durevole P2.3/P2.4: rifiuti, retry, recovery, budget JSON, Apalis/DLQ e relay instradato provati localmente. Servizi reali ignorati e cablati in CI, non eseguiti localmente; scope host idempotenza P1.4/P1.5 ancora rifiutato; nessuna superficie promossa.",
+            "rt_register": [
+              "RT-026",
+              "RT-027",
+              "RT-010",
+              "RT-019",
+              "RT-020",
+              "RT-024"
+            ]
           }
         },
         "cli": {
@@ -323,7 +367,29 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "p2_2_primitives": {
+            "implementation": "crates/plenora-runtime-chain-store/src/lib.rs",
+            "tests": "crates/plenora-runtime-chain-store/src/tests.rs",
+            "scope": "Primitive PostgreSQL implementate; test backend reale ignorati e demandati alla CI, non eseguiti localmente. Nessuna facciata host o superficie promossa.",
+            "rt_register": [
+              "RT-022",
+              "RT-027"
+            ]
+          },
+          "p2_3_4_boundary": {
+            "implementation": "crates/plenora-runtime-boundary/src/durable.rs",
+            "tests": "tests/integration/tests/chain_delivery.rs",
+            "scope": "Facciata durevole P2.3/P2.4: rifiuti, retry, recovery, budget JSON, Apalis/DLQ e relay instradato provati localmente. Servizi reali ignorati e cablati in CI, non eseguiti localmente; scope host idempotenza P1.4/P1.5 ancora rifiutato; nessuna superficie promossa.",
+            "rt_register": [
+              "RT-026",
+              "RT-027",
+              "RT-010",
+              "RT-019",
+              "RT-020",
+              "RT-024"
+            ]
+          }
         },
         "cli": {
           "status": "specificata",
@@ -506,6 +572,28 @@
             "rejection": "unknown senza evidenza autenticata",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "p2_2_primitives": {
+            "implementation": "crates/plenora-runtime-chain-store/src/lib.rs",
+            "tests": "crates/plenora-runtime-chain-store/src/tests.rs",
+            "scope": "Primitive PostgreSQL implementate; test backend reale ignorati e demandati alla CI, non eseguiti localmente. Nessuna facciata host o superficie promossa.",
+            "rt_register": [
+              "RT-022",
+              "RT-027"
+            ]
+          },
+          "p2_3_4_boundary": {
+            "implementation": "crates/plenora-runtime-boundary/src/durable.rs",
+            "tests": "tests/integration/tests/chain_delivery.rs",
+            "scope": "Facciata durevole P2.3/P2.4: rifiuti, retry, recovery, budget JSON, Apalis/DLQ e relay instradato provati localmente. Servizi reali ignorati e cablati in CI, non eseguiti localmente; scope host idempotenza P1.4/P1.5 ancora rifiutato; nessuna superficie promossa.",
+            "rt_register": [
+              "RT-026",
+              "RT-027",
+              "RT-010",
+              "RT-019",
+              "RT-020",
+              "RT-024"
+            ]
           }
         },
         "cli": {

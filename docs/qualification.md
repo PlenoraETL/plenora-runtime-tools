@@ -242,3 +242,28 @@ Gate aperto: real_nats e coverage su Linux con Docker, CI Linux/Windows sulla
 correzione e profilo di deployment. Condizione di chiusura: esecuzione di questi
 gate e qualificazione del settlement confermato in P2.4. Nessun gate reale è
 attestato dalla sola prova offline della sequenza rifiuto/valido.
+
+
+## Gate P2.2 PostgreSQL
+
+Regola: race/crash/restart su backend reale, lettura autorevole e rifiuto senza
+conferma. Ambito: primitive di [chain-store](../crates/plenora-runtime-chain-store/README.md),
+RT-022 e RT-027. Implementazione e prove ignorate presenti, con job CI dedicato;
+PostgreSQL reale non disponibile sull'host locale. Rischio: confondere test
+scritti o doppio memoria con qualifica del database. Condizione di chiusura:
+job PostgreSQL verde e gate Linux/Windows sul medesimo candidato; P2.3/P2.4 e
+P2.5 restano necessari per claim end-to-end. Nessun gate non eseguito è passato.
+
+
+## Qualifica P2.3/P2.4
+
+Ambito: facciata prodotto, wrapper, journal PostgreSQL e relay instradato.
+Le lacune locali del candidato sono chiuse nella logica e nelle prove enumerate
+RT-026/027 e RT-010/019/020/024, con rilettura indipendente. Gli esiti dei gate
+locali del blocco sono registrati in `target/P2-3-4.md` (artefatto locale).
+Restano aperti i gate CI Linux/Windows e servizi reali: tre test integrazione
+ignorati e i test PostgreSQL del crate store sono cablati in `.github/workflows/ci.yml`.
+Il job PostgreSQL esegue anche il percorso combinato con NATS, con entrambi i
+container effimeri e cleanup always. Non sono stati eseguiti sull'host.
+Rischio: confondere prove locali con qualifica infrastrutturale o engine reali.
+Chiusura: job verdi sul medesimo candidato; nessuna superficie CLI/SDK promossa.

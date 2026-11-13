@@ -298,3 +298,97 @@ Geometry e completezza dei rapporti a tutte le uscite e a tutti gli errori.
 Rischio: confondere controllo statico con interoperabilità reale. Condizione
 di chiusura: ratifica e adapter S3, host con prove su payload, discovery,
 fidelity e autorizzazioni reali. Le deviazioni RT dei generici restano aperte.
+
+
+## P2.2: primitive durevoli PostgreSQL
+
+Regola: RT-022 e RT-027, registro D.2; nessuna accettazione/autorità di avvio
+senza commit confermato, nessuna identità scaduta riutilizzabile. Ambito:
+[chain-store](../crates/plenora-runtime-chain-store/README.md), esclusivamente
+primitive Rust. Implementati acceptance autorevole, dedup identità/chiave
+scoped e passo, alias, fence, report/inbox/outbox atomici, relay fenced e
+retention 7/90 giorni riducibile con tombstone permanenti.
+Le prove di race/crash/restart PostgreSQL sono scritte e collegate alla CI,
+ma non eseguite su questo host: non costituiscono chiusura di RT-022/027.
+RT-010/020/024 ricevono solo supporto di persistenza, non finalizzazione P2.4.
+Le 21 sequenze/header/forwarding RT-027 e selezione RT-026 restano P2.3.
+
+Scostamento d'interfaccia: il trait OutboxStore generico non trasporta un
+fence nella conferma; non viene implementato con una garanzia indebolita.
+Si usa claim/confirm con autorità esplicita. InboxStore.record_processed
+rifiuta nuovi record isolati: soltanto finish crea inbox, report e outbox
+atomicamente. IdempotencyStore.begin non sostituisce il CAS per passo.
+Motivo e contratti mancanti nel checkout sono nell'[ADR 0009](adr/0009-chain-postgres.md).
+Rischio: usare queste primitive come prova di un host già cablato o di
+settlement distribuita. Chiusura: prove PostgreSQL verdi sul candidato,
+poi integrazione P2.3/P2.4 e conferma unica P2.5. Nessun claim globale dei
+generici, delle cinque superfici o delle librerie ETL viene promosso.
+
+
+## Profilo negoziato ed evidenze P2.3/P2.4
+
+Questa sezione aggiorna i gate P2.3/P2.4 indicati nelle fotografie dei passi
+precedenti; non promuove gli esempi generici o le superfici CLI/SDK dell'host.
+`DurableRuntime` collega boundary P2.1, acceptance P2.2 e journal PostgreSQL.
+`DurableWorker` e `SettlementRetry` cablano il runner Apalis; `NegotiatedForwarder`
+cabla ogni send/retry/DLQ e il redrive passa da Forward. La route del risultato
+viene congelata prima dell'invocazione e persistita: il relay non accetta un
+producer arbitrario al momento del claim. L'host configura la stessa RouteTable
+sul restart e deve associare ciascun nome allo stesso endpoint autorizzato.
+
+| Riga | Implementazione e prove locali | Prove reali |
+|---|---|---|
+| RT-026 | 21 sequenze enumerate nel profilo prodotto minimo v2; discovery e acceptance controllate a ogni invio, senza downgrade | Header JetStream nei job CI |
+| RT-027 | Contesto esatto persistito, Apalis, DLQ/redrive, relay su route immutabile; nessuna ricostruzione da default | Test NATS e test combinato PostgreSQL/NATS ignorati localmente |
+| RT-010 | Ricevuta prima dell'ammissione, rifiuti durevoli, retry limitato per numero/tempo ed effetti safe, evidence salvata prima del ritorno wrapper; recupero della sola finalizzazione | Race e restart PostgreSQL in CI |
+| RT-019 | Unico finalizzatore per errori d'ingresso e componente; riflessione selettiva, errori senza dati | Percorso reale combinato in CI |
+| RT-020 | Identita risultato persistita, replay terminale prima della verifica deadline entro la finestra delivery, risposta/ACK persi senza ripetere dominio | Redelivery reale osservata con attempt >= 2 nel runner; relay reale in CI |
+| RT-024 | Enumerazione componente/dispatcher/sink per read/commit/cleanup e none/committed/partial/unknown; rapporto completo separato dal terminale | Journal PostgreSQL in CI; nessuna qualifica di engine reale |
+
+Il journal prenota il massimo serializzato prima di invocare: due copie JSON
+dei byte (fino a quattro caratteri per byte ciascuna), metadati/errori riservati e
+numero massimo di tentativi. Un writer contatore misura poi esattamente il JSON
+prima dell'allocazione e del commit, entro 64 MiB. OutcomeBudget rifiuta un successo
+fuori budget trasformandolo in un esito resource_limit completo con fase/effetto;
+non tronca un rapporto gia accettato. Il superamento quota header conserva il
+rapporto e usa il terminale d'errore riservato.
+
+Ready/Running/Evidence/Finished sono stati durevoli con revisione CAS. Running
+senza evidenza non autorizza mai un nuovo invoke; Evidence consente soltanto
+Settle, anche dopo crash. Pending recupera la finalizzazione e pubblica con lease
+fenced; una risposta broker incerta libera la lease per ripubblicare lo stesso ID.
+Il replay finalizzato prevale sulla deadline originaria, ma non estende i 7 giorni.
+I rapporti scadono entro 90 giorni anche senza lettura; i tombstone ID restano.
+Schema PostgreSQL v2 esclude entrambe le autorita legacy/prodotto nei due ordini;
+i vecchi binari v1 falliscono esplicitamente dopo migrazione.
+
+Deviazione delimitata: chiavi di idempotenza d'esecuzione rifiutate con unsupported,
+mai ignorate. Il contesto tenant/progetto autenticato richiesto dalla sezione D
+arriva dall'host; P1.4/P1.5 introducono esecutore/API host e scope tenant/operazione.
+P2.3/P2.4 non inventano tale identita da run/step o metadata del client. Rischio:
+indisponibilita intenzionale della deduplicazione per chiave su questa facciata.
+Chiusura: scope autenticato host e prove cross-tenant/cross-operazione nel passo
+host; le primitive scoped P2.2 restano disponibili senza attestare tale integrazione.
+
+Le prove sono in `tests/integration/tests/chain_delivery.rs` e
+`crates/plenora-runtime-chain-store/src/delivery_tests.rs`. I doppi sono soltanto
+nei test. La rilettura indipendente ha chiuso i rilievi locali. I servizi reali e
+la CI Linux/Windows non sono eseguiti sull'host: restano gate di qualifica remota.
+
+### Rettifica CI #22: acceptance asincrona e guasti recuperabili
+
+RT-010/020/026/027: i percorsi asincroni usano admit_async e lookup su blocking
+worker per la SPI AcceptanceStore sincrona. Bloccare il reactor durante
+l'acceptance poteva impedire a una transazione concorrente di rilasciare il lock
+PostgreSQL; il conseguente errore non deve diventare un terminale unsupported.
+Ora Storage resta un errore recuperabile, con ricevuta Ready senza evidenza o
+nuova autorita di dominio. Solo rifiuti di ammissione/negoziazione confermati
+sono finalizzati. Il boundary ricontrolla deadline e policy dopo l'I/O.
+Prove current-thread con handshake verificano avanzamento del reactor in tutti
+i percorsi, guasto acceptance isolato e recovery con una sola invocazione.
+La race reale mantiene count=2, verifica anche terminali, journal e replay; lo
+stesso scenario e eseguito localmente con un doppio, senza attestare il backend.
+
+Storage significa autorita non confermata: la SPI comune aggrega anche assenza
+e scadenza oltre a errori transitori. Nessuna promessa di successo con retry;
+la finestra durevole e i tombstone continuano a impedire nuove invocazioni.

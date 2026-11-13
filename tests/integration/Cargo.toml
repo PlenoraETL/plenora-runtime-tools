@@ -11,6 +11,8 @@ publish = false
 path = "src/lib.rs"
 
 [dev-dependencies]
+# Real PostgreSQL acceptance/evidence/settlement tests for the product boundary.
+plenora-runtime-chain-store = { version = "=0.1.0", path = "../../crates/plenora-runtime-chain-store" }
 # Fixture boundary host exercises the real admission path through broker runners.
 plenora-runtime-boundary = { version = "=0.1.0", path = "../../crates/plenora-runtime-boundary" }
 serde_json.workspace = true
