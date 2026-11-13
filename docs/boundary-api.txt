@@ -454,9 +454,11 @@ adapters/plenora-runtime-nats/src/consumer.rs |  |
 adapters/plenora-runtime-nats/src/consumer.rs |  | 
 adapters/plenora-runtime-nats/src/consumer.rs |  | 
 adapters/plenora-runtime-nats/src/consumer.rs |  | 
+adapters/plenora-runtime-nats/src/consumer.rs |  | 
 adapters/plenora-runtime-nats/src/consumer.rs |  | async fn convert_delivery (message : jetstream :: Message , shutdown_nak_delay : Duration , max_payload_bytes : usize , heartbeat : Option < DeliveryHeartbeatConfig > ,) -> Result < ConvertedDelivery , NatsAdapterError >
+adapters/plenora-runtime-nats/src/consumer.rs |  | async fn convert_parts (message : async_nats :: Message , facts : Result < DeliveryFacts , NatsAdapterError > , max_payload_bytes : usize , heartbeat : Option < DeliveryHeartbeatConfig > , acknowledger : impl DeliveryAcknowledger + 'static ,) -> Result < ConvertedDelivery , NatsAdapterError >
 adapters/plenora-runtime-nats/src/consumer.rs |  | async fn open (context : & jetstream :: Context , settings : ConsumerSettings < '_ > ,) -> Result < JetStreamConsumer , NatsAdapterError >
-adapters/plenora-runtime-nats/src/consumer.rs |  | async fn reject_delivery (acker : jetstream :: message :: Acker , rejection : NatsAdapterError ,) -> Result < ConvertedDelivery , NatsAdapterError >
+adapters/plenora-runtime-nats/src/consumer.rs |  | async fn reject_delivery (acknowledger : impl DeliveryAcknowledger + 'static , rejection : NatsAdapterError ,) -> Result < ConvertedDelivery , NatsAdapterError >
 adapters/plenora-runtime-nats/src/consumer.rs |  | enum ConvertedDelivery { Accepted (Box < Delivery >) , Rejected (NatsAdapterError) , }
 adapters/plenora-runtime-nats/src/consumer.rs |  | fn broker_metadata (subject : & impl ToString , facts : & DeliveryFacts ,) -> Result < MessageMetadata , NatsAdapterError >
 adapters/plenora-runtime-nats/src/consumer.rs |  | fn config_error (error : crate :: NatsConfigError) -> NatsAdapterError
@@ -543,6 +545,7 @@ adapters/plenora-runtime-nats/src/metadata.rs |  |
 adapters/plenora-runtime-nats/src/metadata.rs |  | 
 adapters/plenora-runtime-nats/src/metadata.rs |  | const fn base64_no_pad_encoded_limit (decoded_limit : usize) -> usize
 adapters/plenora-runtime-nats/src/metadata.rs |  | fn decode (headers : Option < & HeaderMap >) -> Result < (String , MessageMetadata) , NatsAdapterError >
+adapters/plenora-runtime-nats/src/metadata.rs |  | fn decode_delivery (headers : Option < & HeaderMap > , payload : bytes :: Bytes , max_payload_bytes : usize ,) -> Result < plenora_runtime_messaging :: SerializedMessage , NatsAdapterError >
 adapters/plenora-runtime-nats/src/metadata.rs |  | fn decode_raw (headers : Option < & HeaderMap > ,) -> Result < (String , Vec < (String , bytes :: Bytes) >) , NatsAdapterError >
 adapters/plenora-runtime-nats/src/metadata.rs |  | fn decode_wire (headers : Option < & HeaderMap > , payload : bytes :: Bytes , max_payload_bytes : usize ,) -> plenora_runtime_messaging :: SerializedMessage
 adapters/plenora-runtime-nats/src/metadata.rs |  | fn encode (content_type : & str , metadata : & MessageMetadata ,) -> Result < HeaderMap , NatsAdapterError >
@@ -554,6 +557,7 @@ adapters/plenora-runtime-nats/src/metadata.rs |  | fn strip_prefix_ignore_ascii_
 adapters/plenora-runtime-nats/src/metadata.rs |  | format ! ("{METADATA_PREFIX}{}" , URL_SAFE_NO_PAD . encode (key . as_bytes ()))
 adapters/plenora-runtime-nats/src/metadata.rs |  | pub
 adapters/plenora-runtime-nats/src/metadata.rs |  | pub
+adapters/plenora-runtime-nats/src/metadata.rs |  | pub (crate)
 adapters/plenora-runtime-nats/src/metadata.rs |  | pub (crate)
 adapters/plenora-runtime-nats/src/producer.rs |  | # [derive (Clone)] pub struct JetStreamProducer { context : jetstream :: Context , config : Arc < JetStreamProducerConfig > , }
 adapters/plenora-runtime-nats/src/producer.rs | # [async_trait] impl MessageProducer for JetStreamProducer { } | 

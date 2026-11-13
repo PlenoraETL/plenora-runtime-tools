@@ -33,8 +33,9 @@ Il profilo resta `plenora-runtime-tools-profile-v1`; al pin non esiste alcun cat
 ## P2.1b: confine delle facciate esistenti
 
 Regola: RT-012/016..023, stesso ingresso canonico prima del dispatch registrato.
-Ambito implementato: JSON raw, decoder worker, decoder wire NATS effettivamente
-usato da receive/replay, BrokerDeliveryService Apalis e composizioni di processo.
+Ambito implementato: JSON raw, decoder worker, carrier NATS `decode_wire`
+seguito dal boundary, BrokerDeliveryService Apalis e composizioni di processo.
+La parità del carrier isolato non attesta la precedenza end-to-end di receive/replay.
 [Prove eseguibili](../tests/integration/tests/boundary_facades.rs) confrontano
 categoria/fase/retry/remote_effect, riflessione e identità, con zero invoke sui
 rifiuti; includono quota trasporto con difetti multipli e metadati broker distinti.
@@ -50,16 +51,28 @@ registro runtime. I parser di documenti e i worker generici non producono il tip
 AdmittedRequest; nessun executor catene o adapter di dominio viene inventato.
 
 Messaging conserva campi wire decodificabili prima dei limiti della mappa, oppure
-un errore wire esplicito; il boundary applica lo stesso materializzatore. NATS
-non elimina più il contesto del rifiuto per un valore decodificabile oltre limite.
+un errore wire esplicito; il boundary applica lo stesso materializzatore. Il carrier
+`decode_wire` conserva il contesto dei valori decodificabili oltre limite.
 WorkerContext separa metadata ammessi e broker_metadata; Apalis non li sovrascrive.
-Il limite payload del trasporto segue protocol, unsupported e timeout.
-Il profilo raw impone al media type decodificato lo stesso budget di 32768 byte
-in ogni facciata; oltre budget il documento di metadati non viene riflesso.
+Nel carrier ammesso dal boundary il limite payload segue protocol, unsupported
+e timeout. Il profilo raw impone al media type decodificato il budget di 32768 byte; oltre budget il documento di metadati non viene riflesso.
 Il budget raw metadata è 196608 byte; i limiti base64 derivano dal budget
 decodificato, senza confrontare byte encoded con byte decoded. Sono limiti
 locali di allocazione, non estensioni della grammatica dei contratti upstream. Nessun
 nuovo client infrastrutturale, nessun arco generico verso il prodotto o engine.
+
+Deviazione esplicita di trasporto (RT-012/016..023): `JetStreamConsumer`, sia
+operativo sia replay, deve rifiutare prima di esporre una `Delivery` anche a un
+consumer generico senza boundary. `decode_delivery` usa lo stesso decoder wire,
+ma rifiuta metadati illeggibili/non portabili, payload oltre quota e content type
+oltre il limite portable di 128 byte con Protocol e richiesta TERM. Non produce
+un risultato runtime con riflessione selettiva e può anticipare unsupported/timeout.
+Rischio: la parità di precedenza/riflessione del carrier non si estende a questi
+rifiuti del consumer reale. Condizione di chiusura: un ingresso NATS dedicato al
+boundary con ammissione e settlement qualificati end-to-end, senza indebolire il
+consumer generico. I test `consumer_transport_parity_*` verificano offline la
+conversione condivisa, la sequenza rifiuto/valido e gli errori di terminazione;
+non attestano conferma server o durabilità del TERM.
 
 Rischio residuo: confondere questa prova locale con un deploy NATS, con le policy
 di schemi dei cinque adapter futuri o con un risultato terminale pubblicato.

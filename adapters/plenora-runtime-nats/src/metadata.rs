@@ -184,7 +184,28 @@ fn protocol_limit(message: &'static str) -> NatsAdapterError {
     )
 }
 
-/// Decode the real NATS wire representation into an unadmitted message.
+// The generic consumer exposes only portable, transport-admitted deliveries.
+// Unlike decode_wire + RuntimeBoundary, it cannot defer rejection to a caller.
+// This transport scope and its precedence are recorded in docs/contract-alignment.md.
+pub(crate) fn decode_delivery(
+    headers: Option<&HeaderMap>,
+    payload: bytes::Bytes,
+    max_payload_bytes: usize,
+) -> Result<plenora_runtime_messaging::SerializedMessage, NatsAdapterError> {
+    let message = decode_wire(headers, payload, max_payload_bytes);
+    if message.has_unreadable_metadata()
+        || message.raw_metadata().is_some()
+        || message.exceeds_transport_payload_limit()
+        || message.content_type.len() > MAX_CONTENT_TYPE_BYTES
+    {
+        return Err(protocol_limit(
+            "JetStream delivery failed transport admission",
+        ));
+    }
+    Ok(message)
+}
+
+/// Decode the NATS wire representation into an unadmitted message.
 /// Lossy/unreadable metadata is carried explicitly to the canonical admission decoder.
 /// This function does not invoke handlers or settle deliveries.
 #[must_use]
