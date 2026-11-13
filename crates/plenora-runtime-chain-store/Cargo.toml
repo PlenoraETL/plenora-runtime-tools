@@ -8,6 +8,8 @@ license-file.workspace = true
 publish = false
 
 [dependencies]
+# Exact workspace JSON pin for the bounded versioned delivery journal.
+serde_json.workspace = true
 # Durable dispatcher ledger interfaces, with no dependency back from boundary to infrastructure.
 plenora-runtime-boundary = { version = "=0.1.0", path = "../plenora-runtime-boundary" }
 plenora-runtime-capabilities = { path = "../plenora-runtime-capabilities" }

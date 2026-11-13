@@ -325,44 +325,52 @@ poi integrazione P2.3/P2.4 e conferma unica P2.5. Nessun claim globale dei
 generici, delle cinque superfici o delle librerie ETL viene promosso.
 
 
-## Profilo negoziato ed evidenze P2.3/P2.4 (candidato non qualificato)
+## Profilo negoziato ed evidenze P2.3/P2.4
 
-`NegotiatedRuntime` collega l'ammissione P2.1 all'`AcceptanceStore` P2.2:
-richiede v2 senza downgrade, separa i due header esterni dai metadati del dominio,
-ricontrolla acceptance, ammissione e discovery a ogni `send`. `Forward` non crea
-record. Il sender deve fornire il contesto: non esiste ricostruzione dai default.
-Il profilo non sostituisce automaticamente i runner/esempi generici preesistenti.
+Questa sezione aggiorna i gate P2.3/P2.4 indicati nelle fotografie dei passi
+precedenti; non promuove gli esempi generici o le superfici CLI/SDK dell'host.
+`DurableRuntime` collega boundary P2.1, acceptance P2.2 e journal PostgreSQL.
+`DurableWorker` e `SettlementRetry` cablano il runner Apalis; `NegotiatedForwarder`
+cabla ogni send/retry/DLQ e il redrive passa da Forward. La route del risultato
+viene congelata prima dell'invocazione e persistita: il relay non accetta un
+producer arbitrario al momento del claim. L'host configura la stessa RouteTable
+sul restart e deve associare ciascun nome allo stesso endpoint autorizzato.
 
-`register_evidenced` rende un handler invocabile soltanto con autorit? durevole.
-Il wrapper registra l'esito completo prima del controllo output del dispatcher;
-`execute` registra report, identit? risultato e outbox tramite PostgreSQL. Il relay instradato resta da implementare: le primitive claim/confirm P2.2
-non sono una garanzia di consegna al sink corretto.
-L'ACK ? consentito soltanto dopo conferma della finalizzazione locale; consegna
-esterna e conferma broker restano stati distinti. Una chiamata fallita non autorizza
-la ripetizione del dominio. I successi con effetto partial/unknown sono rifiutati.
-
-| Riga | Evidenza nel candidato | Stato e condizione di chiusura |
+| Riga | Implementazione e prove locali | Prove reali |
 |---|---|---|
-| RT-026 | `tests/integration/tests/chain_delivery.rs`: 21 sequenze attraverso il gate prodotto, destinazione v1/assente rifiutata e zero send | Locale provato; integrazione di ogni runner e job broker reale ancora da qualificare |
-| RT-027 | Acceptance PostgreSQL, separazione header, controllo di ogni send; probe NATS reale ignorato collegato al job CI | Non chiuso: nessuna attestazione di esecuzione dei job reali n? cablaggio completo Apalis/DLQ |
-| RT-010 | Errori di componente e limiti arrivano a outbox; perdita simulata della conferma finish e ACK non ripete invoke | Non chiuso: manca il finalizzatore durevole dei rifiuti di ammissione e l'esaurimento dei retry sicuri |
-| RT-019 | Error media type/contratto, correlazione selettiva e messaggio pubblico senza dati nei terminali finalizzati | Non chiuso per i rifiuti che precedono l'autorit? durevole |
-| RT-020 | Nuova identit? del terminale; replay dopo finish conserva identit? e causation=request | Non chiuso: crash fra evidence e finish richiede recovery; manca autorit? recuperabile di sola finalizzazione |
-| RT-024 | Limiti componente/dispatcher/sink con fase ed effetti none/committed/partial/unknown; cleanup e commit simulati; rapporto completo separato dal terminale | Non chiuso: prenotazione esatta del journal e prove backend reale pendenti |
+| RT-026 | 21 sequenze enumerate nel profilo prodotto minimo v2; discovery e acceptance controllate a ogni invio, senza downgrade | Header JetStream nei job CI |
+| RT-027 | Contesto esatto persistito, Apalis, DLQ/redrive, relay su route immutabile; nessuna ricostruzione da default | Test NATS e test combinato PostgreSQL/NATS ignorati localmente |
+| RT-010 | Ricevuta prima dell'ammissione, rifiuti durevoli, retry limitato per numero/tempo ed effetti safe, evidence salvata prima del ritorno wrapper; recupero della sola finalizzazione | Race e restart PostgreSQL in CI |
+| RT-019 | Unico finalizzatore per errori d'ingresso e componente; riflessione selettiva, errori senza dati | Percorso reale combinato in CI |
+| RT-020 | Identita risultato persistita, replay terminale prima della verifica deadline entro la finestra delivery, risposta/ACK persi senza ripetere dominio | Redelivery reale osservata con attempt >= 2 nel runner; relay reale in CI |
+| RT-024 | Enumerazione componente/dispatcher/sink per read/commit/cleanup e none/committed/partial/unknown; rapporto completo separato dal terminale | Journal PostgreSQL in CI; nessuna qualifica di engine reale |
 
-Le deviazioni del candidato sono esplicite: i rifiuti prima di `begin` restano
-errori sincroni, non terminali durevoli; il replay dopo scadenza della deadline ?
-rifiutato dall'ammissione; il crash fra evidence e finish richiede riconciliazione
-senza nuovo invoke. Il retry dichiarato dal componente ? conservato per errori
-ordinari, ma il coordinatore non ne esegue ancora il budget. Le chiavi di
-idempotenza sono rifiutate nell'esecuzione finch? non viene fornito uno scope
-host tenant/operazione distinto dallo scope run/step. Nessuna di queste limitazioni
-promuove una superficie del prodotto a implementata. Chiusura: percorso unico
-per rifiuti, replay e retry, recovery della sola finalizzazione, budget journal
-prenotato e prove NATS/PostgreSQL verdi sul medesimo candidato.
+Il journal prenota il massimo serializzato prima di invocare: due copie JSON
+dei byte (fino a quattro caratteri per byte ciascuna), metadati/errori riservati e
+numero massimo di tentativi. Un writer contatore misura poi esattamente il JSON
+prima dell'allocazione e del commit, entro 64 MiB. OutcomeBudget rifiuta un successo
+fuori budget trasformandolo in un esito resource_limit completo con fase/effetto;
+non tronca un rapporto gia accettato. Il superamento quota header conserva il
+rapporto e usa il terminale d'errore riservato.
 
-Il relay globale non ? esposto dal candidato: una outbox senza destinazione
-persistita non pu? essere pubblicata su un producer scelto al momento del claim.
-Occorre legare per costruzione il risultato alla route immutabile prima di
-qualificare pubblicazione, risposta broker persa e conferma. I test reali aggiunti
-non attestano ancora questo percorso.
+Ready/Running/Evidence/Finished sono stati durevoli con revisione CAS. Running
+senza evidenza non autorizza mai un nuovo invoke; Evidence consente soltanto
+Settle, anche dopo crash. Pending recupera la finalizzazione e pubblica con lease
+fenced; una risposta broker incerta libera la lease per ripubblicare lo stesso ID.
+Il replay finalizzato prevale sulla deadline originaria, ma non estende i 7 giorni.
+I rapporti scadono entro 90 giorni anche senza lettura; i tombstone ID restano.
+Schema PostgreSQL v2 esclude entrambe le autorita legacy/prodotto nei due ordini;
+i vecchi binari v1 falliscono esplicitamente dopo migrazione.
+
+Deviazione delimitata: chiavi di idempotenza d'esecuzione rifiutate con unsupported,
+mai ignorate. Il contesto tenant/progetto autenticato richiesto dalla sezione D
+arriva dall'host; P1.4/P1.5 introducono esecutore/API host e scope tenant/operazione.
+P2.3/P2.4 non inventano tale identita da run/step o metadata del client. Rischio:
+indisponibilita intenzionale della deduplicazione per chiave su questa facciata.
+Chiusura: scope autenticato host e prove cross-tenant/cross-operazione nel passo
+host; le primitive scoped P2.2 restano disponibili senza attestare tale integrazione.
+
+Le prove sono in `tests/integration/tests/chain_delivery.rs` e
+`crates/plenora-runtime-chain-store/src/delivery_tests.rs`. I doppi sono soltanto
+nei test. La rilettura indipendente ha chiuso i rilievi locali. I servizi reali e
+la CI Linux/Windows non sono eseguiti sull'host: restano gate di qualifica remota.

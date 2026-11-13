@@ -188,16 +188,17 @@ provati, monitoraggio capacità/readiness, gate PostgreSQL sul candidato e
 integrazione dell'host P2.3/P2.4. Nessuna qualifica di produzione è attestata.
 
 
-## Candidato P2.3/P2.4: rischi residui del settlement
+## P2.3/P2.4: rischi residui di deployment
 
-Regola: ogni terminale deve restare recuperabile e nessuna perdita di risposta
-pu? autorizzare nuova mutazione. Ambito: `NegotiatedRuntime::execute` e ledger
-supplementare PostgreSQL. Un crash dopo evidence ma prima di finish lascia
-l'esecuzione in recovery, senza autorit? pubblica per ripetere il dominio; la sola
-finalizzazione recuperabile ? ancora da implementare. I rifiuti di ammissione
-non hanno ancora una outbox. Il carrier JSON del journal pu? superare il limite
-64 MiB per l'espansione dei byte: il backend rifiuta esplicitamente, ma manca una
-prenotazione che garantisca il report completo dopo un effetto remoto. Chiusura:
-autorit? di sola finalizzazione, terminali pre-invocazione durevoli e budget
-serializzato esatto qualificati con crash e limiti reali. Il profilo non ? pronto
-per un host di produzione; nessun gate di rilascio ? promosso da questi test locali.
+Regola: nessuna perdita di risposta autorizza nuova mutazione. Ambito:
+DurableRuntime, journal PostgreSQL v2 e relay. Ricevuta pre-ammissione, budget JSON,
+finalizzazione recuperabile e route persistita chiudono le lacune del candidato.
+Running senza evidenza resta recovery esplicito: non si presume un esito remoto.
+L'host deve associare il nome persistito della route allo stesso endpoint
+configurato e autenticato a ogni restart. Il database e la configurazione host
+sono autorita fidate; non si promette tolleranza a loro alterazioni malevole.
+Rischio residuo: test con servizi effimeri non qualificano TLS, permessi subject,
+backup/restore, failover o adapter di dominio reali. Chiusura: job reali verdi sul
+medesimo candidato e qualifica operativa del deploy. Le chiavi d'idempotenza
+host sono rifiutate fino allo scope autenticato P1.4/P1.5, come dichiarato in
+[allineamento](contract-alignment.md). Nessuna qualifica di produzione attestata.

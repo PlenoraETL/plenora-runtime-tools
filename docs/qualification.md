@@ -255,14 +255,15 @@ job PostgreSQL verde e gate Linux/Windows sul medesimo candidato; P2.3/P2.4 e
 P2.5 restano necessari per claim end-to-end. Nessun gate non eseguito è passato.
 
 
-## Gate aperto P2.3/P2.4
+## Qualifica P2.3/P2.4
 
-Regola: tutte le righe RT-026/027 e RT-010/019/020/024 richiedono il percorso
-completo e le prove del progetto. Ambito: facade negoziata, wrapper con evidenze,
-ledger PostgreSQL e relay. I probe locali e i due test reali ignorati si trovano in
-`tests/integration/tests/chain_delivery.rs`; questi ultimi sono collegati ai job
-NATS e PostgreSQL in `.github/workflows/ci.yml`. Non sono stati eseguiti sull'host.
-Rischio: scambiare una primitive testata per un orchestratore qualificato.
-Chiusura: risolvere le lacune elencate nel profilo candidato di
-[allineamento](contract-alignment.md), completare la rilettura indipendente senza
-rilievi aperti e ottenere CI Linux/Windows e servizi reali verdi sul candidato.
+Ambito: facciata prodotto, wrapper, journal PostgreSQL e relay instradato.
+Le lacune locali del candidato sono chiuse nella logica e nelle prove enumerate
+RT-026/027 e RT-010/019/020/024, con rilettura indipendente. Gli esiti dei gate
+locali del blocco sono registrati in `target/P2-3-4.md` (artefatto locale).
+Restano aperti i gate CI Linux/Windows e servizi reali: tre test integrazione
+ignorati e i test PostgreSQL del crate store sono cablati in `.github/workflows/ci.yml`.
+Il job PostgreSQL esegue anche il percorso combinato con NATS, con entrambi i
+container effimeri e cleanup always. Non sono stati eseguiti sull'host.
+Rischio: confondere prove locali con qualifica infrastrutturale o engine reali.
+Chiusura: job verdi sul medesimo candidato; nessuna superficie CLI/SDK promossa.

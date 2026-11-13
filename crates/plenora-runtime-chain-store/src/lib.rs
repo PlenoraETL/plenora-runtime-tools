@@ -5,6 +5,7 @@
 //! docs/contract-alignment.md. A recorded start is never automatically reclaimed.
 #![forbid(unsafe_code)]
 
+mod delivery;
 mod settlement;
 mod types;
 pub use types::{
@@ -82,7 +83,7 @@ impl PostgresStore {
         tx.commit().await.map_err(|_| StoreError::Unconfirmed)
     }
 
-    /// Installs schema v1 atomically and persists only reductions of retention.
+    /// Upgrades schema v1 to v2 atomically and persists only reductions of retention.
     /// Concurrent processes serialize through the same lock used by all operations.
     /// # Errors
     /// Refuses incompatible schemas, unconfirmed commits, or policy extensions.
@@ -90,20 +91,22 @@ impl PostgresStore {
         let mut client = self.connect().await?;
         let tx = Self::transaction(&mut client).await?;
         tx.batch_execute(include_str!("migration.sql")).await?;
+        tx.batch_execute(include_str!("migration-v2.sql")).await?;
         tx.batch_execute(include_str!("evidence-v1.sql")).await?;
+        tx.batch_execute(include_str!("delivery-v1.sql")).await?;
         let old = tx.query_opt("SELECT version, delivery_seconds, report_seconds FROM plenora_chain_schema WHERE singleton", &[]).await?;
         if let Some(old) = old {
-            if old.try_get::<_, i32>(0)? != 1
+            if !matches!(old.try_get::<_, i32>(0)?, 1 | 2)
                 || retention.delivery > old.try_get::<_, i64>(1)?
                 || retention.reports > old.try_get::<_, i64>(2)?
             {
                 return Err(StoreError::Invalid);
             }
-            tx.execute("UPDATE plenora_chain_schema SET delivery_seconds=$1, report_seconds=$2 WHERE singleton", &[&retention.delivery, &retention.reports]).await?;
+            tx.execute("UPDATE plenora_chain_schema SET version=2, delivery_seconds=$1, report_seconds=$2 WHERE singleton", &[&retention.delivery, &retention.reports]).await?;
             tx.execute("UPDATE plenora_chain_acceptance SET expires_at=LEAST(expires_at, accepted_at + $1::bigint * interval '1 second')", &[&retention.delivery]).await?;
         } else {
             tx.execute(
-                "INSERT INTO plenora_chain_schema VALUES (true, 1, $1, $2)",
+                "INSERT INTO plenora_chain_schema VALUES (true, 2, $1, $2)",
                 &[&retention.delivery, &retention.reports],
             )
             .await?;
@@ -120,11 +123,13 @@ impl PostgresStore {
             )
             .await?
             .try_get(0)?;
-        if version != 1 {
+        if version != 2 {
             return Err(StoreError::Unavailable);
         }
         tx.execute("UPDATE plenora_chain_acceptance SET tombstone=true WHERE expires_at <= clock_timestamp() AND NOT tombstone", &[]).await?;
         tx.execute("UPDATE plenora_chain_outbox o SET expired=true, lease=NULL, lease_until=NULL FROM plenora_chain_acceptance a WHERE o.id=a.id AND a.tombstone AND NOT o.delivered", &[]).await?;
+        // The product journal shares the report clock even when nobody reads the result.
+        tx.execute("UPDATE plenora_chain_delivery d SET journal=convert_to(jsonb_set(jsonb_set(convert_from(d.journal,'UTF8')::jsonb,'{history}','[]'::jsonb),'{expired_report}','true'::jsonb)::text,'UTF8') FROM plenora_chain_schema p WHERE p.singleton AND NOT (convert_from(d.journal,'UTF8')::jsonb->>'expired_report')::boolean AND (convert_from(d.journal,'UTF8')::jsonb->>'created')::numeric + p.report_seconds*1000 <= extract(epoch FROM clock_timestamp())*1000", &[]).await?;
         // Report expiry removes retained data, never the explicit outcome/delivery evidence.
         tx.execute("UPDATE plenora_chain_steps s SET report=NULL, report_expired=true FROM plenora_chain_schema p, plenora_chain_outbox o WHERE p.singleton AND o.id=s.id AND NOT s.report_expired AND s.finished_at + p.report_seconds * interval '1 second' <= clock_timestamp()", &[]).await?;
         tx.execute("UPDATE plenora_chain_outbox o SET payload=''::bytea, expired=(o.expired OR NOT o.delivered), lease=NULL, lease_until=NULL FROM plenora_chain_steps s WHERE s.id=o.id AND s.report_expired AND octet_length(o.payload)>0", &[]).await?;
@@ -197,6 +202,10 @@ impl PostgresStore {
     /// A crash after this commit requires reconciliation, even if invocation never began.
     /// # Errors
     /// Refuses missing/expired acceptance, malformed input, conflict or uncertain persistence.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "One transaction checks both durable authorities before reserving a legacy step"
+    )]
     pub async fn start(&self, input: Invocation<'_>) -> Result<StartDecision, StoreError> {
         validate(&input)?;
         let id = input.message_id.to_string();
@@ -223,6 +232,16 @@ impl PostgresStore {
         if accepted.try_get::<_, bool>(0)? {
             Self::commit(tx).await?;
             return Err(StoreError::Expired);
+        }
+        if tx
+            .query_opt(
+                "SELECT key FROM plenora_chain_delivery WHERE request_id=$1 OR result_id=$1",
+                &[&id],
+            )
+            .await?
+            .is_some()
+        {
+            return Err(StoreError::Conflict);
         }
         if let Some(binding) = tx
             .query_opt(
@@ -507,3 +526,6 @@ fn validate(input: &Invocation<'_>) -> Result<(), StoreError> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod delivery_tests;

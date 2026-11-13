@@ -40,8 +40,7 @@ mod settlement;
 mod sink;
 pub use negotiation::{DeliveryRoute, NegotiatedDelivery, NegotiatedRuntime, NegotiatedSendError};
 pub use settlement::{
-    ComponentOutcome, DurableExecutionStore, EvidenceComponent, ExecutionDecision, SettlementError,
-    StoredMessage,
+    ComponentOutcome, EvidenceComponent, OutcomeBudget, SettlementError, StoredMessage,
 };
 
 pub use error::{Rejection, ResultEncodingError};
@@ -417,3 +416,13 @@ mod test_codec {
 
 #[cfg(test)]
 mod test_fake_capability;
+
+mod journal;
+pub use journal::{
+    DeliveryChange, DeliveryJournal, DeliveryOpen, DeliveryPlan, DeliveryStage,
+    DurableExecutionStore, JOURNAL_LIMIT, PreparedResult,
+};
+mod durable;
+pub use durable::{
+    DurableRuntime, DurableWorker, NegotiatedForwarder, RawDelivery, RouteTable, SettlementRetry,
+};

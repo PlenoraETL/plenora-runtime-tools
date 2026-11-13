@@ -158,10 +158,10 @@
               "RT-027"
             ]
           },
-          "p2_3_4_candidate": {
-            "implementation": "crates/plenora-runtime-boundary/src/settlement.rs",
+          "p2_3_4_boundary": {
+            "implementation": "crates/plenora-runtime-boundary/src/durable.rs",
             "tests": "tests/integration/tests/chain_delivery.rs",
-            "scope": "Gate negoziato e settlement con evidenze provati localmente con doppi; backend reali ignorati e collegati alla CI. Candidato incompleto: vedere docs/contract-alignment.md; nessuna superficie promossa.",
+            "scope": "Facciata durevole P2.3/P2.4: rifiuti, retry, recovery, budget JSON, Apalis/DLQ e relay instradato provati localmente. Servizi reali ignorati e cablati in CI, non eseguiti localmente; scope host idempotenza P1.4/P1.5 ancora rifiutato; nessuna superficie promossa.",
             "rt_register": [
               "RT-026",
               "RT-027",
@@ -296,10 +296,10 @@
               "RT-027"
             ]
           },
-          "p2_3_4_candidate": {
-            "implementation": "crates/plenora-runtime-boundary/src/settlement.rs",
+          "p2_3_4_boundary": {
+            "implementation": "crates/plenora-runtime-boundary/src/durable.rs",
             "tests": "tests/integration/tests/chain_delivery.rs",
-            "scope": "Gate negoziato e settlement con evidenze provati localmente con doppi; backend reali ignorati e collegati alla CI. Candidato incompleto: vedere docs/contract-alignment.md; nessuna superficie promossa.",
+            "scope": "Facciata durevole P2.3/P2.4: rifiuti, retry, recovery, budget JSON, Apalis/DLQ e relay instradato provati localmente. Servizi reali ignorati e cablati in CI, non eseguiti localmente; scope host idempotenza P1.4/P1.5 ancora rifiutato; nessuna superficie promossa.",
             "rt_register": [
               "RT-026",
               "RT-027",
@@ -377,10 +377,10 @@
               "RT-027"
             ]
           },
-          "p2_3_4_candidate": {
-            "implementation": "crates/plenora-runtime-boundary/src/settlement.rs",
+          "p2_3_4_boundary": {
+            "implementation": "crates/plenora-runtime-boundary/src/durable.rs",
             "tests": "tests/integration/tests/chain_delivery.rs",
-            "scope": "Gate negoziato e settlement con evidenze provati localmente con doppi; backend reali ignorati e collegati alla CI. Candidato incompleto: vedere docs/contract-alignment.md; nessuna superficie promossa.",
+            "scope": "Facciata durevole P2.3/P2.4: rifiuti, retry, recovery, budget JSON, Apalis/DLQ e relay instradato provati localmente. Servizi reali ignorati e cablati in CI, non eseguiti localmente; scope host idempotenza P1.4/P1.5 ancora rifiutato; nessuna superficie promossa.",
             "rt_register": [
               "RT-026",
               "RT-027",
@@ -582,10 +582,10 @@
               "RT-027"
             ]
           },
-          "p2_3_4_candidate": {
-            "implementation": "crates/plenora-runtime-boundary/src/settlement.rs",
+          "p2_3_4_boundary": {
+            "implementation": "crates/plenora-runtime-boundary/src/durable.rs",
             "tests": "tests/integration/tests/chain_delivery.rs",
-            "scope": "Gate negoziato e settlement con evidenze provati localmente con doppi; backend reali ignorati e collegati alla CI. Candidato incompleto: vedere docs/contract-alignment.md; nessuna superficie promossa.",
+            "scope": "Facciata durevole P2.3/P2.4: rifiuti, retry, recovery, budget JSON, Apalis/DLQ e relay instradato provati localmente. Servizi reali ignorati e cablati in CI, non eseguiti localmente; scope host idempotenza P1.4/P1.5 ancora rifiutato; nessuna superficie promossa.",
             "rt_register": [
               "RT-026",
               "RT-027",

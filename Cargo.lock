@@ -1286,6 +1286,7 @@ dependencies = [
  "plenora-runtime-worker",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tokio",
 ]
 
@@ -1325,6 +1326,7 @@ dependencies = [
  "plenora-runtime-messaging",
  "plenora-runtime-outbox",
  "plenora-runtime-testkit",
+ "serde_json",
  "sha2 0.10.9",
  "tokio",
  "tokio-postgres",

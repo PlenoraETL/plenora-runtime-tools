@@ -5,7 +5,7 @@ atomici, replay immutabile, alias e retention. Nessun engine ETL o profilo
 memoria di produzione. Decisione e limiti: [ADR 0009](../../docs/adr/0009-chain-postgres.md).
 
 `PostgresStore::new` configura soltanto il client; `migrate` installa lo schema
-v1 e la retention. Ogni operazione ricontrolla la fonte autorevole. `start`
+v2 e la retention. Ogni operazione ricontrolla la fonte autorevole. `start`
 richiede acceptance già confermata; restituisce Started una sola volta,
 RequiresRecovery per intenzioni pendenti e Replay per terminali. `finish`
 registra report, envelope e inbox nella stessa transazione. Il report può
@@ -35,10 +35,17 @@ una nuova esecuzione richiede un database nuovo. Non usare dati di produzione.
 ```powershell
 $env:CARGO_BUILD_JOBS = '2'
 $env:PLENORA_POSTGRES_URL = 'host=127.0.0.1 port=PORT user=postgres password=PASSWORD dbname=chain_store'
-cargo test -p plenora-runtime-chain-store --locked postgres_real -- --ignored --nocapture
+cargo test -p plenora-runtime-chain-store --locked postgres_real -- --ignored --nocapture --test-threads=1
 ```
 
 Il job PostgreSQL di [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
 usa PostgreSQL 17.6 bookworm fissato per digest OCI, porta loopback effimera e
 cleanup always del container e volume. Il digest è stato risolto dal registry
 Docker ufficiale; non è stato eseguito PostgreSQL sull'host locale.
+
+Il journal P2.3/P2.4 implementa DurableExecutionStore: ricevuta precedente
+all'ammissione, risultato e route immutabili, CAS, lease e pending recuperabile.
+La migrazione v2 impedisce ai binari v1 di operare e controlla le collisioni con
+le primitive P2.2 in entrambi gli ordini. La retention elimina i rapporti inattivi
+conservando i tombstone. delivery_tests verifica queste proprieta sul PostgreSQL
+reale del job CI; i test di integrazione combinano anche NATS e il runner Apalis.

@@ -603,7 +603,6 @@ crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatchError
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatchError { } | pub
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatchError { } | pub
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatchError { } | pub
-crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | 
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | async fn complete_response (& self , capability : CapabilityId , operation : OperationName , operation_version : OperationVersion , correlation_id : CorrelationId , expected : Option < CapabilityPayload > , response : CapabilityResponse ,) -> Result < () , CapabilityDispatchError >
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | async fn handle (& self , context : WorkerContext , request : CapabilityRequest ,) -> Result < () , CapabilityDispatchError >
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | const fn config (& self) -> CapabilityDispatcherConfig
@@ -618,6 +617,7 @@ crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { 
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | pub
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | pub
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | pub
+crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | pub (crate)
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | pub (crate)
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcherConfig { } | const fn new (max_payload_bytes : usize) -> Result < Self , CapabilityDispatcherConfigError >
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcherConfig { } | pub
@@ -636,6 +636,77 @@ crates/plenora-runtime-boundary/src/dispatcher.rs | impl Display for CapabilityD
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl Display for CapabilityDispatcherConfigError { } | fn fmt (& self , formatter : & mut Formatter < '_ >) -> fmt :: Result
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl Error for CapabilityDispatchError { } | 
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl Error for CapabilityDispatchError { } | fn source (& self) -> Option < & (dyn Error + 'static) >
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | 
+crates/plenora-runtime-boundary/src/durable.rs |  | async fn render (dispatcher : & CapabilityDispatcher , request : & CapabilityRequest , correlation : plenora_runtime_messaging :: CorrelationId , outcome : ComponentOutcome , raw : & Map < String , Value > , journal : & DeliveryJournal ,) -> Result < PreparedResult , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs |  | fn error_message (category : Category , phase : Phase , effect : Effect , retry : Retry , raw : & Map < String , Value > , id : & str ,) -> Result < SerializedMessage , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs |  | fn external_context (m : & SerializedMessage) -> Result < NegotiationContext , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs |  | fn externalize (m : & mut SerializedMessage) -> Result < () , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs |  | fn failure () -> CapabilityFailure
+crates/plenora-runtime-boundary/src/durable.rs |  | fn field (h : & mut Sha256 , b : & [u8])
+crates/plenora-runtime-boundary/src/durable.rs |  | fn fingerprint (m : & SerializedMessage) -> [u8 ; 32]
+crates/plenora-runtime-boundary/src/durable.rs |  | fn fixed_metadata (raw : & Map < String , Value > , id : & str) -> Map < String , Value >
+crates/plenora-runtime-boundary/src/durable.rs |  | fn prepared_rejection (r : Rejection , journal : & DeliveryJournal ,) -> Result < PreparedResult , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs |  | fn reflection (m : & SerializedMessage) -> Map < String , Value >
+crates/plenora-runtime-boundary/src/durable.rs |  | matches ! (error . remote_effect () , Effect :: None | Effect :: RolledBack)
+crates/plenora-runtime-boundary/src/durable.rs |  | matches ! (outcome . effect , Effect :: Partial | Effect :: Unknown | Effect :: RolledBack)
+crates/plenora-runtime-boundary/src/durable.rs |  | pub struct DurableRuntime < S > { negotiated : NegotiatedRuntime < S > , plan : DeliveryPlan , routes : RouteTable , scope : String , }
+crates/plenora-runtime-boundary/src/durable.rs |  | pub struct DurableWorker < S > { runtime : Arc < DurableRuntime < S > > , route : DeliveryRoute , }
+crates/plenora-runtime-boundary/src/durable.rs |  | pub struct NegotiatedForwarder < S > { runtime : Arc < DurableRuntime < S > > , route : String , }
+crates/plenora-runtime-boundary/src/durable.rs |  | pub struct RawDelivery (SerializedMessage) ;
+crates/plenora-runtime-boundary/src/durable.rs |  | pub struct RouteTable (BTreeMap < String , (CapabilityDiscovery , Arc < dyn BoundaryResultSink >) >) ;
+crates/plenora-runtime-boundary/src/durable.rs |  | pub struct SettlementRetry ;
+crates/plenora-runtime-boundary/src/durable.rs |  | serde_json :: json ! ({ "phase" : outcome . phase , "effect" : outcome . effect , "output" : r . output () . map (StoredMessage :: capture) . transpose () ?, "contract" : r . output_contract () . map (ContractId :: as_str) })
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl < S : DurableExecutionStore > CapabilityHandler for Wrapper < S > { } | 
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl < S : DurableExecutionStore > CapabilityHandler for Wrapper < S > { } | async fn invoke (& self , context : WorkerContext , request : CapabilityRequest ,) -> Result < CapabilityResponse , CapabilityFailure >
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl < S : DurableExecutionStore > WorkerHandler < RawDelivery > for DurableWorker < S > { } | 
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl < S : DurableExecutionStore > WorkerHandler < RawDelivery > for DurableWorker < S > { } | async fn handle (& self , c : WorkerContext , m : RawDelivery) -> Result < () , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl < S : DurableExecutionStore > plenora_runtime_messaging :: MessageProducer for NegotiatedForwarder < S > { } | 
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl < S : DurableExecutionStore > plenora_runtime_messaging :: MessageProducer for NegotiatedForwarder < S > { } | async fn publish (& self , message : SerializedMessage) -> Result < PublishOutcome , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl BoundaryResultSink for Capture { } | 
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl BoundaryResultSink for Capture { } | async fn publish (& self , m : SerializedMessage ,) -> Result < PublishOutcome , CapabilityResultPublishError >
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl plenora_runtime_messaging :: MessageProducer for Producer { } | 
+crates/plenora-runtime-boundary/src/durable.rs | # [async_trait] impl plenora_runtime_messaging :: MessageProducer for Producer { } | async fn publish (& self , m : SerializedMessage) -> Result < PublishOutcome , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | async fn forward (& self , message : & SerializedMessage , route : & str ,) -> Result < PublishOutcome , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | async fn process (& self , message : & SerializedMessage , route : DeliveryRoute , context : WorkerContext ,) -> Result < SerializedMessage , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | async fn relay (& self , key : & str) -> Result < bool , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | async fn relay_pending (& self , limit : usize) -> Result < usize , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | fn key (& self , message : & SerializedMessage) -> String
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | fn new (boundary : RuntimeBoundary , store : Arc < S > , scope : & str , plan : DeliveryPlan , routes : RouteTable ,) -> Result < Self , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:" , self . scope . len () , self . scope)
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:" , self . scope . len () , self . scope)
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:c:{:x}" , self . scope . len () , self . scope , hash . finalize ())
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:m:{id}" , self . scope . len () , self . scope)
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:r:{:x}" , self . scope . len () , self . scope , Sha256 :: digest (fingerprint (message)))
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | matches ! (outcome , Ok (PublishOutcome :: Confirmed))
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | pub
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | pub
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | pub
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | pub
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | pub
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | pub
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableWorker < S > { } | fn new (runtime : Arc < DurableRuntime < S > > , route : DeliveryRoute) -> Self
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableWorker < S > { } | pub
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > NegotiatedForwarder < S > { } | fn new (runtime : Arc < DurableRuntime < S > > , route : & str) -> Result < Self , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > NegotiatedForwarder < S > { } | pub
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > WorkerMessageDecoder < RawDelivery > for DurableWorker < S > { } | 
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > WorkerMessageDecoder < RawDelivery > for DurableWorker < S > { } | fn decode (& self , m : & SerializedMessage ,) -> Result < DecodedWorkerMessage < RawDelivery > , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl < S > Clone for DurableWorker < S > { } | 
+crates/plenora-runtime-boundary/src/durable.rs | impl < S > Clone for DurableWorker < S > { } | fn clone (& self) -> Self
+crates/plenora-runtime-boundary/src/durable.rs | impl RetryPolicy < SettlementError > for SettlementRetry { } | 
+crates/plenora-runtime-boundary/src/durable.rs | impl RetryPolicy < SettlementError > for SettlementRetry { } | fn decide (& self , _ : u32 , _ : & SettlementError) -> RetryDecision
+crates/plenora-runtime-boundary/src/durable.rs | impl RouteTable { } | 
+crates/plenora-runtime-boundary/src/durable.rs | impl RouteTable { } | async fn publish (& self , route : & str , message : SerializedMessage ,) -> Result < PublishOutcome , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl RouteTable { } | fn new (routes : Vec < (String , CapabilityDiscovery , Arc < dyn BoundaryResultSink >) > ,) -> Result < Self , SettlementError >
+crates/plenora-runtime-boundary/src/durable.rs | impl RouteTable { } | pub
 crates/plenora-runtime-boundary/src/error.rs |  | # [derive (Clone , Serialize)] pub struct Rejection { category : PlenoraErrorCategory , phase : PlenoraErrorPhase , remote_effect : PlenoraErrorRemoteEffect , retry : PlenoraErrorRetry , message : & 'static str , # [serde (skip)] metadata : Map < String , Value > , }
 crates/plenora-runtime-boundary/src/error.rs |  | # [derive (Debug)] pub struct ResultEncodingError ;
 crates/plenora-runtime-boundary/src/error.rs |  | fn result_metadata (raw : & Map < String , Value >) -> Map < String , Value >
@@ -665,6 +736,77 @@ crates/plenora-runtime-boundary/src/error.rs | impl fmt :: Display for ResultEnc
 crates/plenora-runtime-boundary/src/error.rs | impl fmt :: Display for ResultEncodingError { } | fn fmt (& self , f : & mut fmt :: Formatter < '_ >) -> fmt :: Result
 crates/plenora-runtime-boundary/src/error.rs | impl plenora_runtime_messaging :: ClassifyRetry for Rejection { } | 
 crates/plenora-runtime-boundary/src/error.rs | impl plenora_runtime_messaging :: ClassifyRetry for Rejection { } | fn retry_class (& self) -> plenora_runtime_messaging :: RetryErrorClass
+crates/plenora-runtime-boundary/src/journal.rs |  | # [derive (Clone , Copy , Debug , Serialize , Deserialize , PartialEq , Eq)] pub enum DeliveryStage { Ready , Running , Evidence , Finished , }
+crates/plenora-runtime-boundary/src/journal.rs |  | # [derive (Clone , Serialize , Deserialize , PartialEq , Eq)] # [serde (deny_unknown_fields)] pub struct DeliveryPlan { pub (crate) route : String , pub (crate) attempts : u16 , pub (crate) retry_ms : u64 , pub (crate) output_bytes : usize , pub (crate) sink_bytes : usize , }
+crates/plenora-runtime-boundary/src/journal.rs |  | # [derive (Clone , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct DeliveryJournal { version : u8 , binding : [u8 ; 32] , plan : DeliveryPlan , result_id : String , revision : u64 , stage : DeliveryStage , attempt : u16 , created : u64 , due : u64 , delivery_ms : u64 , report_ms : u64 , history : Vec < PreparedResult > , delivered : bool , lease_until : u64 , expired_report : bool , }
+crates/plenora-runtime-boundary/src/journal.rs |  | # [derive (Clone , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct PreparedResult { pub (crate) report : serde_json :: Value , pub (crate) terminal : StoredMessage , pub (crate) retry_ms : Option < u64 > , }
+crates/plenora-runtime-boundary/src/journal.rs |  | fn encoded_size (v : & impl Serialize) -> Result < usize , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs |  | pub (crate)
+crates/plenora-runtime-boundary/src/journal.rs |  | pub enum DeliveryChange { Start , Evidence (PreparedResult) , Reject (PreparedResult) , Settle , Claim , Confirm , Release , }
+crates/plenora-runtime-boundary/src/journal.rs |  | pub enum DeliveryOpen { Opened (DeliveryJournal , u64) , Conflict , }
+crates/plenora-runtime-boundary/src/journal.rs | # [async_trait] pub trait DurableExecutionStore : AcceptanceStore + Send + Sync + 'static { } | async fn change (& self , key : & str , revision : u64 , change : DeliveryChange ,) -> Result < (DeliveryJournal , u64) , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | # [async_trait] pub trait DurableExecutionStore : AcceptanceStore + Send + Sync + 'static { } | async fn load (& self , key : & str) -> Result < (DeliveryJournal , u64) , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | # [async_trait] pub trait DurableExecutionStore : AcceptanceStore + Send + Sync + 'static { } | async fn open (& self , key : & str , binding : [u8 ; 32] , plan : & DeliveryPlan ,) -> Result < DeliveryOpen , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | # [async_trait] pub trait DurableExecutionStore : AcceptanceStore + Send + Sync + 'static { } | async fn pending (& self , scope_prefix : & str , route : & str , limit : usize ,) -> Result < Vec < String > , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | 
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | 
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | const fn attempt (& self) -> u16
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | const fn delivered (& self) -> bool
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | const fn due (& self) -> u64
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | const fn plan (& self) -> & DeliveryPlan
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | const fn revision (& self) -> u64
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | const fn stage (& self) -> DeliveryStage
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn apply (& mut self , revision : u64 , change : DeliveryChange , now : u64 ,) -> Result < () , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn check_prepared (& self , p : & PreparedResult) -> Result < () , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn encoded_size (& self) -> Result < usize , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn evidence (& self) -> Option < & PreparedResult >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn expired (& self , now : u64) -> bool
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn from_json (bytes : & [u8]) -> Result < Self , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn maintain (& mut self , now : u64 , delivery_ms : u64 , report_ms : u64 ,) -> Result < () , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn new (key : & str , binding : [u8 ; 32] , plan : DeliveryPlan , now : u64 , delivery_ms : u64 , report_ms : u64 ,) -> Result < Self , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn result_id (& self) -> & str
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn retry_exhausted (& self , now : u64) -> bool
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn to_json (& self) -> Result < Vec < u8 > , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn validate_state (& self) -> Result < () , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | fn verify (& self , binding : [u8 ; 32] , plan : & DeliveryPlan) -> Result < () , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | matches ! (& change , DeliveryChange :: Evidence (_) | DeliveryChange :: Reject (_) | DeliveryChange :: Settle)
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | matches ! (j . stage , DeliveryStage :: Evidence | DeliveryStage :: Finished)
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryJournal { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryPlan { } | 
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryPlan { } | const fn output_bytes (& self) -> usize
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryPlan { } | fn new (route : & str , attempts : u16 , retry_ms : u64 , output_bytes : usize , sink_bytes : usize ,) -> Result < Self , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryPlan { } | fn route (& self) -> & str
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryPlan { } | fn validate (& self) -> Result < () , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryPlan { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryPlan { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl DeliveryPlan { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl PreparedResult { } | 
+crates/plenora-runtime-boundary/src/journal.rs | impl PreparedResult { } | const fn report (& self) -> & serde_json :: Value
+crates/plenora-runtime-boundary/src/journal.rs | impl PreparedResult { } | fn message (& self) -> Result < plenora_runtime_messaging :: SerializedMessage , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl PreparedResult { } | fn validate (& self) -> Result < () , SettlementError >
+crates/plenora-runtime-boundary/src/journal.rs | impl PreparedResult { } | matches ! (report ["remote_effect"] . as_str () , Some ("none" | "rolled_back"))
+crates/plenora-runtime-boundary/src/journal.rs | impl PreparedResult { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl PreparedResult { } | pub
+crates/plenora-runtime-boundary/src/journal.rs | impl io :: Write for Counter { } | 
+crates/plenora-runtime-boundary/src/journal.rs | impl io :: Write for Counter { } | 
+crates/plenora-runtime-boundary/src/journal.rs | impl io :: Write for Counter { } | fn flush (& mut self) -> io :: Result < () >
+crates/plenora-runtime-boundary/src/journal.rs | impl io :: Write for Counter { } | fn write (& mut self , b : & [u8]) -> io :: Result < usize >
 crates/plenora-runtime-boundary/src/lexical.rs |  | fn capability (value : & str) -> bool
 crates/plenora-runtime-boundary/src/lexical.rs |  | fn deadline (value : & str) -> Option < DateTime < Utc > >
 crates/plenora-runtime-boundary/src/lexical.rs |  | fn operation (value : & str) -> bool
@@ -683,7 +825,9 @@ crates/plenora-runtime-boundary/src/lexical.rs |  | pub (crate)
 crates/plenora-runtime-boundary/src/lib.rs |  | # [derive (Clone)] pub struct RuntimeBoundary { dispatcher : CapabilityDispatcher , clock : Arc < dyn Clock > , policy : Arc < dyn AdmissionPolicy > , sink : Arc < dyn BoundaryResultSink > , }
 crates/plenora-runtime-boundary/src/lib.rs |  | mod codec ;
 crates/plenora-runtime-boundary/src/lib.rs |  | mod dispatcher ;
+crates/plenora-runtime-boundary/src/lib.rs |  | mod durable ;
 crates/plenora-runtime-boundary/src/lib.rs |  | mod error ;
+crates/plenora-runtime-boundary/src/lib.rs |  | mod journal ;
 crates/plenora-runtime-boundary/src/lib.rs |  | mod lexical ;
 crates/plenora-runtime-boundary/src/lib.rs |  | mod negotiation ;
 crates/plenora-runtime-boundary/src/lib.rs |  | mod raw ;
@@ -692,10 +836,12 @@ crates/plenora-runtime-boundary/src/lib.rs |  | mod settlement ;
 crates/plenora-runtime-boundary/src/lib.rs |  | mod sink ;
 crates/plenora-runtime-boundary/src/lib.rs |  | pub struct AdmittedRequest { request : CapabilityRequest , identity : WorkerContextIdentity , raw : SerializedMessage , }
 crates/plenora-runtime-boundary/src/lib.rs |  | pub use dispatcher :: { CapabilityDispatchError , CapabilityDispatchErrorCategory , CapabilityDispatcher , CapabilityDispatcherConfig , CapabilityDispatcherConfigError , CapabilityResponseRejection , MAX_CAPABILITY_PAYLOAD_BYTES , } ;
+crates/plenora-runtime-boundary/src/lib.rs |  | pub use durable :: { DurableRuntime , DurableWorker , NegotiatedForwarder , RawDelivery , RouteTable , SettlementRetry , } ;
 crates/plenora-runtime-boundary/src/lib.rs |  | pub use error :: { Rejection , ResultEncodingError } ;
+crates/plenora-runtime-boundary/src/lib.rs |  | pub use journal :: { DeliveryChange , DeliveryJournal , DeliveryOpen , DeliveryPlan , DeliveryStage , DurableExecutionStore , JOURNAL_LIMIT , PreparedResult , } ;
 crates/plenora-runtime-boundary/src/lib.rs |  | pub use negotiation :: { DeliveryRoute , NegotiatedDelivery , NegotiatedRuntime , NegotiatedSendError } ;
 crates/plenora-runtime-boundary/src/lib.rs |  | pub use registry :: { CapabilityRegistry , CapabilityRegistryBuilder , CapabilityRegistryConfig , CapabilityRegistryError , MAX_REGISTERED_CAPABILITIES , } ;
-crates/plenora-runtime-boundary/src/lib.rs |  | pub use settlement :: { ComponentOutcome , DurableExecutionStore , EvidenceComponent , ExecutionDecision , SettlementError , StoredMessage , } ;
+crates/plenora-runtime-boundary/src/lib.rs |  | pub use settlement :: { ComponentOutcome , EvidenceComponent , OutcomeBudget , SettlementError , StoredMessage , } ;
 crates/plenora-runtime-boundary/src/lib.rs |  | pub use sink :: BoundaryResultSink ;
 crates/plenora-runtime-boundary/src/lib.rs | # [async_trait :: async_trait] impl plenora_runtime_worker :: WorkerHandler < AdmittedRequest > for RuntimeBoundary { } | 
 crates/plenora-runtime-boundary/src/lib.rs | # [async_trait :: async_trait] impl plenora_runtime_worker :: WorkerHandler < AdmittedRequest > for RuntimeBoundary { } | async fn handle (& self , context : plenora_runtime_worker :: WorkerContext , admitted : AdmittedRequest ,) -> Result < () , Self :: Error >
@@ -797,26 +943,20 @@ crates/plenora-runtime-boundary/src/registry.rs | impl Default for CapabilityReg
 crates/plenora-runtime-boundary/src/registry.rs | impl Display for CapabilityRegistryError { } | 
 crates/plenora-runtime-boundary/src/registry.rs | impl Display for CapabilityRegistryError { } | fn fmt (& self , formatter : & mut Formatter < '_ >) -> fmt :: Result
 crates/plenora-runtime-boundary/src/settlement.rs |  | 
+crates/plenora-runtime-boundary/src/settlement.rs |  | # [derive (Clone , Copy)] pub struct OutcomeBudget (pub (crate) usize) ;
 crates/plenora-runtime-boundary/src/settlement.rs |  | # [derive (Clone , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct StoredMessage { content_type : String , bytes : Vec < u8 > , headers : BTreeMap < String , Vec < u8 > > , }
 crates/plenora-runtime-boundary/src/settlement.rs |  | # [derive (Debug , Clone , Copy)] pub struct SettlementError ;
 crates/plenora-runtime-boundary/src/settlement.rs |  | fn failure () -> CapabilityFailure
-crates/plenora-runtime-boundary/src/settlement.rs |  | pub enum ExecutionDecision < P > { Start (P) , Replay , Recovery , }
-crates/plenora-runtime-boundary/src/settlement.rs |  | pub struct ComponentOutcome { pub result : Result < CapabilityResponse , PlenoraError > , pub phase : PlenoraErrorPhase , pub effect : PlenoraErrorRemoteEffect , }
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] impl < S : DurableExecutionStore > CapabilityHandler for Wrapper < S > { } | 
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] impl < S : DurableExecutionStore > CapabilityHandler for Wrapper < S > { } | async fn invoke (& self , context : WorkerContext , request : CapabilityRequest ,) -> Result < CapabilityResponse , CapabilityFailure >
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] impl < S : DurableExecutionStore > CapabilityHandler for Wrapper < S > { } | matches ! (outcome . effect , PlenoraErrorRemoteEffect :: None | PlenoraErrorRemoteEffect :: Committed)
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] impl < S : DurableExecutionStore > CapabilityHandler for Wrapper < S > { } | serde_json :: json ! ({ "output" : response . output () . map (StoredMessage :: capture) . transpose () . map_err (| _ | failure ()) ?, "contract" : response . output_contract () . map (ContractId :: as_str) })
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] impl < S : DurableExecutionStore > CapabilityHandler for Wrapper < S > { } | serde_json :: json ! ({ "phase" : outcome . phase , "remote_effect" : outcome . effect , "outcome" : payload })
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] impl BoundaryResultSink for Capture { } | 
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] impl BoundaryResultSink for Capture { } | async fn publish (& self , message : SerializedMessage ,) -> Result < PublishOutcome , CapabilityResultPublishError >
+crates/plenora-runtime-boundary/src/settlement.rs |  | pub struct ComponentOutcome { pub (crate) result : Result < CapabilityResponse , PlenoraError > , pub (crate) phase : PlenoraErrorPhase , pub (crate) effect : PlenoraErrorRemoteEffect , }
 crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] impl CapabilityHandler for Unbound { } | 
 crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] impl CapabilityHandler for Unbound { } | async fn invoke (& self , _ : WorkerContext , _ : CapabilityRequest ,) -> Result < CapabilityResponse , CapabilityFailure >
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] pub trait DurableExecutionStore : AcceptanceStore + Send + Sync + 'static { } | async fn begin (& self , id : MessageId , scope : & str , step : & str , input : & [u8] ,) -> Result < ExecutionDecision < Self :: Permit > , SettlementError >
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] pub trait DurableExecutionStore : AcceptanceStore + Send + Sync + 'static { } | async fn evidence (& self , permit : & Self :: Permit , report : & [u8]) -> Result < () , SettlementError >
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] pub trait DurableExecutionStore : AcceptanceStore + Send + Sync + 'static { } | async fn finalize (& self , permit : & Self :: Permit , result_id : MessageId , report : & [u8] , envelope : & [u8] ,) -> Result < () , SettlementError >
-crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] pub trait EvidenceComponent : Send + Sync { } | async fn invoke (& self , context : WorkerContext , request : CapabilityRequest) -> ComponentOutcome
-crates/plenora-runtime-boundary/src/settlement.rs | impl < S : DurableExecutionStore > NegotiatedRuntime < S > { } | async fn execute (& self , delivery : & NegotiatedDelivery , context : WorkerContext , scope : & str , step : & str , sink_bytes : usize ,) -> Result < () , SettlementError >
-crates/plenora-runtime-boundary/src/settlement.rs | impl < S : DurableExecutionStore > NegotiatedRuntime < S > { } | pub
+crates/plenora-runtime-boundary/src/settlement.rs | # [async_trait] pub trait EvidenceComponent : Send + Sync { } | async fn invoke (& self , context : WorkerContext , request : CapabilityRequest , budget : OutcomeBudget ,) -> ComponentOutcome
+crates/plenora-runtime-boundary/src/settlement.rs | impl OutcomeBudget { } | const fn bytes (self) -> usize
+crates/plenora-runtime-boundary/src/settlement.rs | impl OutcomeBudget { } | fn failure (self , error : PlenoraError) -> ComponentOutcome
+crates/plenora-runtime-boundary/src/settlement.rs | impl OutcomeBudget { } | fn success (self , response : CapabilityResponse , phase : PlenoraErrorPhase , effect : PlenoraErrorRemoteEffect ,) -> Result < ComponentOutcome , SettlementError >
+crates/plenora-runtime-boundary/src/settlement.rs | impl OutcomeBudget { } | pub
+crates/plenora-runtime-boundary/src/settlement.rs | impl OutcomeBudget { } | pub
+crates/plenora-runtime-boundary/src/settlement.rs | impl OutcomeBudget { } | pub
 crates/plenora-runtime-boundary/src/settlement.rs | impl StoredMessage { } | fn capture (message : & SerializedMessage) -> Result < Self , SettlementError >
 crates/plenora-runtime-boundary/src/settlement.rs | impl StoredMessage { } | fn encode (& self) -> Result < Vec < u8 > , SettlementError >
 crates/plenora-runtime-boundary/src/settlement.rs | impl StoredMessage { } | fn restore (self) -> Result < SerializedMessage , SettlementError >
@@ -1588,9 +1728,30 @@ crates/plenora-runtime-chain-contracts/src/types.rs | wire | # [derive (Clone , 
 crates/plenora-runtime-chain-contracts/src/types.rs | wire | # [derive (Clone , PartialEq , Eq , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct StepRetryPolicy { pub max_attempts : u64 , pub backoff_ms : u64 , }
 crates/plenora-runtime-chain-contracts/src/types.rs | wire | # [derive (Clone , PartialEq , Eq , Serialize , Deserialize)] # [serde (untagged)] pub enum Retry { Variant0 (Retry0) , Variant1 (Retry1) , }
 crates/plenora-runtime-chain-contracts/src/types.rs | wire | # [derive (Clone , PartialEq , Eq , Serialize , Deserialize)] # [serde (untagged)] pub enum Source { Variant0 (Source0) , Variant1 (Source1) , }
+crates/plenora-runtime-chain-store/src/delivery.rs |  | 
+crates/plenora-runtime-chain-store/src/delivery.rs |  | 
+crates/plenora-runtime-chain-store/src/delivery.rs |  | 
+crates/plenora-runtime-chain-store/src/delivery.rs |  | 
+crates/plenora-runtime-chain-store/src/delivery.rs |  | 
+crates/plenora-runtime-chain-store/src/delivery.rs |  | 
+crates/plenora-runtime-chain-store/src/delivery.rs |  | async fn policy (tx : & Transaction < '_ >) -> Result < (u64 , u64 , u64) , StoreError >
+crates/plenora-runtime-chain-store/src/delivery.rs |  | async fn read (tx : & Transaction < '_ > , key : & str , now : u64 , delivery : u64 , reports : u64 ,) -> Result < DeliveryJournal , SettlementError >
+crates/plenora-runtime-chain-store/src/delivery.rs |  | async fn write (tx : & Transaction < '_ > , key : & str , j : & DeliveryJournal ,) -> Result < () , SettlementError >
+crates/plenora-runtime-chain-store/src/delivery.rs |  | fn failure (_ : impl std :: fmt :: Debug) -> SettlementError
+crates/plenora-runtime-chain-store/src/delivery.rs |  | fn request_identity (key : & str) -> Option < & str >
+crates/plenora-runtime-chain-store/src/delivery.rs |  | fn valid_key (key : & str) -> Result < () , SettlementError >
+crates/plenora-runtime-chain-store/src/delivery.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/delivery.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/delivery.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/delivery.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/delivery.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | async fn change (& self , key : & str , revision : u64 , change : DeliveryChange ,) -> Result < (DeliveryJournal , u64) , SettlementError >
+crates/plenora-runtime-chain-store/src/delivery.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | async fn load (& self , key : & str) -> Result < (DeliveryJournal , u64) , SettlementError >
+crates/plenora-runtime-chain-store/src/delivery.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | async fn open (& self , key : & str , binding : [u8 ; 32] , plan : & DeliveryPlan ,) -> Result < DeliveryOpen , SettlementError >
+crates/plenora-runtime-chain-store/src/delivery.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | async fn pending (& self , scope_prefix : & str , route : & str , limit : usize ,) -> Result < Vec < String > , SettlementError >
 crates/plenora-runtime-chain-store/src/lib.rs |  | 
 crates/plenora-runtime-chain-store/src/lib.rs |  | # [derive (Clone)] pub struct PostgresStore { config : Config , }
 crates/plenora-runtime-chain-store/src/lib.rs |  | fn validate (input : & Invocation < '_ >) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs |  | mod delivery ;
 crates/plenora-runtime-chain-store/src/lib.rs |  | mod settlement ;
 crates/plenora-runtime-chain-store/src/lib.rs |  | mod types ;
 crates/plenora-runtime-chain-store/src/lib.rs |  | pub use types :: { Invocation , Publication , Retention , ScopedKey , StartDecision , StartPermit , StoreError , StoredStep , } ;
@@ -1617,8 +1778,11 @@ crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async f
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn start (& self , input : Invocation < '_ >) -> Result < StartDecision , StoreError >
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn transaction (client : & mut Client) -> Result < Transaction < '_ > , StoreError >
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | fn new (connection : & str) -> Result < Self , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | include_str ! ("delivery-v1.sql")
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | include_str ! ("evidence-v1.sql")
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | include_str ! ("migration-v2.sql")
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | include_str ! ("migration.sql")
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | matches ! (old . try_get ::< _ , i32 > (0) ?, 1 | 2)
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
@@ -1630,12 +1794,6 @@ crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
 crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
 crates/plenora-runtime-chain-store/src/lib.rs | impl fmt :: Debug for PostgresStore { } | 
 crates/plenora-runtime-chain-store/src/lib.rs | impl fmt :: Debug for PostgresStore { } | fn fmt (& self , f : & mut fmt :: Formatter < '_ >) -> fmt :: Result
-crates/plenora-runtime-chain-store/src/settlement.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | 
-crates/plenora-runtime-chain-store/src/settlement.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | 
-crates/plenora-runtime-chain-store/src/settlement.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | 
-crates/plenora-runtime-chain-store/src/settlement.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | async fn begin (& self , id : MessageId , scope : & str , step : & str , input : & [u8] ,) -> Result < ExecutionDecision < StartPermit > , SettlementError >
-crates/plenora-runtime-chain-store/src/settlement.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | async fn evidence (& self , permit : & StartPermit , report : & [u8]) -> Result < () , SettlementError >
-crates/plenora-runtime-chain-store/src/settlement.rs | # [async_trait] impl DurableExecutionStore for PostgresStore { } | async fn finalize (& self , permit : & StartPermit , id : MessageId , report : & [u8] , envelope : & [u8] ,) -> Result < () , SettlementError >
 crates/plenora-runtime-chain-store/src/settlement.rs | impl PostgresStore { } | async fn evidence_report (& self , id : MessageId) -> Result < Vec < u8 > , StoreError >
 crates/plenora-runtime-chain-store/src/settlement.rs | impl PostgresStore { } | async fn record_evidence (& self , permit : & StartPermit , report : & [u8] ,) -> Result < () , StoreError >
 crates/plenora-runtime-chain-store/src/settlement.rs | impl PostgresStore { } | pub

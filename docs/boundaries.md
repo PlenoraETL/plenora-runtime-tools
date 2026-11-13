@@ -59,25 +59,26 @@ solo metadati del messaggio; le osservazioni del broker sono in broker_metadata.
 Vedere [allineamento del profilo](contract-alignment.md#p21b-confine-delle-facciate-esistenti).
 
 
-## API del candidato negoziato e durevole
+## API negoziata e durevole P2.3/P2.4
 
-Le nuove superfici inventariate in `boundary-api.txt` sono classificate cos?:
+Classificazione delle superfici inventariate in `boundary-api.txt`:
 
-- `NegotiatedRuntime::new/admit/send`: composizione, ingresso canonico e invio
-  protetto con rilettura autorevole; `NegotiatedDelivery` non ha costruttori
-  pubblici n? accesso mutabile al carrier.
-- `register_evidenced`, `EvidenceComponent`, `ComponentOutcome`: registrazione
-  di adapter con evidenze; il dispatcher ordinario rifiuta le registrazioni non
-  legate a una autorit? durevole.
-- `NegotiatedRuntime::execute`, `DurableExecutionStore`, `ExecutionDecision`:
-  coordinamento e SPI di persistenza, non ingresso grezzo alternativo. Il solo
-  backend di produzione implementato ? PostgreSQL.
-- `StoredMessage::capture/restore/encode`: codec del journal e relay, senza
-  autorit? di ammissione o invocazione.
-- `PostgresStore::record_evidence/evidence_report`: persistenza con fence e
-  recupero del report; nessuno esegue dominio. Il relay instradato resta un gate aperto.
+- NegotiatedRuntime e NegotiatedDelivery: ammissione e invio canonici con
+  acceptance autorevole; carrier ammesso senza accesso mutabile.
+- DurableRuntime, DurableWorker, RawDelivery, SettlementRetry: coordinamento
+  del journal e integrazione runner; RawDelivery non ha costruttore pubblico,
+  il decoder conserva il carrier per finalizzare anche rifiuti anteriori all'ammissione.
+- DeliveryPlan e RouteTable: configurazione host validata e congelata prima del
+  dominio. NegotiatedForwarder usa soltanto una route di questa tabella.
+- EvidenceComponent, OutcomeBudget e ComponentOutcome: adapter con evidenze;
+  esiti costruiti entro il budget, autorita d'invocazione soltanto dal wrapper.
+- DurableExecutionStore, DeliveryOpen, DeliveryChange, DeliveryStage e
+  DeliveryJournal: SPI PostgreSQL e riduttore con CAS; nessuna autorita di
+  dominio nasce da una lettura. PreparedResult e StoredMessage sono codec
+  persistiti, validati dal riduttore, non ingressi alternativi al dispatcher.
+- PostgresStore record_evidence/evidence_report: primitive legacy fenced;
+  schema v2 impedisce doppia autorita tra legacy e nuova facciata.
 
-I probe sono in `tests/integration/tests/chain_delivery.rs`. La rilettura ha
-identificato lacune semantiche ancora aperte, registrate in
-[allineamento](contract-alignment.md): l'inventario attesta la superficie
-esaminata, non qualifica il profilo candidato.
+I probe locali e reali ignorati sono in `tests/integration/tests/chain_delivery.rs`.
+L'inventario classifica API, non attesta qualifica remota. Scope e condizioni
+sono in [allineamento](contract-alignment.md).

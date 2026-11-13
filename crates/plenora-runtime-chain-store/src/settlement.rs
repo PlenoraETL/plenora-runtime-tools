@@ -1,52 +1,8 @@
 //! PostgreSQL implementation of the evidenced dispatcher ledger.
-use crate::{Invocation, MAX_BYTES, PostgresStore, StartDecision, StartPermit, StoreError};
-use async_trait::async_trait;
-use plenora_runtime_boundary::{DurableExecutionStore, ExecutionDecision, SettlementError};
+use crate::{MAX_BYTES, PostgresStore, StartPermit, StoreError};
 use plenora_runtime_messaging::MessageId;
 use sha2::{Digest, Sha256};
 
-#[async_trait]
-impl DurableExecutionStore for PostgresStore {
-    type Permit = StartPermit;
-    async fn begin(
-        &self,
-        id: MessageId,
-        scope: &str,
-        step: &str,
-        input: &[u8],
-    ) -> Result<ExecutionDecision<StartPermit>, SettlementError> {
-        self.start(Invocation {
-            message_id: id,
-            scope,
-            step,
-            key: None,
-            canonical_input: input,
-        })
-        .await
-        .map(|decision| match decision {
-            StartDecision::Started(p) => ExecutionDecision::Start(p),
-            StartDecision::Replay(_) => ExecutionDecision::Replay,
-            StartDecision::RequiresRecovery(_) => ExecutionDecision::Recovery,
-        })
-        .map_err(|_| SettlementError)
-    }
-    async fn evidence(&self, permit: &StartPermit, report: &[u8]) -> Result<(), SettlementError> {
-        self.record_evidence(permit, report)
-            .await
-            .map_err(|_| SettlementError)
-    }
-    async fn finalize(
-        &self,
-        permit: &StartPermit,
-        id: MessageId,
-        report: &[u8],
-        envelope: &[u8],
-    ) -> Result<(), SettlementError> {
-        self.finish(permit, id, report, envelope)
-            .await
-            .map_err(|_| SettlementError)
-    }
-}
 impl PostgresStore {
     /// Persists immutable component evidence under the confirmed start fence.
     /// # Errors

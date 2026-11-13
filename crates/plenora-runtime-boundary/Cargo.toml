@@ -8,6 +8,8 @@ license-file.workspace = true
 publish = false
 
 [dependencies]
+# Exact digest of raw delivery identity/binding, without allocating a JSON copy of payloads.
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
 # Existing exact workspace pins: async worker facade, UTC grammar and raw JSON metadata.
 async-trait.workspace = true
 chrono.workspace = true

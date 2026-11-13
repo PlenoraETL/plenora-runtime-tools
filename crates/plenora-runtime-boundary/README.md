@@ -45,8 +45,14 @@ RT-012/016…023 dell'[inventario](../../docs/boundary-probes.json), con metadat
 grezzi, dispatcher reale e sink fixture. Non sono una prova di persistenza,
 replay dopo restart, CAS o pubblicazione terminale del runner.
 
-Il crate non è un host catene pronto: acceptance/inbox/outbox durevoli,
-conflitto input della chiave, terminale dopo retry e settlement sono aperti.
+Il profilo prodotto P2.3/P2.4 usa DurableRuntime con PostgreSQL, DurableWorker
+nel runner Apalis e NegotiatedForwarder per send/retry/DLQ. Il journal precede
+l'ammissione, conserva rifiuti e risultati, recupera soltanto la finalizzazione
+dopo evidence e non ripete il dominio Running senza evidenza. RouteTable lega
+il relay alla destinazione persistita. OutcomeBudget e DeliveryPlan prenotano
+il journal JSON entro 64 MiB prima dell'invocazione. I test chain_delivery
+coprono questi percorsi; le prove con servizi reali restano ignorate per CI.
+Lo scope host delle chiavi di idempotenza resta P1.4/P1.5: attualmente rifiutate.
 Gli esempi legacy restano tali e non vengono attestati conformi dal wrapper.
 Regole, rischi e condizioni di chiusura sono in
 [contract-alignment](../../docs/contract-alignment.md),
