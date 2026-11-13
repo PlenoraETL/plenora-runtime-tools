@@ -1114,6 +1114,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "plenora-runtime-chain-contracts"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "plenora-runtime-control"
 version = "0.1.0"
 dependencies = [

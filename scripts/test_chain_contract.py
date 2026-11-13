@@ -93,6 +93,42 @@ class ChainContractTests(unittest.TestCase):
         for edge in edges["edges"]:
             self.assertEqual(edge["status"], "draft")
 
+    def test_primary_public_output_requires_producer_claim(self):
+        plan = parse((FIXTURES / "plan-valid.json").read_bytes())
+        context = parse((FIXTURES / "context.json").read_bytes())
+        plan["steps"] = [plan["steps"][0]]
+        for output in plan["outputs"].values():
+            output["source"]["step"] = plan["steps"][0]["id"]
+        validate(canonical(plan), "plan", context=context)
+        plan["components"]["io"]["claims"] = []
+        context["components"] = copy.deepcopy(plan["components"])
+        with self.assertRaises(Rejection) as caught:
+            validate(canonical(plan), "plan", context=context)
+        self.assertEqual(caught.exception.code, "CHAIN_BOUNDARY")
+
+    def test_error_report_unavailability_is_included_in_completeness(self):
+        plan = parse((FIXTURES / "plan-valid.json").read_bytes())
+        context = parse((FIXTURES / "context.json").read_bytes())
+        original = parse((FIXTURES / "result-failed-valid.json").read_bytes())
+        for where in range(4):
+            result = copy.deepcopy(original)
+            error = copy.deepcopy(result["error"])
+            error["reports"] = [{"kind": "fidelity", "availability": "unavailable", "document": None}]
+            failed = next(s for s in result["steps"] if s["error"] is not None)
+            target = result if where < 2 else failed
+            if where % 2:
+                target["other_errors"].append(error)
+            else:
+                target["error"] = error
+            result["reports_complete"] = True
+            result["losses"] = "none"
+            with self.assertRaises(Rejection) as caught:
+                validate(canonical(result), "result", plan=plan, context=context)
+            self.assertEqual(caught.exception.code, "CHAIN_RESULT")
+            result["reports_complete"] = False
+            result["losses"] = "unavailable"
+            validate(canonical(result), "result", plan=plan, context=context)
+
     def test_closed_objects_reject_unknown_members(self):
         for kind in ("plan", "result", "event", "error"):
             value = parse((FIXTURES / f"{kind}-valid.json").read_bytes())

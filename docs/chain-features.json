@@ -75,13 +75,21 @@
       "source": "E.1",
       "surfaces": {
         "rust": {
-          "status": "da fare",
-          "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
+          "status": "provata su fixture",
+          "entrypoint": "plenora_runtime_chain_contracts::{parse_plan, parse_registry, validate_plan, plan_digest}; API sincrona senza I/O",
           "required_tests": {
             "positive": "report con controlli statici e rinviati",
             "rejection": "ciclo, porta assente, versione non esatta",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "scope": "Validazione preventiva offline contro registro/discovery fixture: versioni, confini, claim Primary Geometry, consenso scoped, budget e barriere schema; fidelity esplicitamente da provare. Nessun invoke.",
+          "remaining": "Host e facciata chains, discovery reali, payload e autorizzazione autenticata, prenotazioni e fidelity Arrow effettiva; CLI/Python/runtime e qualifica Linux/Windows sullo SHA non attestati.",
+          "evidence": {
+            "positive": "crates/plenora-runtime-chain-contracts/tests/parity.rs",
+            "rejection": "crates/plenora-runtime-chain-contracts/tests/parity.rs",
+            "limit": "crates/plenora-runtime-chain-contracts/tests/limits.rs",
+            "effect": "crates/plenora-runtime-chain-contracts/tests/limits.rs"
           }
         },
         "cli": {
@@ -2463,15 +2471,23 @@
       "source": "B.1",
       "surfaces": {
         "rust": {
-          "status": "specificata",
-          "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
+          "status": "provata su fixture",
+          "entrypoint": "plenora_runtime_chain_contracts::{parse_plan, parse_registry, validate_plan, plan_digest}; API sincrona senza I/O",
           "required_tests": {
             "positive": "digest identico per forma canonica; versioni pacchetto/catalogo/operazione/payload/wire distinte",
             "rejection": "duplicati, ignoti, UUID/versioni non canonici, latest e overflow",
             "limit": "1024 step, 64 porte/step, profondità 64, 1 MiB e restrizioni host",
             "effect": "rifiuto prima di resolver/invoke"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "scope": "Tipi pubblici e parser chiuso Rust, duplicati e numeri canonici, limiti, CHAIN-C14N-1/SHA-256; 88 verdetti condivisi con la referenza Python.",
+          "remaining": "Host e facciata chains, discovery reali, payload e autorizzazione autenticata, prenotazioni e fidelity Arrow effettiva; CLI/Python/runtime e qualifica Linux/Windows sullo SHA non attestati.",
+          "evidence": {
+            "positive": "crates/plenora-runtime-chain-contracts/tests/parity.rs",
+            "rejection": "crates/plenora-runtime-chain-contracts/tests/parity.rs",
+            "limit": "crates/plenora-runtime-chain-contracts/tests/limits.rs",
+            "effect": "crates/plenora-runtime-chain-contracts/tests/limits.rs"
+          }
         },
         "cli": {
           "status": "specificata",
@@ -2526,15 +2542,23 @@
       "source": "B.1/B.7/C.1",
       "surfaces": {
         "rust": {
-          "status": "specificata",
-          "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
+          "status": "provata su fixture",
+          "entrypoint": "plenora_runtime_chain_contracts::{parse_plan, parse_registry, validate_plan, plan_digest}; API sincrona senza I/O",
           "required_tests": {
             "positive": "fan-in/out e sink senza output, ordine topologico con spareggio lessicografico",
             "rejection": "cicli, sorgenti multiple per porta e output obbligatorio mancante",
             "limit": "step e porte al limite e oltre",
             "effect": "stop al primo errore: blocked discendenti, skipped altri; successi precedenti conservati"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "scope": "Unicita, porte nominate, riferimenti e cicli dati/controllo; ordine topologico lessicografico deterministico fino a 1024 step.",
+          "remaining": "Host e facciata chains, discovery reali, payload e autorizzazione autenticata, prenotazioni e fidelity Arrow effettiva; CLI/Python/runtime e qualifica Linux/Windows sullo SHA non attestati.",
+          "evidence": {
+            "positive": "crates/plenora-runtime-chain-contracts/tests/parity.rs",
+            "rejection": "crates/plenora-runtime-chain-contracts/tests/parity.rs",
+            "limit": "crates/plenora-runtime-chain-contracts/tests/limits.rs",
+            "effect": "crates/plenora-runtime-chain-contracts/tests/limits.rs"
+          }
         },
         "cli": {
           "status": "specificata",

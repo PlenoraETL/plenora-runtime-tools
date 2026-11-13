@@ -41,9 +41,20 @@ def validate(data: dict) -> None:
         cells = feature.get("surfaces", {})
         if set(cells) != set(SURFACES):
             raise ValueError("ogni funzionalità richiede esattamente cinque celle")
-        for cell in cells.values():
-            if cell.get("status") not in ("da fare", "specificata"):
+        for surface, cell in cells.items():
+            if cell.get("status") not in ("da fare", "specificata", "provata su fixture"):
                 raise ValueError("stato non supportato: nessuna implementazione attestata")
+            if cell.get("status") == "provata su fixture":
+                if surface != "rust" or feature["id"] not in {"validate", "plan-canonical", "dag-ports"}:
+                    raise ValueError("evidenza fixture limitata al validatore statico Rust")
+                if not cell.get("scope") or not cell.get("remaining"):
+                    raise ValueError("ambito provato e limiti residui obbligatori")
+                evidence = cell.get("evidence", {})
+                if set(evidence) != PROOFS or any(
+                    not isinstance(path, str) or not (ROOT / path).is_file()
+                    for path in evidence.values()
+                ):
+                    raise ValueError("quattro evidenze versionate obbligatorie")
             if cell.get("status") == "specificata":
                 evidence = cell.get("specification")
                 if evidence != "docs/specs/CHAIN-PLAN-2.0.md":
@@ -62,8 +73,9 @@ def render(data: dict) -> str:
         "# Inventario delle funzionalità catene", "",
         "Vista generata da [chain-features.json](chain-features.json), versione 1. "
         "Le celle **specificata** rimandano a [CHAIN-PLAN-2.0](specs/CHAIN-PLAN-2.0.md), "
-        "bozza locale; le altre restano **da fare**. Nessuno stato attesta implementazione "
-        "o prove delle superfici: P/R/L/E restano requisiti da soddisfare.", "",
+        "bozza locale; **provata su fixture** attesta solo l'ambito statico Rust descritto "
+        "nella cella JSON, senza host o adapter reali. Le altre restano **da fare**. "
+        "P/R/L/E restano requisiti delle superfici complete.", "",
         "Fonte: PROGETTO-CATENE del 12 novembre 2026, sezioni indicate per riga. "
         "Perimetro e decisioni: [ADR 0008](adr/0008-chain-product-scope.md). "
         "Le operazioni sono proposte da ratificare e provare sulle discovery effettive.", "",
@@ -96,6 +108,12 @@ def render(data: dict) -> str:
         lines += [f"### {feature['id']}", "", feature["name"], ""]
         for kind, text in feature["surfaces"]["rust"]["required_tests"].items():
             lines.append(f"- **{kind}**: {text}")
+        cell = feature["surfaces"]["rust"]
+        if cell["status"] == "provata su fixture":
+            lines += ["", "Ambito Rust provato: " + cell["scope"], "",
+                      "Resta da qualificare: " + cell["remaining"], ""]
+            for kind, path in cell["evidence"].items():
+                lines.append(f"- Evidenza {kind}: [{path}](../{path})")
         lines.append("")
     return "\n".join(lines)
 
