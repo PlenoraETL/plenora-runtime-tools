@@ -26,17 +26,8 @@ use std::{fmt, str::FromStr};
 use tokio_postgres::{Client, Config, NoTls, Transaction};
 use uuid::Uuid;
 
-// Ordered source of truth shared by migration execution and qualification.
-const MIGRATIONS: &[(&str, &str)] = &[
-    ("migration.sql", include_str!("migration.sql")),
-    ("migration-v2.sql", include_str!("migration-v2.sql")),
-    ("evidence-v1.sql", include_str!("evidence-v1.sql")),
-    ("delivery-v1.sql", include_str!("delivery-v1.sql")),
-    ("runs-v1.sql", include_str!("runs-v1.sql")),
-    ("idempotency-v1.sql", include_str!("idempotency-v1.sql")),
-    ("work-v1.sql", include_str!("work-v1.sql")),
-    ("resources-v1.sql", include_str!("resources-v1.sql")),
-];
+mod schema;
+use schema::{MIGRATIONS, current_version, supported_versions};
 
 /// Connection factory. Each operation opens a primary connection and a transaction;
 /// no cached acceptance, replica fallback, or in-memory production profile exists.
@@ -104,26 +95,34 @@ impl PostgresStore {
     pub async fn migrate(&self, retention: Retention) -> Result<(), StoreError> {
         let mut client = self.connect().await?;
         let tx = Self::transaction(&mut client).await?;
-        for (_, sql) in MIGRATIONS {
+        for (_, _, sql) in MIGRATIONS {
             tx.batch_execute(sql).await?;
         }
+        let version = current_version();
         let old = tx.query_opt("SELECT version, delivery_seconds, report_seconds FROM plenora_chain_schema WHERE singleton", &[]).await?;
         if let Some(old) = old {
-            if !matches!(old.try_get::<_, i32>(0)?, 1 | 2)
+            if !supported_versions().contains(&old.try_get::<_, i32>(0)?)
                 || retention.delivery > old.try_get::<_, i64>(1)?
                 || retention.reports > old.try_get::<_, i64>(2)?
             {
                 return Err(StoreError::Invalid);
             }
-            tx.execute("UPDATE plenora_chain_schema SET version=2, delivery_seconds=$1, report_seconds=$2 WHERE singleton", &[&retention.delivery, &retention.reports]).await?;
+            tx.execute("UPDATE plenora_chain_schema SET version=$3, delivery_seconds=$1, report_seconds=$2 WHERE singleton", &[&retention.delivery, &retention.reports, &version]).await?;
             tx.execute("UPDATE plenora_chain_acceptance SET expires_at=LEAST(expires_at, accepted_at + $1::bigint * interval '1 second')", &[&retention.delivery]).await?;
         } else {
             tx.execute(
-                "INSERT INTO plenora_chain_schema VALUES (true, 2, $1, $2)",
-                &[&retention.delivery, &retention.reports],
+                "INSERT INTO plenora_chain_schema VALUES (true, $3, $1, $2)",
+                &[&retention.delivery, &retention.reports, &version],
             )
             .await?;
         }
+        // Identifiers and numbers are closed migration metadata, never caller input.
+        let versions = supported_versions()
+            .iter()
+            .map(i32::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        tx.batch_execute(&format!("ALTER TABLE plenora_chain_schema ADD CONSTRAINT plenora_chain_schema_version_check CHECK (version IN ({versions}))")).await?;
         Self::expire(&tx).await?;
         Self::commit(tx).await
     }
@@ -136,7 +135,7 @@ impl PostgresStore {
             )
             .await?
             .try_get(0)?;
-        if version != 2 {
+        if version != current_version() {
             return Err(StoreError::Unavailable);
         }
         tx.execute("UPDATE plenora_chain_idempotency i SET carrier=NULL FROM plenora_chain_schema p WHERE p.singleton AND i.carrier IS NOT NULL AND i.created_ms + p.report_seconds*1000 <= extract(epoch FROM clock_timestamp())*1000", &[]).await?;

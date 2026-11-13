@@ -10,13 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / 'docs/chain-crash-evidence.json'
 GATES = {
     'workspace': ('cargo test --workspace --all-targets --all-features --locked', '', ''),
-    'postgres_store': ('cargo test -p plenora-runtime-chain-store --locked postgres_real -- --ignored --nocapture --test-threads=1', 'crates/plenora-runtime-chain-store/src/', 'postgres_real'),
-    'postgres_delivery': ('cargo test -p plenora-runtime-integration-tests --test chain_delivery --locked postgres_real_product -- --ignored --nocapture --test-threads=1', 'tests/integration/tests/chain_delivery.rs', 'postgres_real_product'),
+    'postgres_store': ('cargo test --no-fail-fast -p plenora-runtime-chain-store --locked postgres_real -- --ignored --nocapture --test-threads=1', 'crates/plenora-runtime-chain-store/src/', 'postgres_real'),
+    'postgres_delivery': ('cargo test --no-fail-fast -p plenora-runtime-integration-tests --test chain_delivery --locked postgres_real_product -- --ignored --nocapture --test-threads=1', 'tests/integration/tests/chain_delivery.rs', 'postgres_real_product'),
 }
 
 INSTALLED = [
     "python -m unittest discover -s crates/plenora-runtime-chain-python/tests -p 'test_*.py'",
-    'cargo test -p plenora-runtime-chain-host --test remote --test worker --test controls --locked -- --ignored --nocapture',
+    'cargo test --no-fail-fast -p plenora-runtime-chain-host --test remote --test worker --test controls --locked -- --ignored --nocapture',
 ]
 
 

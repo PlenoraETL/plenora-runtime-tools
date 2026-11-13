@@ -739,3 +739,17 @@ sullo stesso SHA con wheel/binario installati e container effimeri; adozione
 librerie reali resta successiva. Il cablaggio e compilato localmente, i test
 infrastrutturali restano ignorati dove mancano i servizi. I criteri 1-6 sono
 riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.
+
+
+## PR23: fonte unica dello schema durevole
+
+Ambito P2.2/P1.4: schema.rs associa ogni SQL alla sua revisione e ne fissa
+l'ordine; migrate, vincolo SQL corrente, readiness e test usano quel catalogo.
+La revisione globale resta 2; la versione 1 delle evidenze e un asse distinto.
+Il conteggio rigido 12 del test era incompatibile con le 13 tabelle complete:
+la qualifica ora confronta i nomi derivati dagli SQL, non un numero mantenuto
+separatamente. DB vuoto, ogni prefisso v1/v2, idempotenza, preservazione dati,
+riduzione retention e rifiuto versioni sconosciute sono enumerati. Il rifiuto
+verifica anche rollback della creazione DDL, non soltanto della versione.
+Rischio residuo: prove reali del delta ancora da eseguire nella CI aggregata;
+nessuna estensione della qualifica a librerie o provider di dominio.

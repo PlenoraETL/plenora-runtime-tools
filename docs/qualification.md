@@ -411,3 +411,19 @@ sullo stesso SHA con wheel/binario installati e container effimeri; adozione
 librerie reali resta successiva. Il cablaggio e compilato localmente, i test
 infrastrutturali restano ignorati dove mancano i servizi. I criteri 1-6 sono
 riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.
+
+
+## PR23: raccolta completa delle campagne reali
+
+Regola: un test reale fallito non deve impedire di osservare gli altri casi.
+I job NATS, PostgreSQL e coverage tentano ogni passo; ogni comando test usa
+no-fail-fast, i comandi indipendenti hanno passi distinti. Il riepilogo finale
+legge outcome originale (non conclusion ammorbidita), include setup/install e
+cleanup, e rifiuta anche skipped/cancelled/missing. Test negativi verificano
+inventario e fallimento in ciascun passo. La migrazione prova ogni prefisso del
+catalogo senza arrestare la raccolta al primo database fallito.
+
+La CI di e4979ef si e fermata prima delle altre prove reali: queste non sono
+qualificate da quella esecuzione. La chiusura richiede la nuova campagna intera
+sullo SHA corretto, inclusi i job reali e la soglia coverage. I gate locali non
+sostituiscono quella evidenza. Dettagli correnti in target/P1-4-5.md.
