@@ -1,0 +1,770 @@
+{
+  "contract": "plenora-chain-plan-v2",
+  "schema_version": 2,
+  "plan_id": "00000000-0000-0000-0000-000000000001",
+  "revision": 1,
+  "components": {
+    "io": {
+      "identity": "plenora-fixture-v1",
+      "package_version": "1.0.0",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "discovery_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "catalog": {
+        "contract": "plenora-public-catalog-v2",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "contracts_revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
+      "claims": [
+        "plenora-arrow-primary-geometry-v1"
+      ]
+    },
+    "data": {
+      "identity": "plenora-fixture-v1",
+      "package_version": "1.0.0",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "discovery_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "catalog": {
+        "contract": "plenora-public-catalog-v2",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "contracts_revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
+      "claims": [
+        "plenora-arrow-primary-geometry-v1"
+      ]
+    },
+    "db": {
+      "identity": "plenora-fixture-v1",
+      "package_version": "1.0.0",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "discovery_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "catalog": {
+        "contract": "plenora-public-catalog-v2",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "contracts_revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
+      "claims": [
+        "plenora-arrow-primary-geometry-v1"
+      ]
+    }
+  },
+  "inputs": {},
+  "steps": [
+    {
+      "id": "read",
+      "step_version": 1,
+      "component": "io",
+      "operation": "io.read",
+      "operation_version": 2,
+      "input_contract": "plenora-fixture-read-input-v1",
+      "output_contract": "plenora-fixture-read-result-v1",
+      "parameters": {
+        "contract": "plenora-fixture-read-input-v1",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "inputs": {},
+      "outputs": {
+        "p0": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p1": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p2": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p3": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p4": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p5": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p6": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p7": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p8": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p9": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p10": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p11": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p12": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p13": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p14": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p15": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p16": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p17": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p18": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p19": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p20": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p21": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p22": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p23": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p24": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p25": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p26": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p27": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p28": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p29": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p30": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p31": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p32": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p33": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p34": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p35": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p36": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p37": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p38": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p39": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p40": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p41": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p42": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p43": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p44": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p45": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p46": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p47": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p48": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p49": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p50": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p51": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p52": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p53": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p54": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p55": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p56": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p57": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p58": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p59": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p60": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p61": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p62": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p63": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        },
+        "p64": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        }
+      },
+      "depends_on": [],
+      "budgets": {
+        "memory_bytes": 100000,
+        "elapsed_ms": 100000,
+        "rows_read": 100000,
+        "rows_produced": 100000,
+        "artifact_bytes": 100000,
+        "spool_bytes": 100000,
+        "request_bytes": 100000,
+        "result_bytes": 100000,
+        "max_attempts": 100000
+      },
+      "materialization": "bounded",
+      "retry_policy": {
+        "max_attempts": 1,
+        "backoff_ms": 0
+      }
+    },
+    {
+      "id": "transform",
+      "step_version": 1,
+      "component": "data",
+      "operation": "data.run",
+      "operation_version": 3,
+      "input_contract": "plenora-fixture-transform-input-v1",
+      "output_contract": "plenora-fixture-transform-result-v1",
+      "parameters": {
+        "contract": "plenora-fixture-transform-input-v1",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "inputs": {
+        "dataset": {
+          "source": {
+            "kind": "step",
+            "step": "read",
+            "port": "dataset"
+          },
+          "expected": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "primary_geometry": true
+          },
+          "boundary": "read-transform",
+          "schema_barrier": false
+        }
+      },
+      "outputs": {
+        "dataset": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        }
+      },
+      "depends_on": [],
+      "budgets": {
+        "memory_bytes": 100000,
+        "elapsed_ms": 100000,
+        "rows_read": 100000,
+        "rows_produced": 100000,
+        "artifact_bytes": 100000,
+        "spool_bytes": 100000,
+        "request_bytes": 100000,
+        "result_bytes": 100000,
+        "max_attempts": 100000
+      },
+      "materialization": "bounded",
+      "retry_policy": {
+        "max_attempts": 1,
+        "backoff_ms": 0
+      }
+    },
+    {
+      "id": "write",
+      "step_version": 1,
+      "component": "db",
+      "operation": "database.write",
+      "operation_version": 2,
+      "input_contract": "plenora-fixture-write-input-v1",
+      "output_contract": "plenora-fixture-write-result-v1",
+      "parameters": {
+        "contract": "plenora-fixture-write-input-v1",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "inputs": {
+        "dataset": {
+          "source": {
+            "kind": "step",
+            "step": "transform",
+            "port": "dataset"
+          },
+          "expected": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "primary_geometry": true
+          },
+          "boundary": "transform-write",
+          "schema_barrier": false
+        }
+      },
+      "outputs": {},
+      "depends_on": [],
+      "budgets": {
+        "memory_bytes": 100000,
+        "elapsed_ms": 100000,
+        "rows_read": 100000,
+        "rows_produced": 100000,
+        "artifact_bytes": 100000,
+        "spool_bytes": 100000,
+        "request_bytes": 100000,
+        "result_bytes": 100000,
+        "max_attempts": 100000
+      },
+      "materialization": "bounded",
+      "retry_policy": {
+        "max_attempts": 1,
+        "backoff_ms": 0
+      },
+      "destination_ref": "ref:destination",
+      "loss_consent": false
+    }
+  ],
+  "outputs": {
+    "dataset": {
+      "source": {
+        "kind": "step",
+        "step": "transform",
+        "port": "dataset"
+      },
+      "expected": {
+        "contract": "plenora-arrow-interchange-v1",
+        "content_type": "application/vnd.apache.arrow.stream",
+        "cardinality": "one",
+        "required": true,
+        "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "primary_geometry": true
+      },
+      "publication": "durable"
+    }
+  },
+  "budgets": {
+    "memory_bytes": 100000,
+    "elapsed_ms": 100000,
+    "rows_read": 100000,
+    "rows_produced": 100000,
+    "artifact_bytes": 100000,
+    "spool_bytes": 100000,
+    "request_bytes": 100000,
+    "result_bytes": 100000,
+    "max_attempts": 100000
+  },
+  "execution": {
+    "mode": "sequential",
+    "max_parallel_steps": 1,
+    "on_error": "stop",
+    "recovery": "durable",
+    "cleanup_ms": 1000
+  },
+  "loss_policy": {
+    "default": "deny",
+    "grants": []
+  },
+  "requirements": {
+    "contracts": [
+      "plenora-arrow-primary-geometry-v1"
+    ],
+    "host_profile_version": 1,
+    "fidelity": "exact"
+  }
+}

@@ -42,8 +42,12 @@ def validate(data: dict) -> None:
         if set(cells) != set(SURFACES):
             raise ValueError("ogni funzionalità richiede esattamente cinque celle")
         for cell in cells.values():
-            if cell.get("status") != "da fare":
-                raise ValueError("P1.1 non attesta implementazioni")
+            if cell.get("status") not in ("da fare", "specificata"):
+                raise ValueError("stato non supportato: nessuna implementazione attestata")
+            if cell.get("status") == "specificata":
+                evidence = cell.get("specification")
+                if evidence != "docs/specs/CHAIN-PLAN-2.0.md":
+                    raise ValueError("specifica versionata richiesta per lo stato specificata")
             if not isinstance(cell.get("entrypoint"), str) or not cell["entrypoint"].strip():
                 raise ValueError("percorso di prova mancante")
             proofs = cell.get("required_tests", {})
@@ -57,7 +61,9 @@ def render(data: dict) -> str:
     lines = [
         "# Inventario delle funzionalità catene", "",
         "Vista generata da [chain-features.json](chain-features.json), versione 1. "
-        "Tutte le celle sono **da fare**: sono requisiti di prova, non evidenze ottenute.", "",
+        "Le celle **specificata** rimandano a [CHAIN-PLAN-2.0](specs/CHAIN-PLAN-2.0.md), "
+        "bozza locale; le altre restano **da fare**. Nessuno stato attesta implementazione "
+        "o prove delle superfici: P/R/L/E restano requisiti da soddisfare.", "",
         "Fonte: PROGETTO-CATENE del 12 novembre 2026, sezioni indicate per riga. "
         "Perimetro e decisioni: [ADR 0008](adr/0008-chain-product-scope.md). "
         "Le operazioni sono proposte da ratificare e provare sulle discovery effettive.", "",

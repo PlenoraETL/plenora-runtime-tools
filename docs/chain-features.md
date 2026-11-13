@@ -1,6 +1,6 @@
 # Inventario delle funzionalità catene
 
-Vista generata da [chain-features.json](chain-features.json), versione 1. Tutte le celle sono **da fare**: sono requisiti di prova, non evidenze ottenute.
+Vista generata da [chain-features.json](chain-features.json), versione 1. Le celle **specificata** rimandano a [CHAIN-PLAN-2.0](specs/CHAIN-PLAN-2.0.md), bozza locale; le altre restano **da fare**. Nessuno stato attesta implementazione o prove delle superfici: P/R/L/E restano requisiti da soddisfare.
 
 Fonte: PROGETTO-CATENE del 12 novembre 2026, sezioni indicate per riga. Perimetro e decisioni: [ADR 0008](adr/0008-chain-product-scope.md). Le operazioni sono proposte da ratificare e provare sulle discovery effettive.
 
@@ -23,8 +23,8 @@ Ogni cella richiede quattro prove: positiva (P), rifiuto (R), limite (L), effett
 | submit — Avvio durevole / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | run — Esecuzione con attesa / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | status — Stato / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| result — Risultato / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| events — Eventi con cursore durevole / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| result — Risultato / `plenora-runtime-chains` / E.1 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| events — Eventi con cursore durevole / `plenora-runtime-chains` / E.1 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
 | cancel — Cancellazione esplicita / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | resume — Ripresa selettiva / `plenora-runtime-chains` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | artifact — Recupero artefatti / `plenora-runtime-chain-resources` / E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
@@ -60,23 +60,23 @@ Ogni cella richiede quattro prove: positiva (P), rifiuto (R), limite (L), effett
 | rest.enrich@1 — rest.enrich@1 / `plenora-runtime-adapter-rest` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | rest.download@1 — rest.download@1 / `plenora-runtime-adapter-rest` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | rest.upload@1 — rest.upload@1 / `plenora-runtime-adapter-rest` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| plan-canonical — Piano chiuso, digest e assi di versione / `plenora-runtime-chain-contracts` / B.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| dag-ports — DAG, porte e dipendenze di controllo / `plenora-runtime-chains` / B.1/B.7/C.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| plan-canonical — Piano chiuso, digest e assi di versione / `plenora-runtime-chain-contracts` / B.1 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| dag-ports — DAG, porte e dipendenze di controllo / `plenora-runtime-chains` / B.1/B.7/C.1 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
 | admission — Ammissione e barriere schema / `plenora-runtime-chains` / B.7 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| budgets — Budget cumulativi e prenotazioni / `plenora-runtime-chains` / B.4 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| deadlines — Deadline e timeout di attesa distinti / `plenora-runtime-boundary` / B.4/D.2/E.1 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| loss-consent — Consenso circoscritto e conferma unica / `plenora-runtime-chains` / B.5 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| loss-reports — Rapporti perdite, fidelity e parzialità / `plenora-runtime-chains` / B.5/B.6 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| result-aggregation — Esiti completi e assi indipendenti / `plenora-runtime-chains` / B.6 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| arrow-handoff — Handoff Arrow e identità dei campi / `plenora-runtime-chain-conversions` / B.3 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| primary-geometry — Primary Geometry per provenienza / `plenora-runtime-chain-conversions` / B.3/E.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| budgets — Budget cumulativi e prenotazioni / `plenora-runtime-chains` / B.4 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| deadlines — Deadline e timeout di attesa distinti / `plenora-runtime-boundary` / B.4/D.2/E.1 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| loss-consent — Consenso circoscritto e conferma unica / `plenora-runtime-chains` / B.5 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| loss-reports — Rapporti perdite, fidelity e parzialità / `plenora-runtime-chains` / B.5/B.6 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| result-aggregation — Esiti completi e assi indipendenti / `plenora-runtime-chains` / B.6 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| arrow-handoff — Handoff Arrow e identità dei campi / `plenora-runtime-chain-conversions` / B.3 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
+| primary-geometry — Primary Geometry per provenienza / `plenora-runtime-chain-conversions` / B.3/E.2 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
 | storage-io — File pipeline STORAGE verso IO / `plenora-runtime-chain-resources` / B.3 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | rest-arrow — Conversione esplicita REST verso Arrow / `plenora-runtime-chain-conversions` / B.3/E.3 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | arrow-rest — Conversione esplicita Arrow verso REST / `plenora-runtime-chain-conversions` / B.3/E.3 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | resolvers — Resolver autorizzati e segreti / `plenora-runtime-chain-resources` / A.1/B.7/D.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | artifacts-lifecycle — Manifest, spool, lease e cleanup / `plenora-runtime-chain-resources` / B.3/C.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | durable-state — Journal PostgreSQL, CAS e fence / `plenora-runtime-chain-store` / C.3/D.3 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| idempotency — Inbox e idempotenza scoped / `plenora-runtime-chain-store` / C.4/D.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| idempotency — Inbox e idempotenza scoped / `plenora-runtime-chain-store` / C.4/D.2 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
 | retention — Retention e tombstone / `plenora-runtime-chain-store` / C.4/G | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | cancellation-bridge — Stop dei binding e lavoro sincrono / `plenora-runtime-chains` / C.5 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | negotiation — Negoziazione end-to-end / `plenora-runtime-boundary` / D.1/D.2/D.3 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
@@ -96,7 +96,7 @@ Ogni cella richiede quattro prove: positiva (P), rifiuto (R), limite (L), effett
 | app-carica — Supporto al piano APP carica / `plenora-runtime-chain-host` / E.3 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | app-arricchisci — Supporto al piano APP arricchisci / `plenora-runtime-chain-host` / E.3 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | runtime-identities — Identità, codec e riflessione runtime / `plenora-runtime-boundary` / D.2 RT-012/016/017/019/020/025 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| retry-policy — Retry limitati e recovery / `plenora-runtime-chains` / B.1/B.6/C.4 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| retry-policy — Retry limitati e recovery / `plenora-runtime-chains` / B.1/B.6/C.4 | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) | specificata (P/R/L/E) |
 | host-controls — Host, readiness e drain / `plenora-runtime-chain-host` / A.1/D.1/D.3 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | database-query-arrow-extension — Estensione condizionata: query Arrow pubblica / `plenora-runtime-adapter-database` / B.2/E.3/G | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | database-execute-extension — Estensione condizionata: database.execute / `plenora-runtime-adapter-database` / B.2/G | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |

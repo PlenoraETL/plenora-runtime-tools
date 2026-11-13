@@ -1,0 +1,249 @@
+{
+  "contract": "plenora-chain-plan-v2",
+  "schema_version": 2,
+  "plan_id": "00000000-0000-0000-0000-000000000001",
+  "revision": 1,
+  "components": {
+    "io": {
+      "identity": "plenora-fixture-v1",
+      "package_version": "1.0.0",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "discovery_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "catalog": {
+        "contract": "plenora-public-catalog-v2",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "contracts_revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
+      "claims": [
+        "plenora-arrow-primary-geometry-v1"
+      ]
+    },
+    "data": {
+      "identity": "plenora-fixture-v1",
+      "package_version": "1.0.0",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "discovery_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "catalog": {
+        "contract": "plenora-public-catalog-v2",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "contracts_revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
+      "claims": [
+        "plenora-arrow-primary-geometry-v1"
+      ]
+    },
+    "db": {
+      "identity": "plenora-fixture-v1",
+      "package_version": "1.0.0",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "discovery_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "catalog": {
+        "contract": "plenora-public-catalog-v2",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "contracts_revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
+      "claims": [
+        "plenora-arrow-primary-geometry-v1"
+      ]
+    }
+  },
+  "inputs": {},
+  "steps": [
+    {
+      "id": "read",
+      "step_version": 1,
+      "component": "io",
+      "operation": "io.read",
+      "operation_version": 2,
+      "input_contract": "plenora-fixture-read-input-v1",
+      "output_contract": "plenora-fixture-read-result-v1",
+      "parameters": {
+        "contract": "plenora-fixture-read-input-v1",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "inputs": {},
+      "outputs": {},
+      "depends_on": [],
+      "budgets": {
+        "memory_bytes": 100000,
+        "elapsed_ms": 100000,
+        "rows_read": 100000,
+        "rows_produced": 100000,
+        "artifact_bytes": 100000,
+        "spool_bytes": 100000,
+        "request_bytes": 100000,
+        "result_bytes": 100000,
+        "max_attempts": 100000
+      },
+      "materialization": "bounded",
+      "retry_policy": {
+        "max_attempts": 1,
+        "backoff_ms": 0
+      }
+    },
+    {
+      "id": "transform",
+      "step_version": 1,
+      "component": "data",
+      "operation": "data.run",
+      "operation_version": 3,
+      "input_contract": "plenora-fixture-transform-input-v1",
+      "output_contract": "plenora-fixture-transform-result-v1",
+      "parameters": {
+        "contract": "plenora-fixture-transform-input-v1",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "inputs": {
+        "dataset": {
+          "source": {
+            "kind": "step",
+            "step": "read",
+            "port": "dataset"
+          },
+          "expected": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "primary_geometry": true
+          },
+          "boundary": "read-transform",
+          "schema_barrier": false
+        }
+      },
+      "outputs": {
+        "dataset": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        }
+      },
+      "depends_on": [],
+      "budgets": {
+        "memory_bytes": 100000,
+        "elapsed_ms": 100000,
+        "rows_read": 100000,
+        "rows_produced": 100000,
+        "artifact_bytes": 100000,
+        "spool_bytes": 100000,
+        "request_bytes": 100000,
+        "result_bytes": 100000,
+        "max_attempts": 100000
+      },
+      "materialization": "bounded",
+      "retry_policy": {
+        "max_attempts": 1,
+        "backoff_ms": 0
+      }
+    },
+    {
+      "id": "write",
+      "step_version": 1,
+      "component": "db",
+      "operation": "database.write",
+      "operation_version": 2,
+      "input_contract": "plenora-fixture-write-input-v1",
+      "output_contract": "plenora-fixture-write-result-v1",
+      "parameters": {
+        "contract": "plenora-fixture-write-input-v1",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "inputs": {
+        "dataset": {
+          "source": {
+            "kind": "step",
+            "step": "transform",
+            "port": "dataset"
+          },
+          "expected": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "primary_geometry": true
+          },
+          "boundary": "transform-write",
+          "schema_barrier": false
+        }
+      },
+      "outputs": {},
+      "depends_on": [],
+      "budgets": {
+        "memory_bytes": 100000,
+        "elapsed_ms": 100000,
+        "rows_read": 100000,
+        "rows_produced": 100000,
+        "artifact_bytes": 100000,
+        "spool_bytes": 100000,
+        "request_bytes": 100000,
+        "result_bytes": 100000,
+        "max_attempts": 100000
+      },
+      "materialization": "bounded",
+      "retry_policy": {
+        "max_attempts": 1,
+        "backoff_ms": 0
+      },
+      "destination_ref": "ref:destination",
+      "loss_consent": false
+    }
+  ],
+  "outputs": {
+    "dataset": {
+      "source": {
+        "kind": "step",
+        "step": "transform",
+        "port": "dataset"
+      },
+      "expected": {
+        "contract": "plenora-arrow-interchange-v1",
+        "content_type": "application/vnd.apache.arrow.stream",
+        "cardinality": "one",
+        "required": true,
+        "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "primary_geometry": true
+      },
+      "publication": "durable"
+    }
+  },
+  "budgets": {
+    "memory_bytes": 100000,
+    "elapsed_ms": 100000,
+    "rows_read": 100000,
+    "rows_produced": 100000,
+    "artifact_bytes": 100000,
+    "spool_bytes": 100000,
+    "request_bytes": 100000,
+    "result_bytes": 100000,
+    "max_attempts": 100000
+  },
+  "execution": {
+    "mode": "sequential",
+    "max_parallel_steps": 1,
+    "on_error": "stop",
+    "recovery": "durable",
+    "cleanup_ms": 1000
+  },
+  "loss_policy": {
+    "default": "deny",
+    "grants": []
+  },
+  "requirements": {
+    "contracts": [
+      "plenora-arrow-primary-geometry-v1"
+    ],
+    "host_profile_version": 1,
+    "fidelity": "exact"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "contract": "plenora-chain-error-v2",
+  "schema_version": 2,
+  "category": "resource_limit",
+  "phase": "validate",
+  "code": "ARBITRARY",
+  "remote_effect": "none",
+  "retry": {
+    "kind": "never"
+  },
+  "message": "Chain operation rejected or incomplete.",
+  "step_id": null,
+  "upstream_error": null,
+  "reports": []
+}

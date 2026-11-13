@@ -42,3 +42,14 @@ class ChainInventoryTests(unittest.TestCase):
             validate(self.data)
         with self.assertRaises(ValueError):
             unique_object([("rust", {}), ("rust", {})])
+
+    def test_specification_requires_evidence_and_never_claims_implementation(self):
+        cell = self.data["features"][0]["surfaces"]["rust"]
+        cell["status"] = "specificata"
+        with self.assertRaises(ValueError):
+            validate(self.data)
+        cell["specification"] = "docs/specs/CHAIN-PLAN-2.0.md"
+        validate(self.data)
+        cell["status"] = "implementata"
+        with self.assertRaises(ValueError):
+            validate(self.data)

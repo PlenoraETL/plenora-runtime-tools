@@ -1,0 +1,145 @@
+{
+  "contract": "plenora-chain-reference-context-v2",
+  "schema_version": 2,
+  "components": {
+    "io": {
+      "identity": "plenora-fixture-v1",
+      "package_version": "1.0.0",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "discovery_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "catalog": {
+        "contract": "plenora-public-catalog-v2",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "contracts_revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
+      "claims": [
+        "plenora-arrow-primary-geometry-v1"
+      ]
+    },
+    "data": {
+      "identity": "plenora-fixture-v1",
+      "package_version": "1.0.0",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "discovery_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "catalog": {
+        "contract": "plenora-public-catalog-v2",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "contracts_revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
+      "claims": [
+        "plenora-arrow-primary-geometry-v1"
+      ]
+    },
+    "db": {
+      "identity": "plenora-fixture-v1",
+      "package_version": "1.0.0",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "discovery_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "catalog": {
+        "contract": "plenora-public-catalog-v2",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "contracts_revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
+      "claims": [
+        "plenora-arrow-primary-geometry-v1"
+      ]
+    }
+  },
+  "operations": [
+    {
+      "component": "io",
+      "operation": "io.read",
+      "version": 2,
+      "input_contract": "plenora-fixture-read-input-v1",
+      "output_contract": "plenora-fixture-read-result-v1",
+      "inputs": {},
+      "outputs": {
+        "dataset": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        }
+      }
+    },
+    {
+      "component": "data",
+      "operation": "data.run",
+      "version": 3,
+      "input_contract": "plenora-fixture-transform-input-v1",
+      "output_contract": "plenora-fixture-transform-result-v1",
+      "inputs": {
+        "dataset": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        }
+      },
+      "outputs": {
+        "dataset": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        }
+      }
+    },
+    {
+      "component": "db",
+      "operation": "database.write",
+      "version": 2,
+      "input_contract": "plenora-fixture-write-input-v1",
+      "output_contract": "plenora-fixture-write-result-v1",
+      "inputs": {
+        "dataset": {
+          "contract": "plenora-arrow-interchange-v1",
+          "content_type": "application/vnd.apache.arrow.stream",
+          "cardinality": "one",
+          "required": true,
+          "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "primary_geometry": true
+        }
+      },
+      "outputs": {}
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "read-transform",
+      "source_operation": "io.read",
+      "source_version": 2,
+      "target_operation": "data.run",
+      "target_version": 3,
+      "source_contract": "plenora-arrow-interchange-v1",
+      "target_contract": "plenora-arrow-interchange-v1",
+      "content_type": "application/vnd.apache.arrow.stream",
+      "mode": "direct",
+      "adapter": null,
+      "status": "draft"
+    },
+    {
+      "id": "transform-write",
+      "source_operation": "data.run",
+      "source_version": 3,
+      "target_operation": "database.write",
+      "target_version": 2,
+      "source_contract": "plenora-arrow-interchange-v1",
+      "target_contract": "plenora-arrow-interchange-v1",
+      "content_type": "application/vnd.apache.arrow.stream",
+      "mode": "direct",
+      "adapter": null,
+      "status": "draft"
+    }
+  ],
+  "adapters": []
+}

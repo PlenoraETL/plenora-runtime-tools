@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Bozza locale CHAIN-PLAN-2.0 da proporre a plenora-contracts; nessuna ratifica o disponibilita runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "const": "plenora-chain-error-v2"
+    },
+    "schema_version": {
+      "const": 2
+    },
+    "category": {
+      "$ref": "../../upstream/schemas/error-v1.schema.json#/properties/category"
+    },
+    "phase": {
+      "$ref": "../../upstream/schemas/error-v1.schema.json#/properties/phase"
+    },
+    "code": {
+      "enum": [
+        "CHAIN_DOCUMENT",
+        "CHAIN_SCHEMA",
+        "CHAIN_VERSION",
+        "CHAIN_DUPLICATE",
+        "CHAIN_REFERENCE",
+        "CHAIN_CYCLE",
+        "CHAIN_BOUNDARY",
+        "CHAIN_CONSENT",
+        "CHAIN_BUDGET",
+        "CHAIN_LIMIT",
+        "CHAIN_RESULT",
+        "CHAIN_EVENT",
+        "CHAIN_UPSTREAM",
+        "CHAIN_CANCEL",
+        "CHAIN_RECOVERY",
+        "CHAIN_CONFLICT"
+      ]
+    },
+    "remote_effect": {
+      "$ref": "common.schema.json#/$defs/effect"
+    },
+    "retry": {
+      "$ref": "common.schema.json#/$defs/retry"
+    },
+    "message": {
+      "const": "Chain operation rejected or incomplete."
+    },
+    "step_id": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "upstream_error": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/document"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reports": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/report"
+      },
+      "maxItems": 64,
+      "minItems": 0
+    }
+  },
+  "required": [
+    "contract",
+    "schema_version",
+    "category",
+    "phase",
+    "code",
+    "remote_effect",
+    "retry",
+    "message",
+    "step_id",
+    "upstream_error",
+    "reports"
+  ]
+}

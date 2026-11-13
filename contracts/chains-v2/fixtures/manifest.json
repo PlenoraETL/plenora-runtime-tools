@@ -1,0 +1,794 @@
+[
+  {
+    "file": "plan-valid.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "plan-consent-valid.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "consent-destination_ref.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_CONSENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "consent-input_digest.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_CONSENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "consent-parameters_digest.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_CONSENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "consent-step.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_CONSENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "duplicate-step.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_DUPLICATE",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "cycle.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_CYCLE",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "self-cycle.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_CYCLE",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "missing-dependency.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_REFERENCE",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "missing-port.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_REFERENCE",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "missing-step.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_REFERENCE",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "missing-output.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BOUNDARY",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "operation-version.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_VERSION",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "version-string.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "version-zero.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "version-bool.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "package-latest.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "unknown-field.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "unknown-nested.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "invalid-uuid.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "unsupported-execution.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "consent-unscoped.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_CONSENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "consent-other-component.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_CONSENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "budget-missing.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "budget-zero.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "budget-escalation.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BUDGET",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "retry-budget.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BUDGET",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "boundary-summary.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BOUNDARY",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "boundary-unknown.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BOUNDARY",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "limit-steps.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "limit-ports.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "limit-id.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "boundary-provisional-missing.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BOUNDARY",
+    "context": "boundary-provisional-missing-context.json",
+    "plan": null
+  },
+  {
+    "file": "boundary-adapter_required-missing.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BOUNDARY",
+    "context": "boundary-adapter_required-missing-context.json",
+    "plan": null
+  },
+  {
+    "file": "boundary-adapter_required-present.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "boundary-adapter_required-present-context.json",
+    "plan": null
+  },
+  {
+    "file": "dynamic-schema-false.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BOUNDARY",
+    "context": "dynamic-schema-false-context.json",
+    "plan": null
+  },
+  {
+    "file": "dynamic-schema-true.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "dynamic-schema-true-context.json",
+    "plan": null
+  },
+  {
+    "file": "duplicate-member.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_DUPLICATE",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "duplicate-port-member.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_DUPLICATE",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "nan.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_DOCUMENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "float-version.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_DOCUMENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "invalid-utf8.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_DOCUMENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "surrogate.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_DOCUMENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "limit-depth.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_LIMIT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "limit-bytes.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_LIMIT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "overflow.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_DOCUMENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "error-valid.json",
+    "kind": "error",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "error-unsafe-retry.json",
+    "kind": "error",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "error-resource-retry.json",
+    "kind": "error",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "error-data-message.json",
+    "kind": "error",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "error-category.json",
+    "kind": "error",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "error-phase.json",
+    "kind": "error",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "error-code.json",
+    "kind": "error",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "event-valid.json",
+    "kind": "event",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "event-state.json",
+    "kind": "event",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_EVENT",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "event-sequence-zero.json",
+    "kind": "event",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "event-invalid-date.json",
+    "kind": "event",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "event-offset.json",
+    "kind": "event",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "event-unknown-field.json",
+    "kind": "event",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "result-valid.json",
+    "kind": "result",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-missing-step.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-duplicate-step.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_DUPLICATE",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-false-success.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-unsafe-retry.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-unconfirmed.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-reports-missing.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-unknown-hidden.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-missing-output.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "token-newline.json",
+    "kind": "plan",
+    "schema": false,
+    "valid": false,
+    "code": "CHAIN_SCHEMA",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "requirement-unknown.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_VERSION",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "attempts-insufficient.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BUDGET",
+    "context": "context.json",
+    "plan": null
+  },
+  {
+    "file": "rejected-after-commit.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "failed-no-error.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "time-reversed.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "counter-overflow-budget.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "counter-unaccounted.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "time-nanoseconds-reversed.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "partial-success.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "hidden-unknown-error.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-recovery-valid.json",
+    "kind": "result",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-failed-valid.json",
+    "kind": "result",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-cancelled-valid.json",
+    "kind": "result",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "cancel-unconfirmed.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "retry-idempotency-lost.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "retry-backoff-lost.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "result-after-failure.json",
+    "kind": "result",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_RESULT",
+    "context": "context.json",
+    "plan": "plan-valid.json"
+  },
+  {
+    "file": "negative-zero.json",
+    "kind": "plan",
+    "schema": null,
+    "valid": false,
+    "code": "CHAIN_DOCUMENT",
+    "context": "context.json",
+    "plan": null
+  }
+]

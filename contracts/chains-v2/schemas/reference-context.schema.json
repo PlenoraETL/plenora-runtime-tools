@@ -1,0 +1,171 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "const": "plenora-chain-reference-context-v2"
+    },
+    "schema_version": {
+      "const": 2
+    },
+    "components": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/component"
+      },
+      "maxProperties": 64,
+      "minProperties": 1
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "component": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "operation": {
+            "$ref": "common.schema.json#/$defs/operation"
+          },
+          "version": {
+            "$ref": "common.schema.json#/$defs/version"
+          },
+          "input_contract": {
+            "$ref": "common.schema.json#/$defs/contract"
+          },
+          "output_contract": {
+            "$ref": "common.schema.json#/$defs/contract"
+          },
+          "inputs": {
+            "type": "object",
+            "propertyNames": {
+              "$ref": "common.schema.json#/$defs/id"
+            },
+            "additionalProperties": {
+              "$ref": "common.schema.json#/$defs/port"
+            },
+            "maxProperties": 64,
+            "minProperties": 0
+          },
+          "outputs": {
+            "type": "object",
+            "propertyNames": {
+              "$ref": "common.schema.json#/$defs/id"
+            },
+            "additionalProperties": {
+              "$ref": "common.schema.json#/$defs/port"
+            },
+            "maxProperties": 64,
+            "minProperties": 0
+          }
+        },
+        "required": [
+          "component",
+          "operation",
+          "version",
+          "input_contract",
+          "output_contract",
+          "inputs",
+          "outputs"
+        ]
+      },
+      "maxItems": 1024,
+      "minItems": 1
+    },
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "source_operation": {
+            "$ref": "common.schema.json#/$defs/operation"
+          },
+          "source_version": {
+            "$ref": "common.schema.json#/$defs/version"
+          },
+          "target_operation": {
+            "$ref": "common.schema.json#/$defs/operation"
+          },
+          "target_version": {
+            "$ref": "common.schema.json#/$defs/version"
+          },
+          "source_contract": {
+            "$ref": "common.schema.json#/$defs/contract"
+          },
+          "target_contract": {
+            "$ref": "common.schema.json#/$defs/contract"
+          },
+          "content_type": {
+            "enum": [
+              "application/vnd.apache.arrow.stream",
+              "application/vnd.apache.arrow.file",
+              "application/json",
+              "application/octet-stream"
+            ]
+          },
+          "mode": {
+            "enum": [
+              "direct",
+              "adapter_required",
+              "provisional"
+            ]
+          },
+          "adapter": {
+            "oneOf": [
+              {
+                "$ref": "common.schema.json#/$defs/id"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "const": "draft"
+          }
+        },
+        "required": [
+          "id",
+          "source_operation",
+          "source_version",
+          "target_operation",
+          "target_version",
+          "source_contract",
+          "target_contract",
+          "content_type",
+          "mode",
+          "adapter",
+          "status"
+        ]
+      },
+      "maxItems": 1024,
+      "minItems": 0
+    },
+    "adapters": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "maxItems": 64,
+      "minItems": 0,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "contract",
+    "schema_version",
+    "components",
+    "operations",
+    "boundaries",
+    "adapters"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

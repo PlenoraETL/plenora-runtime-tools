@@ -1,0 +1,241 @@
+{
+  "contract": "plenora-chain-result-v2",
+  "schema_version": 2,
+  "run_id": "00000000-0000-0000-0000-000000000001",
+  "result_message_id": "00000000-0000-0000-0000-000000000001",
+  "plan_id": "00000000-0000-0000-0000-000000000001",
+  "plan_revision": 1,
+  "plan_digest": "9b5a0a0e9dc989bba5222b0697dc2d1823b7683ad2471dc37a2c55698c694dcb",
+  "state_revision": 1,
+  "state": "succeeded",
+  "started_at": "2026-11-13T12:00:00Z",
+  "finished_at": "2026-11-13T12:00:00Z",
+  "counters": {
+    "memory_bytes": 0,
+    "elapsed_ms": 0,
+    "rows_read": 0,
+    "rows_produced": 0,
+    "artifact_bytes": 0,
+    "spool_bytes": 0,
+    "request_bytes": 0,
+    "result_bytes": 0,
+    "max_attempts": 3
+  },
+  "steps": [
+    {
+      "step_id": "read",
+      "operation": "io.read",
+      "operation_version": 2,
+      "attempt": 1,
+      "state": "succeeded",
+      "input_manifests": {},
+      "outputs": {
+        "dataset": {
+          "artifact_ref": "ref:read",
+          "port": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "primary_geometry": true
+          },
+          "bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "rows": 0,
+          "columns": 0,
+          "producer_step": "read",
+          "attempt": 1,
+          "publication": "confirmed",
+          "lease_ref": "ref:lease",
+          "reports": []
+        }
+      },
+      "remote_effect": "none",
+      "retry": {
+        "kind": "never"
+      },
+      "error": null,
+      "other_errors": [],
+      "reports": [],
+      "counters": {
+        "memory_bytes": 0,
+        "elapsed_ms": 0,
+        "rows_read": 0,
+        "rows_produced": 0,
+        "artifact_bytes": 0,
+        "spool_bytes": 0,
+        "request_bytes": 0,
+        "result_bytes": 0,
+        "max_attempts": 1
+      },
+      "started_at": "2026-11-13T12:00:00Z",
+      "finished_at": "2026-11-13T12:00:00Z",
+      "stop_confirmed": true,
+      "reason": "completed",
+      "upstream_result": {
+        "contract": "plenora-fixture-read-result-v1",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "step_id": "transform",
+      "operation": "data.run",
+      "operation_version": 3,
+      "attempt": 1,
+      "state": "succeeded",
+      "input_manifests": {
+        "dataset": {
+          "artifact_ref": "ref:read",
+          "port": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "primary_geometry": true
+          },
+          "bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "outputs": {
+        "dataset": {
+          "artifact_ref": "ref:transform",
+          "port": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "primary_geometry": true
+          },
+          "bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "rows": 0,
+          "columns": 0,
+          "producer_step": "transform",
+          "attempt": 1,
+          "publication": "confirmed",
+          "lease_ref": "ref:lease",
+          "reports": []
+        }
+      },
+      "remote_effect": "none",
+      "retry": {
+        "kind": "never"
+      },
+      "error": null,
+      "other_errors": [],
+      "reports": [],
+      "counters": {
+        "memory_bytes": 0,
+        "elapsed_ms": 0,
+        "rows_read": 0,
+        "rows_produced": 0,
+        "artifact_bytes": 0,
+        "spool_bytes": 0,
+        "request_bytes": 0,
+        "result_bytes": 0,
+        "max_attempts": 1
+      },
+      "started_at": "2026-11-13T12:00:00Z",
+      "finished_at": "2026-11-13T12:00:00Z",
+      "stop_confirmed": true,
+      "reason": "completed",
+      "upstream_result": {
+        "contract": "plenora-fixture-transform-result-v1",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "step_id": "write",
+      "operation": "database.write",
+      "operation_version": 2,
+      "attempt": 1,
+      "state": "succeeded",
+      "input_manifests": {
+        "dataset": {
+          "artifact_ref": "ref:transform",
+          "port": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "primary_geometry": true
+          },
+          "bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "outputs": {},
+      "remote_effect": "committed",
+      "retry": {
+        "kind": "never"
+      },
+      "error": null,
+      "other_errors": [],
+      "reports": [],
+      "counters": {
+        "memory_bytes": 0,
+        "elapsed_ms": 0,
+        "rows_read": 0,
+        "rows_produced": 0,
+        "artifact_bytes": 0,
+        "spool_bytes": 0,
+        "request_bytes": 0,
+        "result_bytes": 0,
+        "max_attempts": 1
+      },
+      "started_at": "2026-11-13T12:00:00Z",
+      "finished_at": "2026-11-13T12:00:00Z",
+      "stop_confirmed": true,
+      "reason": "completed",
+      "upstream_result": {
+        "contract": "plenora-fixture-write-result-v1",
+        "artifact_ref": "ref:document",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  ],
+  "outputs": {
+    "dataset": {
+      "artifact_ref": "ref:transform",
+      "port": {
+        "contract": "plenora-arrow-interchange-v1",
+        "content_type": "application/vnd.apache.arrow.stream",
+        "cardinality": "one",
+        "required": true,
+        "schema_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "primary_geometry": true
+      },
+      "bytes": 0,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "rows": 0,
+      "columns": 0,
+      "producer_step": "transform",
+      "attempt": 1,
+      "publication": "confirmed",
+      "lease_ref": "ref:lease",
+      "reports": []
+    }
+  },
+  "error": null,
+  "other_errors": [],
+  "remote_effect": "committed",
+  "retry": {
+    "kind": "safe"
+  },
+  "reports": [],
+  "reports_complete": true,
+  "losses": "none",
+  "recovery": {
+    "required": false,
+    "evidence_ref": null,
+    "resumable_steps": []
+  },
+  "delivery": "persisted"
+}
