@@ -5,6 +5,7 @@
 //! docs/contract-alignment.md. A recorded start is never automatically reclaimed.
 #![forbid(unsafe_code)]
 
+mod settlement;
 mod types;
 pub use types::{
     Invocation, Publication, Retention, ScopedKey, StartDecision, StartPermit, StoreError,
@@ -89,6 +90,7 @@ impl PostgresStore {
         let mut client = self.connect().await?;
         let tx = Self::transaction(&mut client).await?;
         tx.batch_execute(include_str!("migration.sql")).await?;
+        tx.batch_execute(include_str!("evidence-v1.sql")).await?;
         let old = tx.query_opt("SELECT version, delivery_seconds, report_seconds FROM plenora_chain_schema WHERE singleton", &[]).await?;
         if let Some(old) = old {
             if old.try_get::<_, i32>(0)? != 1
@@ -126,6 +128,7 @@ impl PostgresStore {
         // Report expiry removes retained data, never the explicit outcome/delivery evidence.
         tx.execute("UPDATE plenora_chain_steps s SET report=NULL, report_expired=true FROM plenora_chain_schema p, plenora_chain_outbox o WHERE p.singleton AND o.id=s.id AND NOT s.report_expired AND s.finished_at + p.report_seconds * interval '1 second' <= clock_timestamp()", &[]).await?;
         tx.execute("UPDATE plenora_chain_outbox o SET payload=''::bytea, expired=(o.expired OR NOT o.delivered), lease=NULL, lease_until=NULL FROM plenora_chain_steps s WHERE s.id=o.id AND s.report_expired AND octet_length(o.payload)>0", &[]).await?;
+        tx.execute("UPDATE plenora_chain_evidence e SET report=NULL FROM plenora_chain_schema p WHERE p.singleton AND e.recorded_at + p.report_seconds * interval '1 second' <= clock_timestamp()", &[]).await?;
         Ok(())
     }
 
@@ -318,6 +321,17 @@ impl PostgresStore {
         let row = tx.query_opt("SELECT fence,finished,result_id,report_digest FROM plenora_chain_steps WHERE id=$1", &[&permit.id]).await?.ok_or(StoreError::Missing)?;
         if row.try_get::<_, String>(0)? != permit.fence {
             return Err(StoreError::StaleFence);
+        }
+        if let Some(evidence) = tx
+            .query_opt(
+                "SELECT version,digest FROM plenora_chain_evidence WHERE id=$1",
+                &[&permit.id],
+            )
+            .await?
+            && (evidence.try_get::<_, i32>(0)? != 1
+                || evidence.try_get::<_, Vec<u8>>(1)? != report_digest)
+        {
+            return Err(StoreError::Conflict);
         }
         if row.try_get::<_, bool>(1)? {
             let payload = tx

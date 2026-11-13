@@ -323,3 +323,46 @@ Rischio: usare queste primitive come prova di un host già cablato o di
 settlement distribuita. Chiusura: prove PostgreSQL verdi sul candidato,
 poi integrazione P2.3/P2.4 e conferma unica P2.5. Nessun claim globale dei
 generici, delle cinque superfici o delle librerie ETL viene promosso.
+
+
+## Profilo negoziato ed evidenze P2.3/P2.4 (candidato non qualificato)
+
+`NegotiatedRuntime` collega l'ammissione P2.1 all'`AcceptanceStore` P2.2:
+richiede v2 senza downgrade, separa i due header esterni dai metadati del dominio,
+ricontrolla acceptance, ammissione e discovery a ogni `send`. `Forward` non crea
+record. Il sender deve fornire il contesto: non esiste ricostruzione dai default.
+Il profilo non sostituisce automaticamente i runner/esempi generici preesistenti.
+
+`register_evidenced` rende un handler invocabile soltanto con autorit? durevole.
+Il wrapper registra l'esito completo prima del controllo output del dispatcher;
+`execute` registra report, identit? risultato e outbox tramite PostgreSQL. Il relay instradato resta da implementare: le primitive claim/confirm P2.2
+non sono una garanzia di consegna al sink corretto.
+L'ACK ? consentito soltanto dopo conferma della finalizzazione locale; consegna
+esterna e conferma broker restano stati distinti. Una chiamata fallita non autorizza
+la ripetizione del dominio. I successi con effetto partial/unknown sono rifiutati.
+
+| Riga | Evidenza nel candidato | Stato e condizione di chiusura |
+|---|---|---|
+| RT-026 | `tests/integration/tests/chain_delivery.rs`: 21 sequenze attraverso il gate prodotto, destinazione v1/assente rifiutata e zero send | Locale provato; integrazione di ogni runner e job broker reale ancora da qualificare |
+| RT-027 | Acceptance PostgreSQL, separazione header, controllo di ogni send; probe NATS reale ignorato collegato al job CI | Non chiuso: nessuna attestazione di esecuzione dei job reali n? cablaggio completo Apalis/DLQ |
+| RT-010 | Errori di componente e limiti arrivano a outbox; perdita simulata della conferma finish e ACK non ripete invoke | Non chiuso: manca il finalizzatore durevole dei rifiuti di ammissione e l'esaurimento dei retry sicuri |
+| RT-019 | Error media type/contratto, correlazione selettiva e messaggio pubblico senza dati nei terminali finalizzati | Non chiuso per i rifiuti che precedono l'autorit? durevole |
+| RT-020 | Nuova identit? del terminale; replay dopo finish conserva identit? e causation=request | Non chiuso: crash fra evidence e finish richiede recovery; manca autorit? recuperabile di sola finalizzazione |
+| RT-024 | Limiti componente/dispatcher/sink con fase ed effetti none/committed/partial/unknown; cleanup e commit simulati; rapporto completo separato dal terminale | Non chiuso: prenotazione esatta del journal e prove backend reale pendenti |
+
+Le deviazioni del candidato sono esplicite: i rifiuti prima di `begin` restano
+errori sincroni, non terminali durevoli; il replay dopo scadenza della deadline ?
+rifiutato dall'ammissione; il crash fra evidence e finish richiede riconciliazione
+senza nuovo invoke. Il retry dichiarato dal componente ? conservato per errori
+ordinari, ma il coordinatore non ne esegue ancora il budget. Le chiavi di
+idempotenza sono rifiutate nell'esecuzione finch? non viene fornito uno scope
+host tenant/operazione distinto dallo scope run/step. Nessuna di queste limitazioni
+promuove una superficie del prodotto a implementata. Chiusura: percorso unico
+per rifiuti, replay e retry, recovery della sola finalizzazione, budget journal
+prenotato e prove NATS/PostgreSQL verdi sul medesimo candidato.
+
+Il relay globale non ? esposto dal candidato: una outbox senza destinazione
+persistita non pu? essere pubblicata su un producer scelto al momento del claim.
+Occorre legare per costruzione il risultato alla route immutabile prima di
+qualificare pubblicazione, risposta broker persa e conferma. I test reali aggiunti
+non attestano ancora questo percorso.

@@ -34,8 +34,15 @@ pub use registry::{
 
 mod error;
 mod lexical;
+mod negotiation;
 mod raw;
+mod settlement;
 mod sink;
+pub use negotiation::{DeliveryRoute, NegotiatedDelivery, NegotiatedRuntime, NegotiatedSendError};
+pub use settlement::{
+    ComponentOutcome, DurableExecutionStore, EvidenceComponent, ExecutionDecision, SettlementError,
+    StoredMessage,
+};
 
 pub use error::{Rejection, ResultEncodingError};
 use plenora_runtime_capabilities::{

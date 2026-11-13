@@ -56,6 +56,21 @@ pub struct CapabilityRegistryBuilder {
 }
 
 impl CapabilityRegistryBuilder {
+    /// Registers a component that supplies explicit phase/effect evidence.
+    /// Only durable execution can invoke this registration.
+    /// # Errors
+    /// Rejects invalid discovery, duplicate selectors or capacity exhaustion.
+    pub fn register_evidenced<H: crate::EvidenceComponent + 'static>(
+        &mut self,
+        discovery: CapabilityDiscovery,
+        handler: H,
+    ) -> Result<CapabilityId, CapabilityRegistryError> {
+        let id = self.register_discovered(discovery, crate::settlement::Unbound)?;
+        if let Some(registration) = self.registrations.get_mut(&id) {
+            registration.evidence = Some(Arc::new(handler));
+        }
+        Ok(id)
+    }
     /// Creates an empty builder with validated capacity.
     ///
     /// # Errors
@@ -297,11 +312,16 @@ impl Error for CapabilityRegistryError {}
 pub(crate) struct CapabilityRegistration {
     handler: Arc<dyn CapabilityHandler>,
     discovery: Option<CapabilityDiscovery>,
+    pub(crate) evidence: Option<Arc<dyn crate::EvidenceComponent>>,
 }
 
 impl CapabilityRegistration {
     fn new(handler: Arc<dyn CapabilityHandler>, discovery: Option<CapabilityDiscovery>) -> Self {
-        Self { handler, discovery }
+        Self {
+            handler,
+            discovery,
+            evidence: None,
+        }
     }
 
     pub(crate) fn handler(&self) -> &dyn CapabilityHandler {

@@ -57,3 +57,27 @@ RuntimeBoundary come decoder e handler, con discovery, AdmissionPolicy, clock e
 sink espliciti. Il dispatch grezzo è privato. WorkerContext.metadata contiene
 solo metadati del messaggio; le osservazioni del broker sono in broker_metadata.
 Vedere [allineamento del profilo](contract-alignment.md#p21b-confine-delle-facciate-esistenti).
+
+
+## API del candidato negoziato e durevole
+
+Le nuove superfici inventariate in `boundary-api.txt` sono classificate cos?:
+
+- `NegotiatedRuntime::new/admit/send`: composizione, ingresso canonico e invio
+  protetto con rilettura autorevole; `NegotiatedDelivery` non ha costruttori
+  pubblici n? accesso mutabile al carrier.
+- `register_evidenced`, `EvidenceComponent`, `ComponentOutcome`: registrazione
+  di adapter con evidenze; il dispatcher ordinario rifiuta le registrazioni non
+  legate a una autorit? durevole.
+- `NegotiatedRuntime::execute`, `DurableExecutionStore`, `ExecutionDecision`:
+  coordinamento e SPI di persistenza, non ingresso grezzo alternativo. Il solo
+  backend di produzione implementato ? PostgreSQL.
+- `StoredMessage::capture/restore/encode`: codec del journal e relay, senza
+  autorit? di ammissione o invocazione.
+- `PostgresStore::record_evidence/evidence_report`: persistenza con fence e
+  recupero del report; nessuno esegue dominio. Il relay instradato resta un gate aperto.
+
+I probe sono in `tests/integration/tests/chain_delivery.rs`. La rilettura ha
+identificato lacune semantiche ancora aperte, registrate in
+[allineamento](contract-alignment.md): l'inventario attesta la superficie
+esaminata, non qualifica il profilo candidato.

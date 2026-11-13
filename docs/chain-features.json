@@ -157,6 +157,19 @@
               "RT-022",
               "RT-027"
             ]
+          },
+          "p2_3_4_candidate": {
+            "implementation": "crates/plenora-runtime-boundary/src/settlement.rs",
+            "tests": "tests/integration/tests/chain_delivery.rs",
+            "scope": "Gate negoziato e settlement con evidenze provati localmente con doppi; backend reali ignorati e collegati alla CI. Candidato incompleto: vedere docs/contract-alignment.md; nessuna superficie promossa.",
+            "rt_register": [
+              "RT-026",
+              "RT-027",
+              "RT-010",
+              "RT-019",
+              "RT-020",
+              "RT-024"
+            ]
           }
         },
         "cli": {
@@ -282,6 +295,19 @@
               "RT-022",
               "RT-027"
             ]
+          },
+          "p2_3_4_candidate": {
+            "implementation": "crates/plenora-runtime-boundary/src/settlement.rs",
+            "tests": "tests/integration/tests/chain_delivery.rs",
+            "scope": "Gate negoziato e settlement con evidenze provati localmente con doppi; backend reali ignorati e collegati alla CI. Candidato incompleto: vedere docs/contract-alignment.md; nessuna superficie promossa.",
+            "rt_register": [
+              "RT-026",
+              "RT-027",
+              "RT-010",
+              "RT-019",
+              "RT-020",
+              "RT-024"
+            ]
           }
         },
         "cli": {
@@ -349,6 +375,19 @@
             "rt_register": [
               "RT-022",
               "RT-027"
+            ]
+          },
+          "p2_3_4_candidate": {
+            "implementation": "crates/plenora-runtime-boundary/src/settlement.rs",
+            "tests": "tests/integration/tests/chain_delivery.rs",
+            "scope": "Gate negoziato e settlement con evidenze provati localmente con doppi; backend reali ignorati e collegati alla CI. Candidato incompleto: vedere docs/contract-alignment.md; nessuna superficie promossa.",
+            "rt_register": [
+              "RT-026",
+              "RT-027",
+              "RT-010",
+              "RT-019",
+              "RT-020",
+              "RT-024"
             ]
           }
         },
@@ -541,6 +580,19 @@
             "rt_register": [
               "RT-022",
               "RT-027"
+            ]
+          },
+          "p2_3_4_candidate": {
+            "implementation": "crates/plenora-runtime-boundary/src/settlement.rs",
+            "tests": "tests/integration/tests/chain_delivery.rs",
+            "scope": "Gate negoziato e settlement con evidenze provati localmente con doppi; backend reali ignorati e collegati alla CI. Candidato incompleto: vedere docs/contract-alignment.md; nessuna superficie promossa.",
+            "rt_register": [
+              "RT-026",
+              "RT-027",
+              "RT-010",
+              "RT-019",
+              "RT-020",
+              "RT-024"
             ]
           }
         },

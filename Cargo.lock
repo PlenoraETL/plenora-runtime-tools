@@ -1319,6 +1319,7 @@ name = "plenora-runtime-chain-store"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "plenora-runtime-boundary",
  "plenora-runtime-capabilities",
  "plenora-runtime-core",
  "plenora-runtime-messaging",
@@ -1415,6 +1416,7 @@ dependencies = [
  "plenora-runtime-apalis",
  "plenora-runtime-boundary",
  "plenora-runtime-capabilities",
+ "plenora-runtime-chain-store",
  "plenora-runtime-core",
  "plenora-runtime-http",
  "plenora-runtime-messaging",

@@ -253,3 +253,16 @@ PostgreSQL reale non disponibile sull'host locale. Rischio: confondere test
 scritti o doppio memoria con qualifica del database. Condizione di chiusura:
 job PostgreSQL verde e gate Linux/Windows sul medesimo candidato; P2.3/P2.4 e
 P2.5 restano necessari per claim end-to-end. Nessun gate non eseguito è passato.
+
+
+## Gate aperto P2.3/P2.4
+
+Regola: tutte le righe RT-026/027 e RT-010/019/020/024 richiedono il percorso
+completo e le prove del progetto. Ambito: facade negoziata, wrapper con evidenze,
+ledger PostgreSQL e relay. I probe locali e i due test reali ignorati si trovano in
+`tests/integration/tests/chain_delivery.rs`; questi ultimi sono collegati ai job
+NATS e PostgreSQL in `.github/workflows/ci.yml`. Non sono stati eseguiti sull'host.
+Rischio: scambiare una primitive testata per un orchestratore qualificato.
+Chiusura: risolvere le lacune elencate nel profilo candidato di
+[allineamento](contract-alignment.md), completare la rilettura indipendente senza
+rilievi aperti e ottenere CI Linux/Windows e servizi reali verdi sul candidato.

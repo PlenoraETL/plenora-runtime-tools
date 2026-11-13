@@ -202,6 +202,12 @@ jobs:
           PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
         run: cargo test -p plenora-runtime-integration-tests --test nats_capability_e2e --locked -- --ignored --nocapture
 
+      - name: Run product negotiation and settlement over real NATS
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+          CARGO_BUILD_JOBS: 2
+        run: cargo test -p plenora-runtime-integration-tests --test chain_delivery --locked nats_real_product -- --ignored --nocapture
+
       - name: Collect NATS logs on failure
         if: failure() && steps.nats.outputs.run_id != ''
         shell: pwsh
@@ -244,6 +250,8 @@ jobs:
           echo "PLENORA_POSTGRES_URL=host=127.0.0.1 port=$port user=postgres password=ephemeral-ci-only dbname=chain_store" >> "$GITHUB_ENV"
       - name: Run real race crash restart retention and authority tests
         run: cargo test -p plenora-runtime-chain-store --locked postgres_real -- --ignored --nocapture
+      - name: Run product PostgreSQL evidence and settlement tests
+        run: cargo test -p plenora-runtime-integration-tests --test chain_delivery --locked postgres_real_product -- --ignored --nocapture
       - name: Remove ephemeral PostgreSQL and its volume
         if: always()
         run: docker rm -fv "$POSTGRES_CONTAINER"

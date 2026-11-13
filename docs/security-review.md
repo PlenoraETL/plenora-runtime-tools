@@ -186,3 +186,18 @@ non viene riemesso dopo restart; un'intenzione pendente richiede riconciliazione
 Condizione di chiusura: profilo deployment autenticato/TLS, failover e recovery
 provati, monitoraggio capacità/readiness, gate PostgreSQL sul candidato e
 integrazione dell'host P2.3/P2.4. Nessuna qualifica di produzione è attestata.
+
+
+## Candidato P2.3/P2.4: rischi residui del settlement
+
+Regola: ogni terminale deve restare recuperabile e nessuna perdita di risposta
+pu? autorizzare nuova mutazione. Ambito: `NegotiatedRuntime::execute` e ledger
+supplementare PostgreSQL. Un crash dopo evidence ma prima di finish lascia
+l'esecuzione in recovery, senza autorit? pubblica per ripetere il dominio; la sola
+finalizzazione recuperabile ? ancora da implementare. I rifiuti di ammissione
+non hanno ancora una outbox. Il carrier JSON del journal pu? superare il limite
+64 MiB per l'espansione dei byte: il backend rifiuta esplicitamente, ma manca una
+prenotazione che garantisca il report completo dopo un effetto remoto. Chiusura:
+autorit? di sola finalizzazione, terminali pre-invocazione durevoli e budget
+serializzato esatto qualificati con crash e limiti reali. Il profilo non ? pronto
+per un host di produzione; nessun gate di rilascio ? promosso da questi test locali.
