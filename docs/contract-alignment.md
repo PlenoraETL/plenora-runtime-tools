@@ -401,10 +401,10 @@ esplicitamente dichiarati. Sono presenti journal PostgreSQL, scope host
 (tenant, chain.submit@2, chiave), CAS, evidenza originale conservata prima della
 classificazione, cancel richiesto distinto da stop e recovery senza replay.
 Le prove locali sono in crates/plenora-runtime-chains/tests/sequential.rs e
-crates/plenora-runtime-chain-python/tests/test_installed.py. Non chiudono RT-022
-nel runtime durevole preesistente, che continua a rifiutare le chiavi.
+crates/plenora-runtime-chain-python/tests/test_installed.py. Il passo P1.4a descritto sotto collega ora host e step al runtime durevole;
+non chiude la qualifica complessiva delle cinque superfici.
 
-Deviazioni esplicite: un solo tentativo, facciate del harness senza boundary,
+Deviazioni esplicite: un solo tentativo, adapter delle facciate ancora scriptati,
 qualifica incompleta delle opzioni CLI e del modello errori,
 classificazione degli errori delle facciate ancora sperimentale. Rischio:
 scambiare la presenza dei metodi per parita qualificata. Chiusura: gate
@@ -441,5 +441,37 @@ Non qualifica abort/drop esterno del server, JetStream o settlement del prodotto
 JSON-lines e iteratori Python lo riusano. Il codec Request JSON ammette i controlli
 Python senza coercizioni numeriche PyO3. Le nuove forme CLI mappano soltanto le
 Request esistenti. Le celle di inventario restano senza promozione: integrazione
-boundary/dispatcher durevole, retry/worker, risorse, modello completo degli errori,
+retry/worker, risorse, modello completo degli errori,
 RT end-to-end e crash matrix completa restano condizioni di chiusura del gate.
+
+### P1.4a: unico percorso durevole di host e step
+
+Regola: ogni invocazione usa ammissione, wrapper e settlement P2.3/P2.4.
+Ambito: ScriptedHost possiede soltanto DurableRuntime; ChainEngine possiede un
+StepExecutor concreto privato, senza adapter invocabile o executor sostituibile.
+Solo i componenti EvidenceComponent registrati possono invocare adapter e
+controlli; prepare/artifact restano la vista limitata delle risorse. Guardie AST
+e compile-fail impediscono il ritorno al percorso diretto del candidato.
+
+RT-022 usa lookup/CAS primario e binding distinto dall'identita della ricevuta:
+(tenant fidato, capability, operazione, versione, chiave). Il replay conserva
+contratto/output e ricollega soltanto identita/correlazione/causazione; non concede
+un nuovo tentativo. Il tenant non viene dal messaggio. Submit e run con la stessa
+chiave sono operazioni distinte. La migrazione aggiunge il registro delle chiavi;
+retention 7/90 giorni, puntatore eliminabile dopo retention e tombstone permanenti.
+
+PrimaryResultSink conferma la disponibilita del terminale immutabile sul primario
+per lettura locale: non certifica un ack JetStream. La risposta NATS osserva quel
+risultato gia persistito; non costituisce un secondo settlement. Il carrier remoto
+conserva identita, metadati e negoziazione del client. L'assenza del primario causa
+Storage anche nelle funzioni di lettura, senza fallback fuori dal dispatcher.
+
+Prove locali: chains/tests/sequential.rs, chain-host/tests/support/host.rs e
+architecture/tests/chain_dispatch.rs nei rispettivi crate/test workspace. Le prove
+PostgreSQL/NATS di chain-host/tests/remote.rs sono ignorate localmente e cablate
+nel job postgres-integration esistente, su database chain_surfaces.
+Rischio residuo: adapter scriptati e sink locale non qualificano librerie reali,
+trasporto P2.5 o parita completa RT/catalogo. Un rifiuto durevole dello step dopo
+la registrazione dell'intento puo restare Recovery esplicito, senza consultare
+il fake o ripetere il dominio. Chiusura: passi successivi, stati completi e CI
+Linux/Windows; nessuna promozione delle celle di prodotto in questo passo.

@@ -224,8 +224,16 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
                     for k in DLQ_KEYS {
                         let _ = input.headers.remove(k);
                     }
-                    let admitted = match self.negotiated.admit_async(&input, route).await {
-                        Ok(d) => d,
+                    let admitted = match self.admit_or_replay(&input, route, &journal).await {
+                        Ok(Admission::Invoke(d)) => *d,
+                        Ok(Admission::Replay(p, origin)) => {
+                            (journal, now) = self
+                                .negotiated
+                                .store
+                                .change(&key, journal.revision(), DeliveryChange::Reuse(*p, origin))
+                                .await?;
+                            continue;
+                        }
                         Err(error) => {
                             let rejection = match error {
                                 crate::NegotiatedSendError::Storage => return Err(SettlementError),
@@ -241,15 +249,6 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
                             continue;
                         }
                     };
-                    let reject = if admitted
-                        .admitted()
-                        .metadata()
-                        .contains_key(IDEMPOTENCY_KEY_METADATA_KEY)
-                    {
-                        Some(Category::Unsupported)
-                    } else {
-                        None
-                    };
                     let registration = self
                         .negotiated
                         .boundary
@@ -258,11 +257,10 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
                         .registration(admitted.admitted().request().capability());
                     let component = registration.and_then(|r| r.evidence.clone());
                     let discovery = registration.and_then(|r| r.discovery().cloned());
-                    if let Some(category) = reject.or_else(|| {
-                        (component.is_none()
-                            || select_runtime_destination(V2, discovery.as_ref()).is_err())
-                        .then_some(Category::Unsupported)
-                    }) {
+                    if component.is_none()
+                        || select_runtime_destination(V2, discovery.as_ref()).is_err()
+                    {
+                        let category = Category::Unsupported;
                         let p = prepared_rejection(
                             Rejection::new(category, &reflection(message)),
                             &journal,
@@ -397,6 +395,224 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
             .await?;
         Ok(true)
     }
+    /// Execute and confirm the actual terminal receipt, including distinct conflict receipts.
+    /// The immutable result route may represent durable local pull delivery rather than a broker.
+    /// # Errors
+    /// Unconfirmed processing, authoritative readback or route publication prevents success.
+    pub async fn process_confirmed(
+        &self,
+        message: &SerializedMessage,
+        route: DeliveryRoute,
+        context: WorkerContext,
+    ) -> Result<PreparedResult, SettlementError> {
+        let terminal = self.process(message, route, context).await?;
+        let id = terminal
+            .headers
+            .get_text(ID)
+            .map_err(|_| SettlementError)?
+            .ok_or(SettlementError)?;
+        let prefix = format!("{}:{}:", self.scope.len(), self.scope);
+        let (key, journal) = self.negotiated.store.result_receipt(&prefix, id).await?;
+        let prepared = journal.evidence().cloned().ok_or(SettlementError)?;
+        if prepared.message()? != terminal {
+            return Err(SettlementError);
+        }
+        self.relay(&key).await?;
+        Ok(prepared)
+    }
+
+    /// Inspect the original exact receipt before a separately admitted reconciliation read.
+    /// # Errors
+    /// Missing, changed or expired receipts are never evidence that invocation did not happen.
+    pub async fn receipt_state(
+        &self,
+        message: &SerializedMessage,
+    ) -> Result<(DeliveryStage, u16), SettlementError> {
+        let (j, now) = self.negotiated.store.load(&self.key(message)).await?;
+        j.verify(fingerprint(message), &self.plan)?;
+        if j.expired(now) {
+            return Err(SettlementError);
+        }
+        Ok((j.stage(), j.attempt()))
+    }
+
+    /// Read complete confirmed evidence for the exact original carrier, without invoking anything.
+    /// # Errors
+    /// Missing, running, conflicting or expired receipts never authorize a fresh invocation.
+    pub async fn evidence(
+        &self,
+        message: &SerializedMessage,
+    ) -> Result<PreparedResult, SettlementError> {
+        let (j, now) = self.negotiated.store.load(&self.key(message)).await?;
+        j.verify(fingerprint(message), &self.plan)?;
+        if j.expired(now) || !matches!(j.stage(), DeliveryStage::Evidence | DeliveryStage::Finished)
+        {
+            return Err(SettlementError);
+        }
+        j.evidence().cloned().ok_or(SettlementError)
+    }
+
+    #[allow(clippy::too_many_lines)] // Ordered admission and alias lookup share one fail-closed path.
+    async fn admit_or_replay(
+        &self,
+        message: &SerializedMessage,
+        route: DeliveryRoute,
+        receipt: &DeliveryJournal,
+    ) -> Result<Admission, crate::NegotiatedSendError> {
+        use crate::{IdempotencyOpen, NegotiatedSendError as E};
+        if !message.headers.contains_key(IDEMPOTENCY_KEY_METADATA_KEY)
+            && !message.raw_metadata().is_some_and(|fields| {
+                fields
+                    .iter()
+                    .any(|(k, _)| k == IDEMPOTENCY_KEY_METADATA_KEY)
+            })
+        {
+            return self
+                .negotiated
+                .admit_async(message, route)
+                .await
+                .map(|d| Admission::Invoke(Box::new(d)));
+        }
+        // Identical raw/discovery/policy/negotiation checks, but lookup may recover a terminal
+        // past its original execution deadline. This admission is never sent to a dispatcher.
+        let lookup = NegotiatedRuntime::new(
+            self.negotiated.boundary.for_replay(),
+            self.negotiated.store.clone(),
+        );
+        let checked = match lookup.inspect(message) {
+            Ok(checked) => checked,
+            Err(E::Storage) => return Err(E::Storage),
+            Err(_) => {
+                return self
+                    .negotiated
+                    .admit_async(message, route)
+                    .await
+                    .map(|d| Admission::Invoke(Box::new(d)));
+            }
+        };
+        let request = checked.request();
+        let key = checked
+            .metadata()
+            .get_text(IDEMPOTENCY_KEY_METADATA_KEY)
+            .map_err(|_| E::Storage)?
+            .ok_or(E::Storage)?;
+        let selector = serde_json::to_vec(&(
+            &self.scope,
+            request.capability().name(),
+            request.operation().as_str(),
+            request.operation_version().get(),
+            key,
+        ))
+        .map_err(|_| E::Storage)?;
+        let alias = format!("{:x}", Sha256::digest(selector));
+        let mut semantic = checked.raw.clone();
+        semantic.bytes = self
+            .negotiated
+            .boundary
+            .policy
+            .idempotency_payload(request)
+            .map_err(|category| E::Admission(Rejection::new(category, &reflection(message))))?
+            .into();
+        for field in [
+            ID,
+            plenora_runtime_messaging::CORRELATION_ID_METADATA_KEY,
+            plenora_runtime_messaging::CAUSATION_ID_METADATA_KEY,
+        ] {
+            let _ = semantic.headers.remove(field);
+        }
+        let binding = fingerprint(&semantic);
+        let mut selected = self
+            .negotiated
+            .store
+            .idempotency(&alias, binding, None)
+            .await
+            .map_err(|_| E::Storage)?;
+        let mut admitted = None;
+        if matches!(selected, IdempotencyOpen::Absent) {
+            admitted = Some(self.negotiated.admit_async(message, route).await?);
+            selected = self
+                .negotiated
+                .store
+                .idempotency(
+                    &alias,
+                    binding,
+                    Some(crate::IdempotencyReceipt {
+                        key: self.key(message),
+                        binding: fingerprint(message),
+                    }),
+                )
+                .await
+                .map_err(|_| E::Storage)?;
+        }
+        let original = match selected {
+            IdempotencyOpen::Selected(original) => original,
+            IdempotencyOpen::Conflict => {
+                return Err(E::Admission(Rejection::new(
+                    Category::Conflict,
+                    &reflection(message),
+                )));
+            }
+            IdempotencyOpen::Absent => return Err(E::Storage),
+        };
+        if original.key == self.key(message) {
+            return match admitted {
+                Some(d) => Ok(Admission::Invoke(Box::new(d))),
+                None => self
+                    .negotiated
+                    .admit_async(message, route)
+                    .await
+                    .map(|d| Admission::Invoke(Box::new(d))),
+            };
+        }
+        // Only a confirmed alias permits deadline-exempt negotiation acceptance for this receipt.
+        lookup.admit_async(message, route).await?;
+        let original_key = original.key.clone();
+        let (mut original_receipt, original_now) = self
+            .negotiated
+            .store
+            .load(&original_key)
+            .await
+            .map_err(|_| E::Storage)?;
+        original_receipt
+            .verify(original.binding, &self.plan)
+            .map_err(|_| E::Storage)?;
+        if original_receipt.expired(original_now) {
+            return Err(E::Storage);
+        }
+        if original_receipt.stage() == DeliveryStage::Evidence {
+            (original_receipt, _) = self
+                .negotiated
+                .store
+                .change(
+                    &original_key,
+                    original_receipt.revision(),
+                    DeliveryChange::Settle,
+                )
+                .await
+                .map_err(|_| E::Storage)?;
+        }
+        if original_receipt.stage() != DeliveryStage::Finished {
+            return Err(E::Storage);
+        }
+        let mut prepared = original_receipt.evidence().cloned().ok_or(E::Storage)?;
+        let mut terminal = prepared.message().map_err(|_| E::Storage)?;
+        for (k, v) in fixed_metadata(&reflection(message), receipt.result_id()) {
+            if matches!(
+                k.as_str(),
+                ID | plenora_runtime_messaging::CORRELATION_ID_METADATA_KEY
+                    | plenora_runtime_messaging::CAUSATION_ID_METADATA_KEY
+            ) {
+                terminal
+                    .headers
+                    .insert_text(k, v.as_str().ok_or(E::Storage)?)
+                    .map_err(|_| E::Storage)?;
+            }
+        }
+        prepared.terminal = StoredMessage::capture(&terminal).map_err(|_| E::Storage)?;
+        prepared.retry_ms = None;
+        Ok(Admission::Replay(Box::new(prepared), original))
+    }
+
     /// Bounded recovery of evidence/outbox rows; suitable for the host relay task after restart.
     /// # Errors
     /// Any unconfirmed item remains pending and the caller must report degraded readiness.
@@ -437,6 +653,10 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
             .await
             .map_err(|_| SettlementError)
     }
+}
+enum Admission {
+    Invoke(Box<crate::NegotiatedDelivery>),
+    Replay(Box<PreparedResult>, crate::IdempotencyReceipt),
 }
 struct Wrapper<S: DurableExecutionStore> {
     component: Arc<dyn EvidenceComponent>,
@@ -636,6 +856,7 @@ async fn render(
         retry_ms = None;
     }
     Ok(PreparedResult {
+        reuse_origin: None,
         report,
         terminal: StoredMessage::capture(&terminal)?,
         retry_ms,
@@ -683,6 +904,7 @@ fn prepared_rejection(
         .map_err(|_| SettlementError)?;
     externalize(&mut m)?;
     Ok(PreparedResult {
+        reuse_origin: None,
         report: serde_json::to_value(r).map_err(|_| SettlementError)?,
         terminal: StoredMessage::capture(&m)?,
         retry_ms: None,

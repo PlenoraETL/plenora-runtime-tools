@@ -59,18 +59,18 @@ pub trait Adapter: Send + Sync + 'static {
     async fn recover(&self, invocation: &Invocation) -> Result<Option<StepResult>, Error>;
 }
 /// Sequential engine over a durable primary and frozen registry.
-pub struct ChainEngine<S, A> {
+pub struct ChainEngine<S: plenora_runtime_boundary::DurableExecutionStore> {
     store: Arc<S>,
-    adapter: Arc<A>,
     registry: Registry,
     clock: Arc<dyn Clock>,
     tenant: String,
+    executor: crate::execution::StepExecutor<S>,
 }
-impl<S: Store, A: Adapter> ChainEngine<S, A> {
+impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> {
     /// Bind trusted tenant policy and a frozen independently obtained registry.
     /// # Errors
     /// Refuses noncanonical tenant scope or malformed registry.
-    pub fn new(
+    pub fn new<A: Adapter>(
         store: Arc<S>,
         adapter: Arc<A>,
         registry: Registry,
@@ -81,9 +81,16 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
             return Err(Error::Invalid);
         }
         parse_registry(&encode(&registry)?)?;
-        Ok(Self {
-            store,
+        let executor = crate::execution::StepExecutor::new(
+            store.clone(),
             adapter,
+            &registry,
+            clock.clone(),
+            tenant,
+        )?;
+        Ok(Self {
+            executor,
+            store,
             registry,
             clock,
             tenant: tenant.into(),
@@ -200,7 +207,7 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
         if !crate::uuid(id) {
             return Err(Error::Invalid);
         }
-        let j = self.store.load(&self.tenant, id).await?;
+        let j = Store::load(self.store.as_ref(), &self.tenant, id).await?;
         if j.tenant != self.tenant || j.run_id() != id || j.registry != encode(&self.registry)? {
             return Err(Error::Conflict);
         }
@@ -271,7 +278,7 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
             return Err(Error::Invalid);
         }
         let bytes = self
-            .adapter
+            .executor
             .artifact(&self.tenant, reference, 1024 * 1024)
             .await?;
         if bytes.len() > 1024 * 1024 {
@@ -306,65 +313,7 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
         view: &ChainResult,
         intent: &Intent,
     ) -> Result<Invocation, Error> {
-        let step = plan.steps.get(intent.index).ok_or(Error::Invalid)?.clone();
-        let mut inputs = BTreeMap::new();
-        for (name, binding) in &step.inputs {
-            let input = match &binding.source {
-                Source::Variant0(s) => plan.inputs.get(&s.input).ok_or(Error::Invalid)?.clone(),
-                Source::Variant1(s) => {
-                    let producer = view
-                        .steps
-                        .iter()
-                        .find(|p| p.step_id == s.step && p.state == "succeeded")
-                        .ok_or(Error::Recovery)?;
-                    let a = producer.outputs.get(&s.port).ok_or(Error::Recovery)?;
-                    Input {
-                        artifact_ref: a.artifact_ref.clone(),
-                        port: a.port.clone(),
-                        bytes: a.bytes,
-                        sha256: a.sha256.clone(),
-                    }
-                }
-            };
-            inputs.insert(name.clone(), input);
-        }
-        // All handoffs remain retained for recovery. Aliased fan-out never copies a manifest's bytes.
-        let mut retained = BTreeMap::new();
-        for input in plan.inputs.values() {
-            if let Some((bytes, digest)) =
-                retained.insert(&input.artifact_ref, (input.bytes, &input.sha256))
-                && (bytes != input.bytes || digest != &input.sha256)
-            {
-                return Err(Error::Conflict);
-            }
-        }
-        for a in view.steps.iter().flat_map(|s| s.outputs.values()) {
-            if let Some((bytes, digest)) = retained.insert(&a.artifact_ref, (a.bytes, &a.sha256))
-                && (bytes != a.bytes || digest != &a.sha256)
-            {
-                return Err(Error::Conflict);
-            }
-        }
-        let retained = retained.values().try_fold(0_u64, |sum, (bytes, _)| {
-            sum.checked_add(*bytes).ok_or(Error::ResourceLimit)
-        })?;
-        let reservation = Reservation::new(
-            &plan.budgets,
-            &step.budgets,
-            &view.counters,
-            retained,
-            intent.started,
-            intent.deadline,
-        )?;
-        Ok(Invocation {
-            tenant: self.tenant.clone(),
-            run_id: j.options.run_id.clone(),
-            message_id: intent.message_id.clone(),
-            step,
-            inputs,
-            reservation,
-            started_ms: intent.started,
-        })
+        resolve_invocation(&self.tenant, j.run_id(), plan, view, intent)
     }
     /// Advance at most one sequential step. An active intention never grants another invocation.
     /// # Errors
@@ -418,7 +367,7 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
             Ok(i) => i,
             Err(e) => return self.reject(j, index, e).await,
         };
-        if let Err(e) = self.adapter.prepare(&invocation).await {
+        if let Err(e) = self.executor.prepare(&invocation).await {
             return self.reject(j, index, e).await;
         }
         if self.now()? >= invocation.reservation.deadline_ms {
@@ -428,7 +377,7 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
         let started = self
             .save_step(j, "step_state", "running", Some(&invocation.step.id))
             .await?;
-        match self.adapter.invoke(&invocation).await {
+        match self.executor.invoke(&started).await {
             Ok(evidence) => self.complete(&started, &invocation, evidence).await,
             Err(_) => Err(Error::Recovery),
         }
@@ -612,13 +561,8 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
             self.save(j, "cancel_requested", "cancel_requested").await?
         };
         if let Some(intent) = &j.active {
-            let invocation = self.invocation(
-                &j,
-                &parse_plan(&j.plan)?,
-                &parse_result(&intent.prior)?,
-                intent,
-            )?;
-            self.adapter.request_cancel(&invocation).await?;
+            let _ = intent;
+            self.executor.cancel(&j).await?;
         }
         j.handle()
     }
@@ -646,11 +590,7 @@ impl<S: Store, A: Adapter> ChainEngine<S, A> {
             {
                 return self.complete(&j, &invocation, evidence).await;
             }
-            let evidence = self
-                .adapter
-                .recover(&invocation)
-                .await?
-                .ok_or(Error::Recovery)?;
+            let evidence = self.executor.recover(&j).await?.ok_or(Error::Recovery)?;
             return self.complete(&j, &invocation, evidence).await;
         }
         if j.terminal {
@@ -877,4 +817,72 @@ fn summarize(view: &mut ChainResult, plan: &Plan, now: u64, revision: u64) -> Re
     }
     .into();
     Ok(())
+}
+
+pub(crate) fn resolve_invocation(
+    tenant: &str,
+    run_id: &str,
+    plan: &Plan,
+    view: &ChainResult,
+    intent: &Intent,
+) -> Result<Invocation, Error> {
+    let step = plan.steps.get(intent.index).ok_or(Error::Invalid)?.clone();
+    let mut inputs = BTreeMap::new();
+    for (name, binding) in &step.inputs {
+        let input = match &binding.source {
+            Source::Variant0(s) => plan.inputs.get(&s.input).ok_or(Error::Invalid)?.clone(),
+            Source::Variant1(s) => {
+                let producer = view
+                    .steps
+                    .iter()
+                    .find(|p| p.step_id == s.step && p.state == "succeeded")
+                    .ok_or(Error::Recovery)?;
+                let a = producer.outputs.get(&s.port).ok_or(Error::Recovery)?;
+                Input {
+                    artifact_ref: a.artifact_ref.clone(),
+                    port: a.port.clone(),
+                    bytes: a.bytes,
+                    sha256: a.sha256.clone(),
+                }
+            }
+        };
+        inputs.insert(name.clone(), input);
+    }
+    // All handoffs remain retained for recovery. Aliased fan-out never copies a manifest's bytes.
+    let mut retained = BTreeMap::new();
+    for input in plan.inputs.values() {
+        if let Some((bytes, digest)) =
+            retained.insert(&input.artifact_ref, (input.bytes, &input.sha256))
+            && (bytes != input.bytes || digest != &input.sha256)
+        {
+            return Err(Error::Conflict);
+        }
+    }
+    for a in view.steps.iter().flat_map(|s| s.outputs.values()) {
+        if let Some((bytes, digest)) = retained.insert(&a.artifact_ref, (a.bytes, &a.sha256))
+            && (bytes != a.bytes || digest != &a.sha256)
+        {
+            return Err(Error::Conflict);
+        }
+    }
+    let retained = retained.values().try_fold(0_u64, |sum, (bytes, _)| {
+        sum.checked_add(*bytes).ok_or(Error::ResourceLimit)
+    })?;
+    let reservation = Reservation::new(
+        &plan.budgets,
+        &step.budgets,
+        &view.counters,
+        retained,
+        intent.started,
+        intent.deadline,
+    )?;
+    Ok(Invocation {
+        tenant: tenant.to_owned(),
+        run_id: run_id.to_owned(),
+        message_id: intent.message_id.clone(),
+        step,
+        inputs,
+        reservation,
+        started_ms: intent.started,
+    })
 }

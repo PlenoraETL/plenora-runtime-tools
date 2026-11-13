@@ -12,11 +12,21 @@
 //!     let _ = plenora_runtime_chains::Submission(journal);
 //! }
 //! ```
+//! The concrete step executor cannot be supplied or replaced by callers:
+//! ```compile_fail
+//! use plenora_runtime_chains::execution::StepExecutor;
+//! ```
+//! A chain store alone cannot construct an engine without the durable runtime store contract:
+//! ```compile_fail
+//! use plenora_runtime_chains::{ChainEngine, Store};
+//! fn bypass<S: Store>(_: ChainEngine<S>) {}
+//! ```
 #![forbid(unsafe_code)]
 
 mod budget;
 mod client;
 mod engine;
+mod execution;
 mod journal;
 mod protocol;
 

@@ -10,6 +10,11 @@ publish = false
 [dependencies]
 plenora-runtime-chain-contracts = { version = "=0.1.0", path = "../plenora-runtime-chain-contracts" }
 plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+# The executor is concretely composed from the protected dispatcher and its durable store.
+plenora-runtime-boundary = { version = "=0.1.0", path = "../plenora-runtime-boundary" }
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../plenora-runtime-capabilities" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+plenora-runtime-worker = { version = "=0.1.0", path = "../plenora-runtime-worker" }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true

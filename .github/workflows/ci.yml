@@ -299,7 +299,10 @@ jobs:
       - name: Run scripted facade over real NATS
         env:
           PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}
-        run: cargo test -p plenora-runtime-chain-host --test remote --locked -- --ignored --nocapture
+        shell: bash
+        run: |
+          PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_surfaces}" \
+            cargo test -p plenora-runtime-chain-host --test remote --locked -- --ignored --nocapture
       - name: Run product PostgreSQL and NATS settlement tests
         env:
           PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}

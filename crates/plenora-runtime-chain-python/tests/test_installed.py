@@ -42,8 +42,15 @@ class Installed(unittest.IsolatedAsyncioTestCase):
     def test_catalog_is_enumerated_exactly(self):
         self.assertEqual(set(FUNCTIONS), set(CASES))
         client = Client(CONFIG)
-        self.assertEqual(client.artifact(reference="ref:fixture"), [0, 1, 2, 255])
-        self.assertEqual(client.validate(plan=PLAN)["order"], ["read", "transform", "write"])
+        if os.environ.get("PLENORA_POSTGRES_URL"):
+            client.migrate()
+            self.assertEqual(client.artifact(reference="ref:fixture"), [0, 1, 2, 255])
+            self.assertEqual(client.validate(plan=PLAN)["order"], ["read", "transform", "write"])
+        else:
+            for function, arguments in [("artifact", {"reference":"ref:fixture"}), ("validate", {"plan":PLAN})]:
+                with self.assertRaises(ChainError) as caught:
+                    client.call(function, **arguments)
+                self.assertEqual(caught.exception.code, "storage")
 
     async def test_sync_async_error_parity_for_every_function(self):
         sync = Client(CONFIG)
@@ -51,7 +58,7 @@ class Installed(unittest.IsolatedAsyncioTestCase):
         for name, arguments in CASES.items():
             with self.subTest(function=name):
                 try:
-                    expected = getattr(sync, name)(**arguments)
+                    expected = await asyncio.to_thread(getattr(sync, name), **arguments)
                 except ChainError as error:
                     with self.assertRaises(ChainError) as caught:
                         await getattr(asynchronous, name)(**arguments)
@@ -111,7 +118,11 @@ class Installed(unittest.IsolatedAsyncioTestCase):
         heartbeat_task = asyncio.create_task(heartbeat())
         try:
             for _ in range(20):
-                await client.validate(plan=PLAN)
+                try:
+                    await client.validate(plan=PLAN)
+                except ChainError as error:
+                    self.assertFalse(os.environ.get("PLENORA_POSTGRES_URL"))
+                    self.assertEqual(error.code, "storage")
         finally:
             running = False
             await heartbeat_task
@@ -129,8 +140,9 @@ class Installed(unittest.IsolatedAsyncioTestCase):
             )
             reply = json.loads(completed.stdout)
             self.assertEqual(completed.stderr, "")
-            self.assertEqual(completed.returncode, 0 if name == "capabilities" else 2)
-            self.assertEqual(reply["error"], None if name == "capabilities" else "invalid")
+            expected_error = (None if name == "capabilities" else "invalid") if os.environ.get("PLENORA_POSTGRES_URL") else "storage"
+            self.assertEqual(completed.returncode, 6 if expected_error == "storage" else (0 if expected_error is None else 2))
+            self.assertEqual(reply["error"], expected_error)
 
 
     @unittest.skipUnless(os.environ.get("PLENORA_CHAIN_BIN"), "requires installed binary path")
@@ -159,8 +171,9 @@ class Installed(unittest.IsolatedAsyncioTestCase):
                     "--config", str(config_path), "--json"], text=True, encoding="utf-8",
                     capture_output=True, check=False)
                 self.assertEqual(completed.stderr, "")
-                self.assertEqual(completed.returncode, 0 if name == "capabilities" else 2)
-                self.assertEqual(json.loads(completed.stdout)["error"], None if name == "capabilities" else "invalid")
+                expected_error = (None if name == "capabilities" else "invalid") if os.environ.get("PLENORA_POSTGRES_URL") else "storage"
+                self.assertEqual(completed.returncode, 6 if expected_error == "storage" else (0 if expected_error is None else 2))
+                self.assertEqual(json.loads(completed.stdout)["error"], expected_error)
         finally:
             config_path.unlink()
             invalid_plan.unlink()

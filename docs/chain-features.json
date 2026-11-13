@@ -3618,8 +3618,8 @@
           },
           "specification": "docs/specs/CHAIN-PLAN-2.0.md",
           "incremental_evidence": {
-            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
-            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "tests": "crates/plenora-runtime-chain-host/tests/support/host.rs; crates/plenora-runtime-chains/tests/sequential.rs; tests/architecture/tests/chain_dispatch.rs",
+            "scope": "P1.4a: host e step attraverso DurableRuntime; RT-022 tenant/operazione, replay, conflitto, race e retention su fake dichiarato; nessuna promozione",
             "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
@@ -3665,7 +3665,12 @@
             "limit": "chiave vuota/oltre bound; race e restart",
             "effect": "assenza esito non prova none; niente dedup remota inventata"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chain-host/tests/support/host.rs; crates/plenora-runtime-chains/tests/sequential.rs; tests/architecture/tests/chain_dispatch.rs",
+            "scope": "P1.4a: host e step attraverso DurableRuntime; RT-022 tenant/operazione, replay, conflitto, race e retention su fake dichiarato; nessuna promozione",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         }
       }
     },

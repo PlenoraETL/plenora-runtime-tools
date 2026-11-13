@@ -1,5 +1,5 @@
 //! Closed facade dispatch. Bindings never duplicate orchestration.
-use crate::{Adapter, ChainEngine, Error, RunOptions, Store, contracts::parse_plan};
+use crate::{ChainEngine, Error, RunOptions, Store, contracts::parse_plan};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -96,7 +96,7 @@ pub struct Response {
     /// Data-free coordination failure.
     pub error: Option<Error>,
 }
-impl<S: Store, A: Adapter> ChainEngine<S, A> {
+impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> {
     /// Dispatch through the shared engine, retaining domain failures separately from transport errors.
     pub async fn execute(&self, request: Request) -> Response {
         let is_run = matches!(request, Request::Run { .. });

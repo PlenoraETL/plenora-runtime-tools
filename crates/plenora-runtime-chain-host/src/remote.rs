@@ -1,4 +1,4 @@
-//! Explicit scripted request/reply harness. Durable domain settlement remains a separate gate.
+//! Remote observation of the durable scripted host; local pull settlement is not a broker ack.
 use crate::ScriptedHost;
 use async_trait::async_trait;
 use futures_util::StreamExt;
@@ -39,6 +39,10 @@ impl RemoteClient {
         if bytes.len() > 1024 * 1024 {
             return Err(Error::ResourceLimit);
         }
+        let request: Request = serde_json::from_slice(&bytes).map_err(|_| Error::Invalid)?;
+        let message = crate::control::message(request)?;
+        let bytes = serde_json::to_vec(&crate::control::Wire::capture(&message))
+            .map_err(|_| Error::Invalid)?;
         let reply = tokio::time::timeout(
             Duration::from_secs(10),
             self.client.request(self.subject.clone(), bytes.into()),
@@ -82,7 +86,7 @@ impl ScriptedHost {
             let client = remote.client.clone();
             async move {
                 let reply = message.reply.ok_or(Error::Invalid)?;
-                let response = host.call(&message.payload).await;
+                let response = host.call_wire(&message.payload).await;
                 let mut bytes = serde_json::to_vec(&response).map_err(|_| Error::Invalid)?;
                 if bytes.len() > 1024 * 1024 {
                     bytes = serde_json::to_vec(&Response {

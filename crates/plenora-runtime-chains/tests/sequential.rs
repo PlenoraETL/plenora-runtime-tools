@@ -7,88 +7,20 @@ use plenora_runtime_chains::{
 use plenora_runtime_core::Clock;
 use plenora_runtime_testkit::ManualClock;
 use std::{
-    collections::BTreeMap,
     error::Error as StdError,
     sync::{
-        Arc, Mutex,
+        Arc,
         atomic::{AtomicUsize, Ordering},
     },
     time::{Duration, UNIX_EPOCH},
 };
 
-#[derive(Default)]
-struct ScriptStore(Mutex<BTreeMap<(String, String), Journal>>);
-#[async_trait]
-impl Store for ScriptStore {
-    async fn lookup(
-        &self,
-        tenant: &str,
-        id: &str,
-        key: Option<&str>,
-    ) -> Result<Option<Journal>, Error> {
-        let rows = self.0.lock().map_err(|_| Error::Storage)?;
-        let mut matches = rows.values().filter(|j| {
-            j.tenant() == tenant
-                && (j.run_id() == id || (key.is_some() && j.idempotency_key() == key))
-        });
-        let result = matches.next().cloned();
-        if matches.next().is_some() {
-            return Err(Error::Conflict);
-        }
-        Ok(result)
-    }
-    async fn create(
-        &self,
-        candidate: plenora_runtime_chains::Submission,
-    ) -> Result<Journal, Error> {
-        let candidate = candidate.into_journal();
-        let mut rows = self.0.lock().map_err(|_| Error::Storage)?;
-        for old in rows.values().filter(|j| j.tenant() == candidate.tenant()) {
-            if old.run_id() == candidate.run_id()
-                || (candidate.idempotency_key().is_some()
-                    && old.idempotency_key() == candidate.idempotency_key())
-            {
-                return if old.same_submission(&candidate) {
-                    Ok(old.clone())
-                } else {
-                    Err(Error::Conflict)
-                };
-            }
-        }
-        rows.insert(
-            (candidate.tenant().into(), candidate.run_id().into()),
-            candidate.clone(),
-        );
-        Ok(candidate)
-    }
-    async fn load(&self, tenant: &str, id: &str) -> Result<Journal, Error> {
-        self.0
-            .lock()
-            .map_err(|_| Error::Storage)?
-            .get(&(tenant.into(), id.into()))
-            .cloned()
-            .ok_or(Error::NotFound)
-    }
-    async fn compare_exchange(
-        &self,
-        expected: u64,
-        next: plenora_runtime_chains::Change,
-    ) -> Result<(), Error> {
-        let next = next.into_journal();
-        let mut rows = self.0.lock().map_err(|_| Error::Storage)?;
-        let old = rows
-            .get_mut(&(next.tenant().into(), next.run_id().into()))
-            .ok_or(Error::NotFound)?;
-        if old.revision() != expected || next.revision() != expected + 1 {
-            return Err(Error::Conflict);
-        }
-        old.validate_successor(&next)?;
-        *old = Journal::from_json(&next.to_json()?)?;
-        Ok(())
-    }
-}
+#[path = "support/primary.rs"]
+mod primary;
+use primary::ScriptStore;
 struct ScriptAdapter {
     calls: AtomicUsize,
+    recoveries: AtomicUsize,
     unknown: bool,
     recovery: bool,
     outcomes: Vec<StepResult>,
@@ -121,6 +53,7 @@ impl Adapter for ScriptAdapter {
         Ok(())
     }
     async fn recover(&self, i: &Invocation) -> Result<Option<StepResult>, Error> {
+        self.recoveries.fetch_add(1, Ordering::SeqCst);
         Ok(self
             .recovery
             .then(|| {
@@ -145,6 +78,7 @@ fn registry() -> Result<Registry, Rejection> {
 fn adapter(unknown: bool, recovery: bool) -> Result<Arc<ScriptAdapter>, Rejection> {
     Ok(Arc::new(ScriptAdapter {
         calls: AtomicUsize::new(0),
+        recoveries: AtomicUsize::new(0),
         delay: None,
         unknown,
         recovery,
@@ -589,5 +523,98 @@ async fn event_cursor_rejects_whole_malformed_pages_without_advancing()
     assert_eq!(actual, events);
     assert!(cursor.accept(&serde_json::json!([]))?.is_empty());
     assert_eq!(serde_json::to_value(cursor.request())?["cursor"], 10);
+    Ok(())
+}
+
+#[tokio::test]
+async fn crash_before_runtime_receipt_never_grants_a_reconciliation_shortcut()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let adapter = adapter(false, true)?;
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock(),
+        "tenant",
+    )?;
+    let handle = engine.submit(&plan()?, options()).await?;
+    store.5.store(true, Ordering::SeqCst);
+    assert_eq!(engine.advance(&handle.run_id).await, Err(Error::Recovery));
+    let current = engine.status(&handle.run_id).await?;
+    assert_eq!(
+        engine.resume(&handle.run_id, current.revision).await,
+        Err(Error::Recovery)
+    );
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
+    assert!(store.1.lock().map_err(|_| "ledger")?.is_empty());
+    Ok(())
+}
+#[tokio::test]
+async fn crash_after_runtime_evidence_finalizes_without_reinvoking_domain()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let adapter = adapter(false, false)?;
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock(),
+        "tenant",
+    )?;
+    let controls = options();
+    let handle = engine.submit(&plan()?, controls.clone()).await?;
+    store.6.store(true, Ordering::SeqCst);
+    assert_eq!(engine.advance(&handle.run_id).await, Err(Error::Recovery));
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 1);
+    let current = engine.status(&handle.run_id).await?;
+    engine.resume(&handle.run_id, current.revision).await?;
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(engine.run(&plan()?, controls).await?.state, "succeeded");
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 3);
+    Ok(())
+}
+
+#[tokio::test]
+async fn deadline_after_start_cannot_use_fake_recovery_as_execution_proof()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let adapter = adapter(false, true)?;
+    let clock = clock();
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock.clone(),
+        "tenant",
+    )?;
+    let handle = engine.submit(&plan()?, options()).await?;
+    *store.7.lock().map_err(|_| "clock hook")? = Some(clock);
+    assert_eq!(engine.advance(&handle.run_id).await, Err(Error::Recovery));
+    {
+        let rows = store.1.lock().map_err(|_| "ledger")?;
+        assert_eq!(rows.len(), 1);
+        let receipt = rows.values().next().ok_or("receipt")?;
+        assert_eq!(receipt.attempt(), 1);
+        assert_eq!(
+            receipt.stage(),
+            plenora_runtime_boundary::DeliveryStage::Finished
+        );
+        assert!(
+            receipt
+                .evidence()
+                .ok_or("evidence")?
+                .report()
+                .get("output")
+                .is_none()
+        );
+    }
+    let current = engine.status(&handle.run_id).await?;
+    assert_eq!(
+        engine.resume(&handle.run_id, current.revision).await,
+        Err(Error::Recovery)
+    );
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
+    assert_eq!(adapter.recoveries.load(Ordering::SeqCst), 0);
     Ok(())
 }

@@ -86,6 +86,8 @@ pub struct PreparedResult {
     pub(crate) report: serde_json::Value,
     pub(crate) terminal: StoredMessage,
     pub(crate) retry_ms: Option<u64>,
+    #[serde(default)]
+    pub(crate) reuse_origin: Option<IdempotencyReceipt>,
 }
 impl PreparedResult {
     fn validate(&self) -> Result<(), SettlementError> {
@@ -181,6 +183,8 @@ pub enum DeliveryChange {
     Evidence(PreparedResult),
     /// Records a pre-invocation rejection.
     Reject(PreparedResult),
+    /// Copies confirmed evidence from the invocation selected by a scoped host key.
+    Reuse(PreparedResult, IdempotencyReceipt),
     /// Consumes evidence into either safe retry or the terminal outbox.
     Settle,
     /// Claims publication only; never grants invocation authority.
@@ -286,6 +290,23 @@ impl DeliveryJournal {
                 Err(SettlementError)
             };
         }
+        if let Some(origin) = self.history.last().and_then(|p| p.reuse_origin.as_ref()) {
+            return if self.attempt == 0
+                && self.history.len() == 1
+                && matches!(
+                    self.stage,
+                    DeliveryStage::Evidence | DeliveryStage::Finished
+                )
+                && self.history[0].retry_ms.is_none()
+                && !origin.key.is_empty()
+                && origin.key.len() <= 256
+                && origin.key.bytes().all(|b| b.is_ascii_graphic())
+            {
+                Ok(())
+            } else {
+                Err(SettlementError)
+            };
+        }
         let count = self.history.len();
         let attempt = usize::from(self.attempt);
         let valid = match self.stage {
@@ -363,6 +384,7 @@ impl DeliveryJournal {
                     &change,
                     DeliveryChange::Evidence(_)
                         | DeliveryChange::Reject(_)
+                        | DeliveryChange::Reuse(_, _)
                         | DeliveryChange::Settle
                 ))
         {
@@ -391,6 +413,16 @@ impl DeliveryJournal {
                 if next.stage == DeliveryStage::Ready && p.retry_ms.is_none() =>
             {
                 next.check_prepared(&p)?;
+                next.history.push(p);
+                next.stage = DeliveryStage::Evidence;
+            }
+            DeliveryChange::Reuse(mut p, origin)
+                if next.stage == DeliveryStage::Ready
+                    && next.attempt == 0
+                    && p.retry_ms.is_none() =>
+            {
+                next.check_prepared(&p)?;
+                p.reuse_origin = Some(origin);
                 next.history.push(p);
                 next.stage = DeliveryStage::Evidence;
             }
@@ -538,9 +570,37 @@ pub enum DeliveryOpen {
     /// Existing identity is bound to other input/policy or legacy invocation authority.
     Conflict,
 }
+/// Immutable pointer to an exact receipt. Constructed only by the durable ingress.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IdempotencyReceipt {
+    pub(crate) key: String,
+    pub(crate) binding: [u8; 32],
+}
+/// Host-key lookup is separate from the exact message receipt and its correlation identity.
+pub enum IdempotencyOpen {
+    /// No binding exists; lookup alone never grants execution authority.
+    Absent,
+    /// Original carrier selected by the immutable semantic binding.
+    Selected(IdempotencyReceipt),
+    /// The permanent key already binds different semantics.
+    Conflict,
+}
 /// Atomic primary storage for the product journal, using PostgreSQL in production.
 #[async_trait]
 pub trait DurableExecutionStore: AcceptanceStore + Send + Sync + 'static {
+    /// Lookup or atomically bind an authenticated tenant/operation key to its original carrier.
+    /// `None` performs lookup only. Expiration must never turn an identity into absence.
+    /// # Errors
+    /// Unconfirmed storage or expired delivery prevents any new invocation.
+    async fn idempotency(
+        &self,
+        _key: &str,
+        _binding: [u8; 32],
+        _candidate: Option<IdempotencyReceipt>,
+    ) -> Result<IdempotencyOpen, SettlementError> {
+        Err(SettlementError)
+    }
     /// Authoritative receipt lookup-or-create; returns the store clock with the snapshot.
     /// # Errors
     /// Fails on conflicts, retention, stale replicas or uncertain commit.
@@ -550,6 +610,16 @@ pub trait DurableExecutionStore: AcceptanceStore + Send + Sync + 'static {
         binding: [u8; 32],
         plan: &DeliveryPlan,
     ) -> Result<DeliveryOpen, SettlementError>;
+    /// Lookup a result identity on the primary, confined to the authenticated scope prefix.
+    /// # Errors
+    /// Missing or foreign identities and unconfirmed reads fail closed.
+    async fn result_receipt(
+        &self,
+        _scope_prefix: &str,
+        _result_id: &str,
+    ) -> Result<(String, DeliveryJournal), SettlementError> {
+        Err(SettlementError)
+    }
     /// Reads a retained journal, including terminal replay past the execution deadline.
     /// # Errors
     /// Missing/non-authoritative data is explicit.
