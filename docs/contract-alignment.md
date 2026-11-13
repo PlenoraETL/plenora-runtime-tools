@@ -643,3 +643,46 @@ CRS/WKB, algoritmi di trasformazione, WriteOutcome/loss_report DB v3 o resolver
 di connessioni/segreti dei provider. Occorrono adapter e oracoli delle librerie
 adottate. Il profilo non apre file/path/URL del piano. Lease/fan-out/cleanup e
 criteri 5-6 restano fuori da questo passo; nessuna casella completa e promossa.
+
+
+## P1.4c-3: ownership, lease e cleanup del provider dichiarato fake
+
+Regola: ownership prima dell'effetto, scadenza distinta dalla prova di stop,
+nessuna cancellazione di evidenze o tombstone. Ambito: il provider di byte
+scriptato registra sullo store P2.2 i buffer realmente restituiti tramite
+riferimenti opachi per tenant/run. I template immutabili della configurazione
+sono risorse prese in prestito; non sono output posseduti e non vengono eliminati.
+Gli input tra step leggono gli stessi byte pubblicati, con controllo SHA-256.
+La lettura applica clock e retention del primario anche senza sweep.
+
+Il ledger riserva l'encoding JSON peggiore, copie di staging e handle di fan-out
+contro memory/spool globali; le copie fisiche consumano anche artifact_bytes.
+Admission atomica, lease per identita immutabile di tentativo, rinnovo prima
+della scadenza e riconciliazione senza nuova autorita di invoke. Il worker
+rinnova il fence di lavoro mentre continua a far avanzare lo step. Il provider
+fake termina immediatamente dopo registrazione/rinnovo: non si attesta un
+provider reale di lunga durata o un heartbeat di libreria.
+
+Stop noto e cleanup sono parte della CAS del journal: errore prima del commit
+conserva la ricevuta durevole; risposta persa dopo commit non duplica l'effetto.
+I temporanei si liberano dopo stop; output/evidenze restano fino alla retention
+rapporti (90 giorni massimi). A scadenza i consumer mai avviati sono marcati
+abbandonati. Unknown conserva i buffer in quarantena, anche con lease scaduto:
+solo riconciliazione autenticata autorizza la pulizia. Lo sweep riavviabile del
+worker e maintain lavora per chiavi in batch limitati e conserva tombstone,
+manifest e ricevute dopo la liberazione dei byte. Delivery resta 7 giorni massimi;
+le riduzioni della policy primaria valgono anche per risorse e letture.
+
+Prove: resources.rs, retry_worker.rs, host/tests/support/ownership.rs;
+resources_tests.rs nel filtro postgres_real e remote.rs nel job PostgreSQL/NATS
+gia esistente. Le prove reali restano ignorate localmente. Rischio residuo:
+scambiare i buffer del doppio per ownership di file, processi o librerie reali.
+Condizione di chiusura dell'adozione: adapter reali con registrazione prima
+dell'effetto, rinnovo durante il lavoro, prova di stop e cleanup idempotente
+qualificati su tutte le superfici. Nessuna promozione dei criteri 5-6 o della
+conformita complessiva; esiti dei gate locali in target/P1-4-5.md.
+
+Esito P1.4c-3: verde locale nel profilo fake; con c-1 e c-2 chiude localmente
+il criterio 3. Suite workspace 496 passati/20 ignorati, suite installata
+7 passati/5 saltati. Infrastruttura reale e CI multipiattaforma non eseguite
+localmente; i limiti di adozione sopra restano aperti.

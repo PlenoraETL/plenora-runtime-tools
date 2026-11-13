@@ -315,6 +315,71 @@ async fn worker_recovers_receipt_crashes_with_monotone_ownership_and_no_double_i
 }
 
 #[tokio::test]
+async fn renewal_keeps_fence_and_lost_confirmation_drains_the_same_receipt() -> Test {
+    for lose_confirmation in [false, true] {
+        let (store, mut script) = setup(0, "none")?;
+        let entered = Arc::new(tokio::sync::Notify::new());
+        let release = Arc::new(tokio::sync::Notify::new());
+        Arc::get_mut(&mut script).ok_or("adapter")?.pause =
+            Some((entered.clone(), release.clone()));
+        let engine = Arc::new(engine(&store, &script)?);
+        let handle = engine.submit(&plan()?, options()).await?;
+        let worker = engine.clone();
+        let task = tokio::spawn(async move {
+            worker
+                .work_once(&uuid::Uuid::new_v4().to_string(), 60)
+                .await
+        });
+        entered.notified().await;
+        let original = store
+            .8
+            .lock()
+            .map_err(|_| "leases")?
+            .get(&("tenant".into(), handle.run_id.clone()))
+            .and_then(|(_, l)| l.clone())
+            .ok_or("lease")?;
+        store
+            .11
+            .store(lose_confirmation, std::sync::atomic::Ordering::SeqCst);
+        store.3.advance(Duration::from_millis(30))?;
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                let renewed = store
+                    .8
+                    .lock()
+                    .map_err(|_| Error::Storage)?
+                    .get(&("tenant".into(), handle.run_id.clone()))
+                    .and_then(|(_, l)| l.clone())
+                    .ok_or(Error::Storage)?;
+                if renewed.until() > original.until() {
+                    assert_eq!(renewed.token(), original.token());
+                    break Ok::<(), Error>(());
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await??;
+        store.3.advance(Duration::from_millis(40))?;
+        assert!(
+            store
+                .claim_work("tenant", &uuid::Uuid::new_v4().to_string(), 60)
+                .await?
+                .is_none()
+        );
+        release.notify_one();
+        let result = task.await?;
+        if lose_confirmation {
+            assert_eq!(result, Err(Error::Storage));
+        } else {
+            assert_eq!(result, Ok(true));
+        }
+        assert_eq!(script.calls.lock().map_err(|_| "calls")?.len(), 1);
+        assert_eq!(engine.report(&handle.run_id).await?.len(), 1);
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn cancel_crosses_only_the_control_boundary_of_an_active_lease() -> Test {
     let (store, script) = setup(1, "none")?;
     let e = engine(&store, &script)?;
@@ -525,5 +590,28 @@ async fn run_waits_for_worker_owned_invocation_without_false_recovery() -> Test 
         "succeeded"
     );
     assert_eq!(script.calls.lock().map_err(|_| "calls")?.len(), 3);
+    Ok(())
+}
+
+/// A declared slow primary fake models renewal waiting behind the step transaction.
+#[tokio::test]
+async fn pending_renewal_keeps_polling_the_step_that_can_release_the_primary() -> Test {
+    let (store, mut script) = setup(0, "none")?;
+    let entered = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(tokio::sync::Notify::new());
+    Arc::get_mut(&mut script).ok_or("unique")?.pause = Some((entered.clone(), release.clone()));
+    let renewing = Arc::new(tokio::sync::Notify::new());
+    let blocked = Arc::new(tokio::sync::Notify::new());
+    *store.14.lock().map_err(|_| "hook")? = Some((renewing.clone(), blocked));
+    let e = Arc::new(engine(&store, &script)?);
+    e.submit(&plan()?, options()).await?;
+    let w = e.clone();
+    let worker =
+        tokio::spawn(async move { w.work_once(&uuid::Uuid::new_v4().to_string(), 60).await });
+    entered.notified().await;
+    tokio::time::timeout(Duration::from_secs(10), renewing.notified()).await?;
+    release.notify_one();
+    assert!(tokio::time::timeout(Duration::from_secs(10), worker).await???);
+    assert_eq!(script.calls.lock().map_err(|_| "calls")?.len(), 1);
     Ok(())
 }

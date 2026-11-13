@@ -472,3 +472,6 @@ async fn oversized_fault_report_is_fully_recoverable_through_bounded_host_pages(
 
 #[path = "verification.rs"]
 mod verification_tests;
+
+#[path = "ownership.rs"]
+mod ownership_tests;

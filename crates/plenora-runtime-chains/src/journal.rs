@@ -579,7 +579,58 @@ pub trait Store: Send + Sync + 'static {
     async fn release_work(&self, _lease: &crate::RunLease) -> Result<(), Error> {
         Err(Error::Unsupported)
     }
+    /// Renew only a still-live primary ownership/fence; expiry never grants a new invocation.
+    /// A successful renewal retains the token. An unconfirmed response grants no new authority.
+    async fn renew_work(
+        &self,
+        _lease: &crate::RunLease,
+        _lease_ms: u64,
+    ) -> Result<crate::RunLease, Error> {
+        Err(Error::Unsupported)
+    }
 
+    /// Persist owned provider bytes and the step lease before provider effects.
+    async fn acquire_resources(
+        &self,
+        _request: &crate::ResourceRequest,
+    ) -> Result<crate::ResourceLease, Error> {
+        Err(Error::Unsupported)
+    }
+    /// Reconcile owned outputs under an existing intent without granting a new invocation.
+    async fn reconcile_resources(&self, _request: &crate::ResourceRequest) -> Result<(), Error> {
+        Err(Error::Unsupported)
+    }
+    /// Renew an existing resource lease; a stale lease never authorizes reinvocation.
+    async fn renew_resources(
+        &self,
+        _tenant: &str,
+        _run: &str,
+        _lease: &crate::ResourceLease,
+    ) -> Result<crate::ResourceLease, Error> {
+        Err(Error::Unsupported)
+    }
+    /// Read the bounded ownership ledger for preflight reservation; no resources are opened.
+    async fn resource_snapshot(
+        &self,
+        _tenant: &str,
+        _run: &str,
+    ) -> Result<Option<crate::ResourceLedger>, Error> {
+        Err(Error::Unsupported)
+    }
+    /// Read published bytes under the current primary clock and retention, independently of sweep.
+    async fn read_resource(
+        &self,
+        _tenant: &str,
+        _run: &str,
+        _reference: &str,
+        _limit: usize,
+    ) -> Result<Vec<u8>, Error> {
+        Err(Error::Unsupported)
+    }
+    /// Retry idempotent cleanup, including rows whose run journal has expired.
+    async fn cleanup_resources(&self, _tenant: &str) -> Result<(), Error> {
+        Err(Error::Unsupported)
+    }
     /// Lookup both identities before new-admission deadline checks. Two matching rows conflict.
     /// Expired identities return `Expired`, never absence; this does not authorize a mutation.
     async fn lookup(

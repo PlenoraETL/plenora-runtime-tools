@@ -2,6 +2,7 @@
 //! Host and step calls use the durable dispatcher; remaining gates are in docs/qualification.md.
 #![forbid(unsafe_code)]
 mod control;
+mod ownership;
 mod remote;
 mod verification;
 mod work;
@@ -47,6 +48,7 @@ fn journal_budget() -> usize {
     plenora_runtime_chains::JOURNAL_BYTES
 }
 struct ScriptedAdapter {
+    store: Arc<dyn Store>,
     tenant: String,
     authorized: BTreeMap<String, plenora_runtime_chains::contracts::Plan>,
     steps: Vec<StepResult>,
@@ -78,6 +80,8 @@ impl Adapter for ScriptedAdapter {
             .iter()
             .find(|s| s.step_id == i.step.id && s.attempt == i.attempt)
             .ok_or(Error::Unsupported)?;
+        let s = Self::materialize(i, s)?;
+        self.check_owned_inputs(i).await?;
         if s.operation != i.step.operation
             || s.operation_version != i.step.operation_version
             || s.input_manifests != i.inputs
@@ -85,22 +89,32 @@ impl Adapter for ScriptedAdapter {
             return Err(Error::Invalid);
         }
         // Scripted outcomes are known before invocation: reserve the complete encoded report.
-        let size = serde_json::to_vec(s).map_err(|_| Error::Invalid)?.len();
+        let size = serde_json::to_vec(&s).map_err(|_| Error::Invalid)?.len();
         if size > 1024 * 1024
             || u64::try_from(size).map_err(|_| Error::ResourceLimit)?
                 > i.reservation.limits.result_bytes
         {
             return Err(Error::ResourceLimit);
         }
-        self.verify(i, s)?;
-        Ok(())
+        self.verify(i, &s)?;
+        self.reserve_owned(i, &s).await
     }
     async fn invoke(&self, i: &Invocation) -> Result<StepResult, Error> {
-        self.steps
+        let result = self
+            .steps
             .iter()
             .find(|s| s.step_id == i.step.id && s.attempt == i.attempt)
             .cloned()
-            .ok_or(Error::Unsupported)
+            .ok_or(Error::Unsupported)?;
+        let result = Self::materialize(i, &result)?;
+        let request = self.owned_request(i, &result)?;
+        let lease = self.store.acquire_resources(&request).await?;
+        // Scripted calls are immediate. Real providers must drive renewal while work is active;
+        // the same primary lease API refuses expiry, and no expiry authorizes another invocation.
+        self.store
+            .renew_resources(&i.tenant, &i.run_id, &lease)
+            .await?;
+        Ok(result)
     }
     async fn request_cancel(&self, _: &Invocation) -> Result<(), Error> {
         Ok(())
@@ -109,17 +123,21 @@ impl Adapter for ScriptedAdapter {
         let proof = self
             .recovery
             .iter()
-            .find(|s| s.step_id == i.step.id && s.attempt == i.attempt);
-        if let Some(proof) = proof {
+            .find(|s| s.step_id == i.step.id && s.attempt == i.attempt)
+            .map(|s| Self::materialize(i, s))
+            .transpose()?;
+        if let Some(proof) = &proof {
+            self.check_owned_inputs(i).await?;
             self.verify(i, proof)?;
             let bytes = serde_json::to_vec(proof).map_err(|_| Error::Invalid)?;
-            if u64::try_from(bytes.len()).map_err(|_| Error::ResourceLimit)?
-                > i.reservation.limits.result_bytes
-            {
+            if bytes.len() as u64 > i.reservation.limits.result_bytes {
                 return Err(Error::ResourceLimit);
             }
+            self.store
+                .reconcile_resources(&self.owned_request(i, proof)?)
+                .await?;
         }
-        Ok(proof.cloned())
+        Ok(proof)
     }
     async fn artifact(
         &self,
@@ -129,6 +147,13 @@ impl Adapter for ScriptedAdapter {
     ) -> Result<Vec<u8>, Error> {
         if tenant != self.tenant {
             return Err(Error::Invalid);
+        }
+        if reference.starts_with("ref:owned-") {
+            let run = ownership::owned_run(reference).ok_or(Error::Invalid)?;
+            return self
+                .store
+                .read_resource(tenant, run, reference, limit)
+                .await;
         }
         let bytes = self.artifacts.get(reference).ok_or(Error::NotFound)?;
         if bytes.len() > limit {
@@ -172,6 +197,9 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ScriptedHost<S>
         store: Arc<S>,
         clock: Arc<dyn plenora_runtime_core::Clock>,
     ) -> Result<Self, Error> {
+        if config.artifacts.keys().any(|r| r.starts_with("ref:owned-")) {
+            return Err(Error::Invalid);
+        }
         let registry = parse_registry(config.registry.as_bytes())?;
         let mut steps = parse_result(config.outcomes.as_bytes())?.steps;
         for raw in &config.attempts {
@@ -202,6 +230,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ScriptedHost<S>
             })
             .collect::<Result<BTreeMap<_, _>, Error>>()?;
         let adapter = Arc::new(ScriptedAdapter {
+            store: store.clone(),
             tenant: config.tenant.clone(),
             authorized,
             steps,

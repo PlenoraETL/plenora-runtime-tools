@@ -41,6 +41,46 @@ async fn expire(tx: &Transaction<'_>, now: u64, reports: u64) -> Result<(), Erro
 }
 #[async_trait]
 impl Store for PostgresStore {
+    async fn acquire_resources(
+        &self,
+        request: &plenora_runtime_chains::ResourceRequest,
+    ) -> Result<plenora_runtime_chains::ResourceLease, Error> {
+        self.acquire_owned(request, false).await
+    }
+    async fn reconcile_resources(
+        &self,
+        request: &plenora_runtime_chains::ResourceRequest,
+    ) -> Result<(), Error> {
+        self.acquire_owned(request, true).await.map(|_| ())
+    }
+    async fn renew_resources(
+        &self,
+        tenant: &str,
+        run: &str,
+        lease: &plenora_runtime_chains::ResourceLease,
+    ) -> Result<plenora_runtime_chains::ResourceLease, Error> {
+        self.renew_owned(tenant, run, lease).await
+    }
+    async fn resource_snapshot(
+        &self,
+        tenant: &str,
+        run: &str,
+    ) -> Result<Option<plenora_runtime_chains::ResourceLedger>, Error> {
+        self.snapshot_owned(tenant, run).await
+    }
+    async fn read_resource(
+        &self,
+        tenant: &str,
+        run: &str,
+        reference: &str,
+        limit: usize,
+    ) -> Result<Vec<u8>, Error> {
+        self.read_owned(tenant, run, reference, limit).await
+    }
+    async fn cleanup_resources(&self, tenant: &str) -> Result<(), Error> {
+        self.cleanup_owned(tenant).await
+    }
+
     async fn claim_work(
         &self,
         tenant: &str,
@@ -87,6 +127,32 @@ impl Store for PostgresStore {
             return Err(Error::Conflict);
         }
         Self::commit(tx).await.map_err(unavailable)
+    }
+
+    async fn renew_work(
+        &self,
+        lease: &plenora_runtime_chains::RunLease,
+        lease_ms: u64,
+    ) -> Result<plenora_runtime_chains::RunLease, Error> {
+        if !(1..=60_000).contains(&lease_ms) {
+            return Err(Error::Invalid);
+        }
+        let mut client = self.connect().await.map_err(unavailable)?;
+        let tx = Self::transaction(&mut client).await.map_err(unavailable)?;
+        let (now, _, _) = policy(&tx).await?;
+        let until = now.checked_add(lease_ms).ok_or(Error::ResourceLimit)?;
+        let row = tx.query_opt("UPDATE plenora_chain_runs SET work_until=GREATEST(work_until,$5) WHERE tenant=$1 AND run_id=$2 AND work_owner=$3 AND work_fence=$4 AND work_until>$6 RETURNING work_until", &[&lease.tenant(), &lease.run_id(), &lease.owner(), &i64::try_from(lease.token()).map_err(unavailable)?, &i64::try_from(until).map_err(unavailable)?, &i64::try_from(now).map_err(unavailable)?]).await.map_err(unavailable)?.ok_or(Error::Conflict)?;
+        let until =
+            u64::try_from(row.try_get::<_, i64>(0).map_err(unavailable)?).map_err(unavailable)?;
+        let renewed = plenora_runtime_chains::RunLease::new(
+            lease.tenant(),
+            lease.run_id(),
+            lease.owner(),
+            lease.token(),
+            until,
+        )?;
+        Self::commit(tx).await.map_err(unavailable)?;
+        Ok(renewed)
     }
 
     async fn lookup(
@@ -207,6 +273,7 @@ impl Store for PostgresStore {
         {
             return Err(Error::Conflict);
         }
+        Self::sync_owned(&tx, &next, now).await?;
         let changed = tx.execute("UPDATE plenora_chain_runs SET revision=$3,journal=$4 WHERE tenant=$1 AND run_id=$2 AND revision=$5", &[&next.tenant(), &next.run_id(), &i64::try_from(next.revision()).map_err(unavailable)?, &bytes, &i64::try_from(expected).map_err(unavailable)?]).await.map_err(unavailable)?;
         if changed != 1 {
             return Err(Error::Conflict);

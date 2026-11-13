@@ -31,6 +31,8 @@ mod execution;
 mod journal;
 mod protocol;
 mod reports;
+mod resources;
+pub use resources::{OwnedResource, ResourceLease, ResourceLedger, ResourceRequest};
 mod retry;
 pub use reports::{ReportCursor, ReportPage};
 mod work;

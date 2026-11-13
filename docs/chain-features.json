@@ -3668,6 +3668,21 @@
             "effect": "recovery non perde artefatti per liberare quota; errore cleanup conserva effetto"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_4c_3": {
+          "scope": "Owned byte provider double: renewable primary leases, globally bounded copies/fan-out, atomic stop/cleanup, primary retention on reads and durable quarantine for unknown. No real library claim.",
+          "local_tests": [
+            "crates/plenora-runtime-chains/src/resources.rs",
+            "crates/plenora-runtime-chains/tests/retry_worker.rs",
+            "crates/plenora-runtime-chain-host/tests/support/ownership.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-store/src/resources_tests.rs",
+            "crates/plenora-runtime-chain-host/tests/remote.rs"
+          ],
+          "remaining": "Real provider adoption and criteria 5-6; no full surface promotion."
+        }
       }
     },
     {
@@ -3735,6 +3750,21 @@
             "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
             "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_4c_3": {
+          "scope": "Owned byte provider double: renewable primary leases, globally bounded copies/fan-out, atomic stop/cleanup, primary retention on reads and durable quarantine for unknown. No real library claim.",
+          "local_tests": [
+            "crates/plenora-runtime-chains/src/resources.rs",
+            "crates/plenora-runtime-chains/tests/retry_worker.rs",
+            "crates/plenora-runtime-chain-host/tests/support/ownership.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-store/src/resources_tests.rs",
+            "crates/plenora-runtime-chain-host/tests/remote.rs"
+          ],
+          "remaining": "Real provider adoption and criteria 5-6; no full surface promotion."
         }
       }
     },

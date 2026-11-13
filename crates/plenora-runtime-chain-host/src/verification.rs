@@ -117,7 +117,7 @@ impl Schema {
 }
 impl ScriptedAdapter {
     fn resource(&self, reference: &str, sha256: &str) -> Result<&[u8], Error> {
-        let bytes = self.artifacts.get(reference).ok_or(Error::NotFound)?;
+        let bytes = self.template(reference)?;
         if bytes.len() > 1024 * 1024 {
             return Err(Error::ResourceLimit);
         }
@@ -303,13 +303,23 @@ impl ScriptedAdapter {
             version,
             parameters_sha256,
             destination,
-            inputs,
-            outputs,
+            mut inputs,
+            mut outputs,
             verdict,
         } = self.document(d)?.body
         else {
             return Err(Error::Invalid);
         };
+        for (name, (reference, _)) in &mut inputs {
+            let actual = &i.inputs.get(name).ok_or(Error::Invalid)?.artifact_ref;
+            if actual != reference && actual != &super::ownership::scoped(&i.run_id, reference) {
+                return Err(Error::Invalid);
+            }
+            reference.clone_from(actual);
+        }
+        for (reference, _) in outputs.values_mut() {
+            *reference = super::ownership::scoped(&i.run_id, reference);
+        }
         let actual_inputs = i
             .inputs
             .iter()

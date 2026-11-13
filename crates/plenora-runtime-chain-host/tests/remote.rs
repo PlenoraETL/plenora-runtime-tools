@@ -1,6 +1,6 @@
 //! Real PostgreSQL/NATS traversal of the durable scripted host; no real domain adapters.
 use plenora_runtime_chain_host::{RemoteClient, ScriptedConfig, ScriptedHost};
-use plenora_runtime_chains::{Request, Transport};
+use plenora_runtime_chains::{Request, Store, Transport};
 use std::{error::Error, sync::Arc, time::Duration};
 
 #[tokio::test]
@@ -68,6 +68,7 @@ async fn nats_real_scripted_calls_preserve_errors_and_discovery() -> Result<(), 
     assert_eq!(completed.error, None);
     assert_eq!(completed.value["state"], "succeeded");
     assert_eq!(completed.value["steps"].as_array().ok_or("steps")?.len(), 3);
+    check_owned(&config, &client, &completed.value).await?;
     let replay = client.exchange(run()).await?;
     assert_eq!(replay.error, None);
     assert_eq!(replay.value, completed.value);
@@ -164,5 +165,39 @@ async fn corrupted_resources(server: &str) -> Result<(), Box<dyn Error>> {
     assert_eq!(reports.value.as_array().ok_or("reports")?.len(), 2);
     rejected_task.abort();
     assert!(rejected_task.await.is_err_and(|error| error.is_cancelled()));
+    Ok(())
+}
+
+/// Real primary retains only published evidence after all providers stop.
+async fn check_owned(
+    config: &ScriptedConfig,
+    client: &RemoteClient,
+    completed: &serde_json::Value,
+) -> Result<(), Box<dyn Error>> {
+    let run = completed["run_id"].as_str().ok_or("run")?;
+    let reference = completed["steps"][1]["outputs"]["dataset"]["artifact_ref"]
+        .as_str()
+        .ok_or("artifact")?;
+    let artifact = client
+        .exchange(Request::Artifact {
+            reference: reference.into(),
+        })
+        .await?;
+    assert_eq!(artifact.error, None);
+    assert_eq!(
+        artifact.value,
+        serde_json::to_value(&config.artifacts["ref:transform"])?
+    );
+
+    let primary = plenora_runtime_chain_store::PostgresStore::new(&config.database)?;
+    let owned = primary
+        .resource_snapshot(&config.tenant, run)
+        .await?
+        .ok_or("ownership")?;
+    assert_eq!(owned.active(), 0);
+    assert_eq!(
+        owned.live_bytes(),
+        config.artifacts["ref:read"].len() + config.artifacts["ref:transform"].len()
+    );
     Ok(())
 }

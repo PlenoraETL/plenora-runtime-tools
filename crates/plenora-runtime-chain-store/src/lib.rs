@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 
 mod delivery;
+mod resources;
 mod runs;
 mod settlement;
 mod types;
@@ -34,6 +35,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("runs-v1.sql", include_str!("runs-v1.sql")),
     ("idempotency-v1.sql", include_str!("idempotency-v1.sql")),
     ("work-v1.sql", include_str!("work-v1.sql")),
+    ("resources-v1.sql", include_str!("resources-v1.sql")),
 ];
 
 /// Connection factory. Each operation opens a primary connection and a transaction;
@@ -158,6 +160,9 @@ impl PostgresStore {
         let mut client = self.connect().await?;
         let tx = Self::transaction(&mut client).await?;
         Self::expire(&tx).await?;
+        Self::sweep_owned(&tx, None)
+            .await
+            .map_err(|_| StoreError::Unavailable)?;
         Self::commit(tx).await
     }
 

@@ -278,6 +278,10 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
         for result in [f.result for f in failures] + [response["value"]]:
             self.assertEqual([s["state"] for s in result["steps"][:2]], ["succeeded", "succeeded"])
             self.assertEqual(result["steps"][2]["remote_effect"], "none")
+            reference = result["steps"][1]["outputs"]["dataset"]["artifact_ref"]
+            self.assertTrue(reference.startswith("ref:owned-" + result["run_id"] + "-"))
+            self.assertEqual(await client.artifact(reference=reference), config["artifacts"]["ref:transform"])
+            self.assertEqual(await asyncio.to_thread(sync.artifact, reference=reference), config["artifacts"]["ref:transform"])
             reports = await client.report(run_id=result["run_id"])
             self.assertEqual(len(reports), 2)
 
@@ -341,12 +345,23 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
                     "--json"], capture_output=True, text=True, encoding="utf-8", check=False)
                 self.assertEqual(completed.returncode, 0, completed.stdout)
                 self.assertEqual(completed.stderr, "")
-                return json.loads(completed.stdout)["value"]
+                result = json.loads(completed.stdout)["value"]
+                reference = result["steps"][1]["outputs"]["dataset"]["artifact_ref"]
+                artifact = subprocess.run([os.environ["PLENORA_CHAIN_BIN"], "artifact", "get",
+                    "--ref", reference, "--config", str(config_path), "--json"],
+                    capture_output=True, text=True, encoding="utf-8", check=False)
+                self.assertEqual(artifact.returncode, 0, artifact.stdout)
+                self.assertEqual(json.loads(artifact.stdout)["value"], config["artifacts"]["ref:transform"])
+                return result
         results.append(await asyncio.to_thread(binary))
         for result in results:
             self.assertEqual(result["state"], "succeeded")
             self.assertEqual(result["steps"][1]["attempt"], 2)
             self.assertEqual(result["counters"]["max_attempts"], 4)
+            reference = result["steps"][1]["outputs"]["dataset"]["artifact_ref"]
+            self.assertTrue(reference.startswith("ref:owned-" + result["run_id"] + "-"))
+            self.assertEqual(await client.artifact(reference=reference), config["artifacts"]["ref:transform"])
+            self.assertEqual(await asyncio.to_thread(sync.artifact, reference=reference), config["artifacts"]["ref:transform"])
             reports = await client.report(run_id=result["run_id"])
             self.assertEqual(len(reports), 4)
 

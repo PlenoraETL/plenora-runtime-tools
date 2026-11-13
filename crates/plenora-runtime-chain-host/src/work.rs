@@ -11,6 +11,7 @@ impl<S: Store + DurableExecutionStore> Worker<S> {
             if *stop.borrow() {
                 return Ok(());
             }
+            self.0.cleanup_resources().await?;
             // Finish the current receipt even when shutdown is requested; never abort domain work.
             match self.0.work_once(&owner, 30_000).await {
                 Ok(true) => continue,

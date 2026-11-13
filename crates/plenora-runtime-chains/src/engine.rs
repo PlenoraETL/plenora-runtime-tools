@@ -130,12 +130,18 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         )
         .map_err(|_| Error::Invalid)
     }
+    /// Retry owned-resource cleanup independently of run/report retention.
+    /// # Errors
+    /// Primary failures are surfaced; no receipt or tombstone is removed.
+    pub async fn cleanup_resources(&self) -> Result<(), Error> {
+        self.store.cleanup_resources(&self.tenant).await
+    }
     /// Claim and advance one persisted run independently of any submitted request.
     /// An unfinished receipt is replayed with the same identity; Running cannot start twice.
     /// # Errors
     /// Unconfirmed ownership, stale fences and storage errors are surfaced without new effects.
     pub async fn work_once(&self, owner: &str, lease_ms: u64) -> Result<bool, Error> {
-        let Some(lease) = self.store.claim_work(&self.tenant, owner, lease_ms).await? else {
+        let Some(mut lease) = self.store.claim_work(&self.tenant, owner, lease_ms).await? else {
             return Ok(false);
         };
         let worker = Self {
@@ -147,7 +153,30 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             lease: Some(lease.clone()),
             journal_bytes: self.journal_bytes,
         };
-        let result = worker.work_claimed(lease.run_id()).await;
+        let run_id = lease.run_id().to_owned();
+        let work = worker.work_claimed(&run_id);
+        tokio::pin!(work);
+        let result = loop {
+            tokio::select! {
+                biased;
+                result = &mut work => break result,
+                () = tokio::time::sleep(std::time::Duration::from_millis((lease_ms / 3).max(1))) => {
+                    let renewed = tokio::select! {
+                        result = &mut work => break result,
+                        renewed = self.store.renew_work(&lease, lease_ms) => renewed,
+                    };
+                    match renewed {
+                        Ok(renewed) => lease = renewed,
+                        Err(error) => {
+                            // Loss of ownership is not proof of termination. Drain the protected
+                            // receipt; its late journal CAS remains fenced by the primary.
+                            let _receipt = work.await;
+                            break Err(error);
+                        }
+                    }
+                }
+            }
+        };
         // Uncertain active work stays leased until expiry, preventing a busy reconciliation loop.
         if !matches!(result, Err(Error::Recovery)) {
             match self.store.release_work(&lease).await {

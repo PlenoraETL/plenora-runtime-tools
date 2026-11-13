@@ -18,10 +18,12 @@ plenora-runtime-worker = { version = "=0.1.0", path = "../plenora-runtime-worker
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# Same exact digest pin as chain-contracts; binds owned provider bytes to confirmed manifests.
+sha2 = "=0.10.9"
 chrono.workspace = true
 uuid.workspace = true
 # Bounded cooperative backoff while the same durable run is observed in-process.
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true, features = ["time", "macros"] }
 
 [dev-dependencies]
 plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }
