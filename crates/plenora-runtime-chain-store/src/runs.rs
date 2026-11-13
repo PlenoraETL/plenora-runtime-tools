@@ -41,6 +41,54 @@ async fn expire(tx: &Transaction<'_>, now: u64, reports: u64) -> Result<(), Erro
 }
 #[async_trait]
 impl Store for PostgresStore {
+    async fn claim_work(
+        &self,
+        tenant: &str,
+        owner: &str,
+        lease_ms: u64,
+    ) -> Result<Option<plenora_runtime_chains::RunLease>, Error> {
+        if !(1..=60_000).contains(&lease_ms) {
+            return Err(Error::Invalid);
+        }
+        let mut client = self.connect().await.map_err(unavailable)?;
+        let tx = Self::transaction(&mut client).await.map_err(unavailable)?;
+        let (now, delivery, reports) = policy(&tx).await?;
+        expire(&tx, now, reports).await?;
+        let rows = tx.query("SELECT * FROM plenora_chain_runs WHERE tenant=$1 AND journal IS NOT NULL AND work_until <= $2 AND created_ms <= $2 AND created_ms > $2 - $3 AND NOT (convert_from(journal,'UTF8')::jsonb->>'terminal')::boolean AND NOT COALESCE((convert_from(journal,'UTF8')::jsonb->>'waiting_recovery')::boolean,false) AND (COALESCE((convert_from(journal,'UTF8')::jsonb->>'retry_due')::bigint,0) <= $2 OR (convert_from(journal,'UTF8')::jsonb->>'cancelled')::boolean OR (convert_from(journal,'UTF8')::jsonb->>'deadline')::bigint <= $2) ORDER BY work_until,created_ms,run_id LIMIT 1", &[&tenant, &i64::try_from(now).map_err(unavailable)?, &i64::try_from(delivery).map_err(unavailable)?]).await.map_err(unavailable)?;
+        let result = if let Some(row) = rows.first() {
+            let journal = restore(row, now, reports)?;
+            if !journal.work_due(now) {
+                return Err(Error::Storage);
+            }
+            let token = u64::try_from(row.try_get::<_, i64>("work_fence").map_err(unavailable)?)
+                .map_err(unavailable)?
+                .checked_add(1)
+                .ok_or(Error::ResourceLimit)?;
+            let lease = plenora_runtime_chains::RunLease::new(
+                tenant,
+                journal.run_id(),
+                owner,
+                token,
+                now.checked_add(lease_ms).ok_or(Error::ResourceLimit)?,
+            )?;
+            tx.execute("UPDATE plenora_chain_runs SET work_owner=$3,work_fence=$4,work_until=$5 WHERE tenant=$1 AND run_id=$2", &[&tenant, &journal.run_id(), &owner, &i64::try_from(token).map_err(unavailable)?, &i64::try_from(lease.until()).map_err(unavailable)?]).await.map_err(unavailable)?;
+            Some(lease)
+        } else {
+            None
+        };
+        Self::commit(tx).await.map_err(unavailable)?;
+        Ok(result)
+    }
+    async fn release_work(&self, lease: &plenora_runtime_chains::RunLease) -> Result<(), Error> {
+        let mut client = self.connect().await.map_err(unavailable)?;
+        let tx = Self::transaction(&mut client).await.map_err(unavailable)?;
+        let count = tx.execute("UPDATE plenora_chain_runs SET work_owner=NULL,work_until=0 WHERE tenant=$1 AND run_id=$2 AND work_owner=$3 AND work_fence=$4", &[&lease.tenant(), &lease.run_id(), &lease.owner(), &i64::try_from(lease.token()).map_err(unavailable)?]).await.map_err(unavailable)?;
+        if count != 1 {
+            return Err(Error::Conflict);
+        }
+        Self::commit(tx).await.map_err(unavailable)
+    }
+
     async fn lookup(
         &self,
         tenant: &str,
@@ -117,6 +165,7 @@ impl Store for PostgresStore {
         expected: u64,
         next: plenora_runtime_chains::Change,
     ) -> Result<(), Error> {
+        let lease = next.lease().cloned();
         let next = next.into_journal();
         let bytes = next.to_json()?;
         let mut client = self.connect().await.map_err(unavailable)?;
@@ -132,6 +181,21 @@ impl Store for PostgresStore {
             .map_err(unavailable)?
             .ok_or(Error::NotFound)?;
         let old = restore(&row, now, reports)?;
+        let until = u64::try_from(row.try_get::<_, i64>("work_until").map_err(unavailable)?)
+            .map_err(unavailable)?;
+        let fence = u64::try_from(row.try_get::<_, i64>("work_fence").map_err(unavailable)?)
+            .map_err(unavailable)?;
+        let owner: Option<String> = row.try_get("work_owner").map_err(unavailable)?;
+        match lease {
+            Some(lease)
+                if lease.tenant() == next.tenant()
+                    && lease.run_id() == next.run_id()
+                    && lease.token() == fence
+                    && owner.as_deref() == Some(lease.owner())
+                    && now < until => {}
+            None if until <= now || old.is_cancel_successor(&next) => {}
+            _ => return Err(Error::Conflict),
+        }
         old.validate_successor(&next)?;
         if now - old.created_ms() >= delivery && next.starts_invocation_after(&old) {
             return Err(Error::Expired);

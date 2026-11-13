@@ -11,6 +11,11 @@ use std::{
     time::UNIX_EPOCH,
 };
 type Alias = ([u8; 32], plenora_runtime_boundary::IdempotencyReceipt, u64);
+type Leases = BTreeMap<(String, String), (u64, Option<plenora_runtime_chains::RunLease>)>;
+type Pause = (
+    std::sync::Arc<tokio::sync::Notify>,
+    std::sync::Arc<tokio::sync::Notify>,
+);
 #[derive(Default)]
 pub struct ScriptStore(
     pub Mutex<BTreeMap<(String, String), Journal>>,
@@ -26,9 +31,63 @@ pub struct ScriptStore(
     pub AtomicBool,
     pub AtomicBool,
     pub Mutex<Option<std::sync::Arc<plenora_runtime_testkit::ManualClock>>>,
+    pub Mutex<Leases>,
+    pub Mutex<Option<Pause>>,
 );
 #[async_trait]
 impl Store for ScriptStore {
+    async fn claim_work(
+        &self,
+        tenant: &str,
+        owner: &str,
+        lease_ms: u64,
+    ) -> Result<Option<plenora_runtime_chains::RunLease>, Error> {
+        if !(1..=60_000).contains(&lease_ms) {
+            return Err(Error::Invalid);
+        }
+        let now = u64::try_from(
+            self.3
+                .now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|_| Error::Storage)?
+                .as_millis(),
+        )
+        .map_err(|_| Error::Storage)?;
+        let rows = self.0.lock().map_err(|_| Error::Storage)?;
+        let mut leases = self.8.lock().map_err(|_| Error::Storage)?;
+        for (key, j) in rows
+            .iter()
+            .filter(|(_, j)| j.tenant() == tenant && j.work_due(now))
+        {
+            let entry = leases.entry(key.clone()).or_insert((0, None));
+            if entry.1.as_ref().is_some_and(|l| l.until() > now) {
+                continue;
+            }
+            entry.0 = entry.0.checked_add(1).ok_or(Error::ResourceLimit)?;
+            let lease = plenora_runtime_chains::RunLease::new(
+                tenant,
+                j.run_id(),
+                owner,
+                entry.0,
+                now + lease_ms,
+            )?;
+            entry.1 = Some(lease.clone());
+            return Ok(Some(lease));
+        }
+        Ok(None)
+    }
+    async fn release_work(&self, lease: &plenora_runtime_chains::RunLease) -> Result<(), Error> {
+        let mut leases = self.8.lock().map_err(|_| Error::Storage)?;
+        let entry = leases
+            .get_mut(&(lease.tenant().into(), lease.run_id().into()))
+            .ok_or(Error::Conflict)?;
+        if entry.1.as_ref() != Some(lease) {
+            return Err(Error::Conflict);
+        }
+        entry.1 = None;
+        Ok(())
+    }
+
     async fn lookup(
         &self,
         tenant: &str,
@@ -83,8 +142,29 @@ impl Store for ScriptStore {
         expected: u64,
         next: plenora_runtime_chains::Change,
     ) -> Result<(), Error> {
+        let lease = next.lease().cloned();
         let next = next.into_journal();
         let mut rows = self.0.lock().map_err(|_| Error::Storage)?;
+        let leases = self.8.lock().map_err(|_| Error::Storage)?;
+        let now = u64::try_from(
+            self.3
+                .now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|_| Error::Storage)?
+                .as_millis(),
+        )
+        .map_err(|_| Error::Storage)?;
+        let current = leases
+            .get(&(next.tenant().into(), next.run_id().into()))
+            .and_then(|(_, l)| l.as_ref());
+        let cancel = rows
+            .get(&(next.tenant().into(), next.run_id().into()))
+            .is_some_and(|old| old.is_cancel_successor(&next));
+        match (&lease, current) {
+            (Some(l), Some(c)) if l == c && now < c.until() => {}
+            (None, c) if cancel || c.is_none_or(|l| now >= l.until()) => {}
+            _ => return Err(Error::Conflict),
+        }
         let old = rows
             .get_mut(&(next.tenant().into(), next.run_id().into()))
             .ok_or(Error::NotFound)?;
@@ -152,6 +232,11 @@ impl plenora_runtime_boundary::DurableExecutionStore for ScriptStore {
     {
         use plenora_runtime_boundary::{DeliveryJournal, DeliveryOpen, SettlementError};
         use plenora_runtime_capabilities::{AcceptanceStore, NegotiationContext, RuntimeBinding};
+        let pause = { self.9.lock().map_err(|_| SettlementError)?.take() };
+        if let Some((entered, release)) = pause {
+            entered.notify_one();
+            release.notified().await;
+        }
         if self.5.swap(false, Ordering::SeqCst) {
             return Err(SettlementError);
         }

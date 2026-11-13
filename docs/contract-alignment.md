@@ -404,7 +404,7 @@ Le prove locali sono in crates/plenora-runtime-chains/tests/sequential.rs e
 crates/plenora-runtime-chain-python/tests/test_installed.py. Il passo P1.4a descritto sotto collega ora host e step al runtime durevole;
 non chiude la qualifica complessiva delle cinque superfici.
 
-Deviazioni esplicite: un solo tentativo, adapter delle facciate ancora scriptati,
+Deviazioni residue: adapter delle facciate ancora scriptati,
 qualifica incompleta delle opzioni CLI e del modello errori,
 classificazione degli errori delle facciate ancora sperimentale. Rischio:
 scambiare la presenza dei metodi per parita qualificata. Chiusura: gate
@@ -475,3 +475,41 @@ trasporto P2.5 o parita completa RT/catalogo. Un rifiuto durevole dello step dop
 la registrazione dell'intento puo restare Recovery esplicito, senza consultare
 il fake o ripetere il dominio. Chiusura: passi successivi, stati completi e CI
 Linux/Windows; nessuna promozione delle celle di prodotto in questo passo.
+
+### P1.4b: retry dello step e worker del journal
+
+Regola: retry solo con effetto none/rolled_back e safe/after di ogni errore;
+resource_limit, committed/partial/unknown e controlli provider non provati non
+concedono tentativi. Ambito: coordinatore unico, tutte le facciate esistenti lo
+riusano. Il runtime di ciascun tentativo conserva attempts=1. Max tentativi,
+consumo locale/globale e deadline originale limitano il coordinatore; backoff e
+retry-after usano il massimo e un due persistito. Nessun reset al resume.
+
+StepResult pubblico espone contatori cumulativi, inclusi fallimenti e attese;
+la SPI fidata Adapter restituisce contatori del singolo tentativo (max_attempts=1),
+aggregati soltanto dal coordinatore. Il report conserva queste ricevute grezze;
+non sono dichiarate risultati cumulativi gia validati. Nuovi tentativi hanno ID distinti e causation persistita
+verso il predecessore. I succeeded e i loro manifest restano identici. Resume
+selettivo avanza il solo step fallito eleggibile; un terminale esaurito o con retry
+vietato non viene riaperto. Stop al primo fallimento definitivo resta invariato.
+
+Il worker host scansiona il primario anche dopo restart, con lease finito e fence
+monotono per run. Ogni CAS del worker verifica ownership e scadenza. Solo la
+richiesta monotona di cancel puo attraversare un lease altrui, preservando tutto
+il resto del journal. Un vecchio owner conserva l'esito nella ricevuta runtime,
+ma non puo confermare una nuova revisione del run. Il takeover riconsegna soltanto
+il carrier identico: Running non concede un secondo invoke. Unknown classificato
+resta quiescente fino a recovery esplicito. Le failure del worker sono esposte al
+supervisore; il server interrompe intake e drena i task gia accettati.
+
+Avvio: ScriptedHost.work(stop) per host in-process; serve avvia e supervisiona lo
+stesso worker insieme al listener NATS. La durata di una richiesta non possiede
+il lavoro persistito. Gli adapter restano fake: attempts nella configurazione
+scriptata dichiara ricevute aggiuntive esatte, senza fabbricare esiti di retry.
+
+Prove locali: retry_worker.rs, sequential.rs, test host autonomo e matrice degli
+assi in retry.rs. Prova PostgreSQL/NATS worker.rs ignorata localmente e cablata
+nel job postgres-integration esistente. Rischio residuo: queste prove non chiudono
+risorse/provider, crash matrix completa o enumerazione di ogni operazione sulle
+cinque superfici. Chiusura: criteri 3-6 e CI Linux/Windows sul candidato; nessuna
+promozione di una cella completa del catalogo in questo passo.

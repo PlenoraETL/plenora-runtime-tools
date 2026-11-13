@@ -33,6 +33,8 @@ pub struct Invocation {
     pub reservation: Reservation,
     /// Original invocation start, unchanged during reconciliation.
     pub started_ms: u64,
+    /// One-based logical step attempt; each attempt has its own durable carrier.
+    pub attempt: u64,
 }
 /// Trusted adapter boundary. Implementations must verify resources and preserve complete evidence.
 /// Scripted implementations prove coordination only, never real provider behavior.
@@ -51,6 +53,7 @@ pub trait Adapter: Send + Sync + 'static {
     /// This is read-only and must not invoke a domain operation.
     async fn prepare(&self, invocation: &Invocation) -> Result<(), Error>;
     /// Invoke through the protected runtime dispatcher. The key in `RunOptions` is not forwarded.
+    /// Counters describe this attempt (`max_attempts=1`); the coordinator aggregates the public result.
     /// An error means no complete evidence was confirmed, not that effects were absent.
     async fn invoke(&self, invocation: &Invocation) -> Result<StepResult, Error>;
     /// Ask the running provider to stop; acceptance is not confirmation of termination.
@@ -64,7 +67,8 @@ pub struct ChainEngine<S: plenora_runtime_boundary::DurableExecutionStore> {
     registry: Registry,
     clock: Arc<dyn Clock>,
     tenant: String,
-    executor: crate::execution::StepExecutor<S>,
+    executor: Arc<crate::execution::StepExecutor<S>>,
+    lease: Option<crate::RunLease>,
 }
 impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> {
     /// Bind trusted tenant policy and a frozen independently obtained registry.
@@ -89,7 +93,8 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             tenant,
         )?;
         Ok(Self {
-            executor,
+            executor: Arc::new(executor),
+            lease: None,
             store,
             registry,
             clock,
@@ -105,6 +110,67 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                 .as_millis(),
         )
         .map_err(|_| Error::Invalid)
+    }
+    /// Claim and advance one persisted run independently of any submitted request.
+    /// An unfinished receipt is replayed with the same identity; Running cannot start twice.
+    /// # Errors
+    /// Unconfirmed ownership, stale fences and storage errors are surfaced without new effects.
+    pub async fn work_once(&self, owner: &str, lease_ms: u64) -> Result<bool, Error> {
+        let Some(lease) = self.store.claim_work(&self.tenant, owner, lease_ms).await? else {
+            return Ok(false);
+        };
+        let worker = Self {
+            store: self.store.clone(),
+            registry: self.registry.clone(),
+            clock: self.clock.clone(),
+            tenant: self.tenant.clone(),
+            executor: self.executor.clone(),
+            lease: Some(lease.clone()),
+        };
+        let result = worker.work_claimed(lease.run_id()).await;
+        // Uncertain active work stays leased until expiry, preventing a busy reconciliation loop.
+        if !matches!(result, Err(Error::Recovery)) {
+            match self.store.release_work(&lease).await {
+                Ok(()) => {}
+                Err(Error::Conflict) if matches!(result, Err(Error::Conflict)) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        match result {
+            Ok(_) | Err(Error::Pending | Error::Recovery | Error::Conflict) => Ok(true),
+            Err(e) => Err(e),
+        }
+    }
+    async fn work_claimed(&self, run_id: &str) -> Result<RunHandle, Error> {
+        let j = self.load(run_id).await?;
+        self.delivery(&j)?;
+        if let Some(intent) = &j.active {
+            let invocation = self.invocation(
+                &j,
+                &parse_plan(&j.plan)?,
+                &parse_result(&intent.prior)?,
+                intent,
+            )?;
+            let current = parse_result(&j.view)?;
+            if current
+                .steps
+                .get(intent.index)
+                .is_some_and(|s| s.attempt == invocation.attempt && s.remote_effect == "unknown")
+            {
+                self.require_recovery(&j).await?;
+                return Err(Error::Recovery);
+            }
+            // Same durable carrier, never provider recovery or a second logical attempt.
+            let evidence = self.executor.invoke(&j).await?;
+            let handle = self.finish(&j, &invocation, evidence).await?;
+            if handle.state == "requires_recovery" {
+                Err(Error::Recovery)
+            } else {
+                Ok(handle)
+            }
+        } else {
+            self.advance(run_id).await
+        }
     }
     /// Exact effective fixture discovery, with no claim about real ETL libraries.
     #[must_use]
@@ -153,11 +219,6 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             }
             return previous.handle();
         }
-        // Retry support requires retained per-attempt accounting; this profile admits one attempt.
-        // The explicit profile restriction is tracked in docs/qualification.md.
-        if plan.steps.iter().any(|s| s.retry_policy.max_attempts != 1) {
-            return Err(Error::Unsupported);
-        }
         let reserved = plan
             .steps
             .iter()
@@ -166,6 +227,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                     step.budgets
                         .result_bytes
                         .checked_mul(32)
+                        .and_then(|n| n.checked_mul(step.retry_policy.max_attempts))
                         .ok_or(Error::ResourceLimit)?,
                 )
                 .ok_or(Error::ResourceLimit)
@@ -198,6 +260,9 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             events: vec![],
             history: vec![],
             evidence: None,
+            progress: BTreeMap::new(),
+            retry_due: None,
+            waiting_recovery: false,
         };
         j.event("accepted", "pending", now, None)?;
         j.to_json()?;
@@ -236,7 +301,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         j.event(kind, state, self.now()?, step)?;
         j.to_json()?;
         self.store
-            .compare_exchange(old, crate::Change(j.clone()))
+            .compare_exchange(old, crate::Change(j.clone(), self.lease.clone()))
             .await?;
         Ok(j)
     }
@@ -252,7 +317,11 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
     pub async fn result(&self, run_id: &str) -> Result<ChainResult, Error> {
         let j = self.load(run_id).await?;
         if j.active.is_some() && parse_result(&j.view)?.state != "requires_recovery" {
-            return Err(Error::Recovery);
+            return Err(if j.waiting_recovery {
+                Error::Recovery
+            } else {
+                Error::Pending
+            });
         }
         if !j.terminal && parse_result(&j.view)?.state != "requires_recovery" {
             return Err(Error::Pending);
@@ -353,15 +422,34 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             };
             return self.reject(j, index, failure).await;
         }
+        if j.retry_due.is_some_and(|due| now < due) {
+            return Err(Error::Pending);
+        }
+        let progress = j
+            .progress
+            .entry(id.clone())
+            .or_insert(crate::journal::StepProgress {
+                started: now,
+                deadline: j.deadline.min(
+                    now.checked_add(plan.steps[index].budgets.elapsed_ms)
+                        .ok_or(Error::Invalid)?,
+                ),
+                last_message: None,
+            });
+        let step_deadline = progress.deadline;
+        let first_started = progress.started;
+        let causation = progress.last_message.clone();
+        if now >= step_deadline {
+            return self.reject(j, index, Error::Timeout).await;
+        }
         let intent = Intent {
             index,
             message_id: uuid::Uuid::new_v4().to_string(),
             started: now,
             prior: j.view.clone(),
-            deadline: j.deadline.min(
-                now.checked_add(plan.steps[index].budgets.elapsed_ms)
-                    .ok_or(Error::Invalid)?,
-            ),
+            first_started: Some(first_started),
+            causation,
+            deadline: step_deadline,
         };
         let invocation = match self.invocation(&j, &plan, &view, &intent) {
             Ok(i) => i,
@@ -373,15 +461,23 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         if self.now()? >= invocation.reservation.deadline_ms {
             return self.reject(j, index, Error::Timeout).await;
         }
+        j.progress.get_mut(id).ok_or(Error::Invalid)?.last_message =
+            Some(intent.message_id.clone());
+        j.retry_due = None;
         j.active = Some(intent);
         let started = self
             .save_step(j, "step_state", "running", Some(&invocation.step.id))
             .await?;
-        match self.executor.invoke(&started).await {
-            Ok(evidence) => self.complete(&started, &invocation, evidence).await,
-            Err(_) => Err(Error::Recovery),
+        if let Ok(evidence) = self.executor.invoke(&started).await {
+            self.finish(&started, &invocation, evidence).await
+        } else {
+            if self.executor.confirmed_unknown(&started).await? {
+                self.require_recovery(&started).await?;
+            }
+            Err(Error::Recovery)
         }
     }
+
     async fn reject(
         &self,
         mut j: Journal,
@@ -396,13 +492,41 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             step.stop_confirmed = true;
             step.reason = "stopped".into();
         } else {
-            step.state = "rejected".into();
-            step.reason = "not_started".into();
+            step.state = if step.attempt == 0 {
+                "rejected"
+            } else {
+                "failed"
+            }
+            .into();
+            step.reason = if step.attempt == 0 {
+                "not_started"
+            } else {
+                "upstream_error"
+            }
+            .into();
             step.error = Some(problem(failure, "none", Some(&step.step_id)));
         }
+        if let Some(progress) = j.progress.get(&step.step_id) {
+            step.counters.elapsed_ms = step.counters.elapsed_ms.max(
+                self.now()?
+                    .checked_sub(progress.started)
+                    .ok_or(Error::Invalid)?,
+            );
+            if self.now()? >= progress.deadline
+                && step.error.as_ref().is_none_or(|e| e.category != "timeout")
+            {
+                step.other_errors.push(problem(
+                    Error::Timeout,
+                    &step.remote_effect,
+                    Some(&step.step_id),
+                ));
+            }
+        }
+        step.retry = retry("never");
         summarize(&mut view, &plan, self.now()?, j.revision + 1)?;
         j.view = encode(&view)?;
         j.terminal = true;
+        j.retry_due = None;
         self.save(j, "result_persisted", &view.state)
             .await?
             .handle()
@@ -438,7 +562,11 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                     recorded = true;
                     break;
                 }
-                Err(Error::Conflict) => {}
+                Err(Error::Conflict) => {
+                    if self.lease.is_some() {
+                        return Err(Error::Conflict);
+                    }
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -446,6 +574,34 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             return Err(Error::Storage);
         }
         Ok(())
+    }
+    async fn require_recovery(&self, started: &Journal) -> Result<(), Error> {
+        let mut current = self.load(started.run_id()).await?;
+        if current.active.as_ref().map(|i| &i.message_id)
+            != started.active.as_ref().map(|i| &i.message_id)
+        {
+            return Err(Error::Conflict);
+        }
+        if !current.waiting_recovery {
+            current.waiting_recovery = true;
+            self.save(current, "recovery_required", "requires_recovery")
+                .await?;
+        }
+        Ok(())
+    }
+    async fn finish(
+        &self,
+        started: &Journal,
+        invocation: &Invocation,
+        evidence: StepResult,
+    ) -> Result<RunHandle, Error> {
+        match self.complete(started, invocation, evidence).await {
+            Err(Error::Recovery) => {
+                self.require_recovery(started).await?;
+                Err(Error::Recovery)
+            }
+            result => result,
+        }
     }
     async fn complete(
         &self,
@@ -482,13 +638,20 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         // Exact wall-clock overruns remain in evidence and require a timeout outcome.
         accounted.elapsed_ms = 0;
         if evidence.step_id != invocation.step.id
-            || evidence.attempt != 1
+            || evidence.attempt != invocation.attempt
             || evidence.input_manifests != invocation.inputs
             || !budget::within(&accounted, &invocation.reservation.limits)
             || evidence.counters.max_attempts != 1
         {
             return Err(Error::Recovery);
         }
+        let prior = parse_result(&intent.prior)?;
+        evidence = crate::retry::cumulative(
+            prior.steps.get(intent.index).ok_or(Error::Invalid)?,
+            &evidence,
+            now.checked_sub(intent.first_started.unwrap_or(intent.started))
+                .ok_or(Error::Invalid)?,
+        )?;
         // Re-read after invocation: cancellation may have committed while the provider was running.
         // A revision conflict retries persistence only, never the domain call.
         for _ in 0..16 {
@@ -505,10 +668,19 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             validate_result(&view, &plan, &self.registry).map_err(|_| Error::Recovery)?;
             j.view = encode(&view)?;
             let unknown = evidence.remote_effect == "unknown";
+            j.waiting_recovery = unknown;
             if !unknown {
                 j.active = None;
             }
-            j.terminal = !unknown && (evidence.state != "succeeded" || view.state == "succeeded");
+            j.retry_due = crate::retry::backoff(&evidence, &invocation.step)
+                .and_then(|wait| now.checked_add(wait))
+                .filter(|due| *due < intent.deadline && *due < j.deadline);
+            if j.cancelled || view.counters.max_attempts >= plan.budgets.max_attempts {
+                j.retry_due = None;
+            }
+            j.terminal = !unknown
+                && j.retry_due.is_none()
+                && (evidence.state != "succeeded" || view.state == "succeeded");
             let kind = if j.terminal {
                 "result_persisted"
             } else {
@@ -521,7 +693,11 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                 &evidence.state
             };
             match self.save_step(j, kind, state, step).await {
-                Err(Error::Conflict) => {}
+                Err(Error::Conflict) => {
+                    if self.lease.is_some() {
+                        return Err(Error::Conflict);
+                    }
+                }
                 result => return result?.handle(),
             }
         }
@@ -535,9 +711,20 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         loop {
             match self.result(&handle.run_id).await {
                 Ok(result) => return Ok(result),
-                Err(Error::Pending) => {
-                    self.advance(&handle.run_id).await?;
-                }
+                Err(Error::Pending) => match self.advance(&handle.run_id).await {
+                    Ok(_) => {}
+                    Err(Error::Recovery) => {
+                        let current = self.load(&handle.run_id).await?;
+                        if current.waiting_recovery || self.now()? >= current.deadline {
+                            return Err(Error::Recovery);
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    }
+                    Err(Error::Pending | Error::Conflict) => {
+                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    }
+                    Err(e) => return Err(e),
+                },
                 Err(e) => return Err(e),
             }
         }
@@ -587,6 +774,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                 && let Ok(evidence) = crate::contracts::parse_step_result(bytes)
                 && evidence.remote_effect != "unknown"
                 && evidence.step_id == invocation.step.id
+                && evidence.attempt == invocation.attempt
             {
                 return self.complete(&j, &invocation, evidence).await;
             }
@@ -745,6 +933,19 @@ fn summarize(view: &mut ChainResult, plan: &Plan, now: u64, revision: u64) -> Re
         )
     };
     view.recovery.required = unknown;
+    view.recovery.resumable_steps = view
+        .steps
+        .iter()
+        .filter(|s| {
+            s.remote_effect == "unknown"
+                || plan
+                    .steps
+                    .iter()
+                    .find(|d| d.id == s.step_id)
+                    .is_some_and(|d| crate::retry::backoff(s, d).is_some())
+        })
+        .map(|s| s.step_id.clone())
+        .collect();
     view.state_revision = revision;
     view.finished_at = crate::timestamp(now)?;
     view.counters = view
@@ -872,6 +1073,7 @@ pub(crate) fn resolve_invocation(
         &plan.budgets,
         &step.budgets,
         &view.counters,
+        &view.steps.get(intent.index).ok_or(Error::Invalid)?.counters,
         retained,
         intent.started,
         intent.deadline,
@@ -884,5 +1086,12 @@ pub(crate) fn resolve_invocation(
         inputs,
         reservation,
         started_ms: intent.started,
+        attempt: view
+            .steps
+            .get(intent.index)
+            .ok_or(Error::Invalid)?
+            .attempt
+            .checked_add(1)
+            .ok_or(Error::ResourceLimit)?,
     })
 }

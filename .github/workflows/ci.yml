@@ -302,7 +302,7 @@ jobs:
         shell: bash
         run: |
           PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_surfaces}" \
-            cargo test -p plenora-runtime-chain-host --test remote --locked -- --ignored --nocapture
+            cargo test -p plenora-runtime-chain-host --test remote --test worker --locked -- --ignored --nocapture
       - name: Run product PostgreSQL and NATS settlement tests
         env:
           PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}

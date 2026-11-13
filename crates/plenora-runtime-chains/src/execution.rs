@@ -320,6 +320,15 @@ impl<S: DurableExecutionStore> StepExecutor<S> {
                 .insert_text(key, value)
                 .map_err(|_| Error::Invalid)?;
         }
+        if let Some(causation) = &intent.causation {
+            message
+                .headers
+                .insert_text(
+                    plenora_runtime_messaging::CAUSATION_ID_METADATA_KEY,
+                    causation,
+                )
+                .map_err(|_| Error::Invalid)?;
+        }
         if matches!(mode, Mode::Invoke) {
             message
                 .headers
@@ -350,6 +359,14 @@ impl<S: DurableExecutionStore> StepExecutor<S> {
         parse_step_result(&message.bytes)
             .map(Some)
             .map_err(|_| Error::Recovery)
+    }
+    pub(crate) async fn confirmed_unknown(&self, j: &Journal) -> Result<bool, Error> {
+        let prepared = self
+            .runtime
+            .evidence(&Self::message(j, Mode::Invoke)?)
+            .await
+            .map_err(|_| Error::Recovery)?;
+        Ok(prepared.report()["remote_effect"] == "unknown")
     }
     pub(crate) async fn invoke(&self, j: &Journal) -> Result<StepResult, Error> {
         self.execute(&Self::message(j, Mode::Invoke)?)

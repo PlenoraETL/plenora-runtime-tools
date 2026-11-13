@@ -59,7 +59,9 @@ fn chain_engine_requires_the_concrete_durable_executor() -> Result<(), Box<dyn E
         .find(|f| f.ident.as_ref().is_some_and(|i| i == "executor"))
         .ok_or("concrete executor")?;
     assert!(
-        matches!(&executor.ty,Type::Path(p) if p.path.segments.last().is_some_and(|s|s.ident=="StepExecutor"))
+        matches!(&executor.ty,Type::Path(p) if p.path.segments.last().is_some_and(|s|s.ident=="Arc"))
+            && executor.ty.to_token_stream().to_string()
+                == "Arc < crate :: execution :: StepExecutor < S > >"
     );
     assert!(matches!(executor.vis, syn::Visibility::Inherited));
     assert!(

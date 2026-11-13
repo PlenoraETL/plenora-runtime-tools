@@ -352,6 +352,8 @@ async fn forged_cas_cannot_clear_unknown_intention_even_with_a_valid_event()
         .as_array_mut()
         .ok_or("events")?
         .push(serde_json::to_value(serde_json::to_vec(&event)?)?);
+    assert!(Journal::from_json(&serde_json::to_vec(&value)?).is_err());
+    value["waiting_recovery"] = false.into();
     let next = Journal::from_json(&serde_json::to_vec(&value)?)?;
     assert_eq!(old.validate_successor(&next), Err(Error::Conflict));
     Ok(())
@@ -616,5 +618,29 @@ async fn deadline_after_start_cannot_use_fake_recovery_as_execution_proof()
     );
     assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
     assert_eq!(adapter.recoveries.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn replayed_run_returns_confirmed_recovery_without_waiting_for_deadline()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let adapter = adapter(true, false)?;
+    let e = ChainEngine::new(store, adapter.clone(), registry()?, clock(), "tenant")?;
+    let controls = options();
+    let h = e.submit(&plan()?, controls.clone()).await?;
+    assert_eq!(e.advance(&h.run_id).await, Err(Error::Recovery));
+    let p = plan()?;
+    let result = e.run(&p, controls);
+    tokio::pin!(result);
+    let observed = std::future::poll_fn(|cx| {
+        std::task::Poll::Ready(std::future::Future::poll(result.as_mut(), cx))
+    })
+    .await;
+    assert!(matches!(
+        observed,
+        std::task::Poll::Ready(Err(Error::Recovery))
+    ));
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 1);
     Ok(())
 }

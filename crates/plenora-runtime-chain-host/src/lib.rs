@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 mod control;
 mod remote;
+mod work;
 use async_trait::async_trait;
 use plenora_runtime_chain_store::{PostgresStore, Retention};
 use plenora_runtime_chains::{
@@ -28,6 +29,9 @@ pub struct ScriptedConfig {
     pub outcomes: String,
     /// Optional authenticated scripted recovery receipts, distinct from reinvocation.
     pub recovery: Option<String>,
+    /// Additional explicit per-attempt step receipts for retry qualification; never synthesized.
+    #[serde(default)]
+    pub attempts: Vec<String>,
     /// Tenant-local immutable fixture resources, identified only by opaque references.
     pub artifacts: BTreeMap<String, Vec<u8>>,
 }
@@ -42,7 +46,7 @@ impl Adapter for ScriptedAdapter {
         let s = self
             .steps
             .iter()
-            .find(|s| s.step_id == i.step.id)
+            .find(|s| s.step_id == i.step.id && s.attempt == i.attempt)
             .ok_or(Error::Unsupported)?;
         if s.operation != i.step.operation
             || s.operation_version != i.step.operation_version
@@ -63,7 +67,7 @@ impl Adapter for ScriptedAdapter {
     async fn invoke(&self, i: &Invocation) -> Result<StepResult, Error> {
         self.steps
             .iter()
-            .find(|s| s.step_id == i.step.id)
+            .find(|s| s.step_id == i.step.id && s.attempt == i.attempt)
             .cloned()
             .ok_or(Error::Unsupported)
     }
@@ -74,7 +78,7 @@ impl Adapter for ScriptedAdapter {
         Ok(self
             .recovery
             .iter()
-            .find(|s| s.step_id == i.step.id)
+            .find(|s| s.step_id == i.step.id && s.attempt == i.attempt)
             .cloned())
     }
     async fn artifact(&self, _: &str, reference: &str, limit: usize) -> Result<Vec<u8>, Error> {
@@ -90,6 +94,7 @@ pub struct ScriptedHost<S: Store + plenora_runtime_boundary::DurableExecutionSto
 {
     runtime: plenora_runtime_boundary::DurableRuntime<S>,
     store: Arc<S>,
+    worker: work::Worker<S>,
 }
 impl ScriptedHost {
     /// Construct the explicit fake profile without opening the database or domain resources.
@@ -120,7 +125,17 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ScriptedHost<S>
         clock: Arc<dyn plenora_runtime_core::Clock>,
     ) -> Result<Self, Error> {
         let registry = parse_registry(config.registry.as_bytes())?;
-        let steps = parse_result(config.outcomes.as_bytes())?.steps;
+        let mut steps = parse_result(config.outcomes.as_bytes())?.steps;
+        for raw in &config.attempts {
+            let next = plenora_runtime_chains::contracts::parse_step_result(raw.as_bytes())?;
+            if steps
+                .iter()
+                .any(|s| s.step_id == next.step_id && s.attempt == next.attempt)
+            {
+                return Err(Error::Invalid);
+            }
+            steps.push(next);
+        }
         let recovery = config
             .recovery
             .as_ref()
@@ -139,8 +154,19 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ScriptedHost<S>
             clock.clone(),
             &config.tenant,
         )?);
-        let runtime = control::runtime(store.clone(), engine, clock, &config.tenant)?;
-        Ok(Self { runtime, store })
+        let runtime = control::runtime(store.clone(), engine.clone(), clock, &config.tenant)?;
+        Ok(Self {
+            runtime,
+            store,
+            worker: work::Worker(engine),
+        })
+    }
+    /// Advance persisted runs until host shutdown, independently of request lifetimes.
+    /// Shutdown drains the current invocation; expired leases never permit blind replay.
+    /// # Errors
+    /// Primary failures are visible to the host supervisor; restarting scans the same journal.
+    pub async fn work(&self, stop: tokio::sync::watch::Receiver<bool>) -> Result<(), Error> {
+        self.worker.run(stop).await
     }
     /// Dispatch every typed API through durable ingress, evidenced component and terminal settlement.
     pub async fn execute(&self, request: Request) -> Response {

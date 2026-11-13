@@ -29,6 +29,9 @@ mod engine;
 mod execution;
 mod journal;
 mod protocol;
+mod retry;
+mod work;
+pub use work::RunLease;
 
 pub use budget::Reservation;
 pub use client::{ChainClient, EventCursor, Transport};

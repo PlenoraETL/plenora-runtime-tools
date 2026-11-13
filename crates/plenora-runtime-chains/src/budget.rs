@@ -83,6 +83,7 @@ impl Reservation {
         global: &Budget,
         step: &Budget,
         used: &Counters,
+        local: &Counters,
         retained: u64,
         now: u64,
         deadline: u64,
@@ -102,7 +103,15 @@ impl Reservation {
                 1 => 0,
                 _ => u,
             };
-            remaining[i] = s.min(g.checked_sub(spent).ok_or(Error::ResourceLimit)?);
+            let local_spent = if matches!(i, 0 | 1 | 5) {
+                0
+            } else {
+                amounts(local)[i]
+            };
+            remaining[i] = s
+                .checked_sub(local_spent)
+                .ok_or(Error::ResourceLimit)?
+                .min(g.checked_sub(spent).ok_or(Error::ResourceLimit)?);
         }
         if remaining[0] == 0 || remaining[8] == 0 {
             return Err(Error::ResourceLimit);

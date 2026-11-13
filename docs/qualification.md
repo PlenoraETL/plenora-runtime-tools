@@ -272,10 +272,10 @@ Chiusura: job verdi sul medesimo candidato; nessuna superficie CLI/SDK promossa.
 
 Regola: P1.4/P1.5 richiedono macchina a stati/crash matrix completa e parita su
 cinque superfici. Ambito: nuovi crate chains, chain-host, chain-cli e chain-python.
-Il coordinatore corrente rifiuta retry con piu tentativi; le facciate sono un
+Il coordinatore P1.4b applica retry bounded e worker fenced; le facciate sono un
 profilo scriptato che attraversa il boundary/dispatcher durevole in P1.4a.
-Restano aperti: retry/backoff completi, prenotazione completa delle risorse,
-manifest/lease e autorizzazione reali, enumerazione RT/catalogo su ogni superficie,
+Restano aperti: prenotazione completa delle risorse,
+manifest/lease degli artefatti e autorizzazione reali, enumerazione RT/catalogo su ogni superficie,
 opzioni finali CLI, errori di dominio finali e qualifica dei test di controllo da
 wheel/binario su PostgreSQL/NATS. Iterator sync/async e paginazione CLI condividono
 EventCursor Rust; le prove installate PostgreSQL sono cablate in un database CI

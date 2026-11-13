@@ -81,35 +81,57 @@ impl ScriptedHost {
             .map_err(|_| Error::Storage)?;
         remote.client.flush().await.map_err(|_| Error::Storage)?;
         ready.send(()).map_err(|()| Error::Storage)?;
-        let result = drive(&mut subscription, |message: async_nats::Message| {
-            let host = self.clone();
-            let client = remote.client.clone();
-            async move {
-                let reply = message.reply.ok_or(Error::Invalid)?;
-                let response = host.call_wire(&message.payload).await;
-                let mut bytes = serde_json::to_vec(&response).map_err(|_| Error::Invalid)?;
-                if bytes.len() > 1024 * 1024 {
-                    bytes = serde_json::to_vec(&Response {
-                        value: serde_json::Value::Null,
-                        error: Some(Error::ResourceLimit),
-                    })
-                    .map_err(|_| Error::Invalid)?;
-                }
-                client
-                    .publish(reply, bytes.into())
-                    .await
-                    .map_err(|_| Error::Storage)?;
-                client.flush().await.map_err(|_| Error::Storage)
-            }
-        })
-        .await;
+        let (stop, stopped) = tokio::sync::watch::channel(false);
+        let listener_stop = stopped.clone();
+        let worker = async {
+            let result = self.work(stopped).await;
+            let _closed = stop.send(true);
+            result
+        };
+        let listener = async {
+            let result = drive(
+                &mut subscription,
+                |message: async_nats::Message| {
+                    let host = self.clone();
+                    let client = remote.client.clone();
+                    async move {
+                        let reply = message.reply.ok_or(Error::Invalid)?;
+                        let response = host.call_wire(&message.payload).await;
+                        let mut bytes =
+                            serde_json::to_vec(&response).map_err(|_| Error::Invalid)?;
+                        if bytes.len() > 1024 * 1024 {
+                            bytes = serde_json::to_vec(&Response {
+                                value: serde_json::Value::Null,
+                                error: Some(Error::ResourceLimit),
+                            })
+                            .map_err(|_| Error::Invalid)?;
+                        }
+                        client
+                            .publish(reply, bytes.into())
+                            .await
+                            .map_err(|_| Error::Storage)?;
+                        client.flush().await.map_err(|_| Error::Storage)
+                    }
+                },
+                Some(listener_stop),
+            )
+            .await;
+            let _closed = stop.send(true);
+            result
+        };
+        let (result, worker_result) = tokio::join!(listener, worker);
+        let result = result.and(worker_result);
         // No new work is consumed after drive observes an error; all accepted tasks are drained.
         let unsubscribe = subscription.unsubscribe().await.map_err(|_| Error::Storage);
         result.and(unsubscribe)
     }
 }
 
-async fn drive<S, F, R>(stream: &mut S, mut invoke: F) -> Result<(), Error>
+async fn drive<S, F, R>(
+    stream: &mut S,
+    mut invoke: F,
+    mut stop: Option<tokio::sync::watch::Receiver<bool>>,
+) -> Result<(), Error>
 where
     S: futures_util::Stream + Unpin,
     F: FnMut(S::Item) -> R,
@@ -118,6 +140,13 @@ where
     let mut tasks = tokio::task::JoinSet::new();
     let failure = loop {
         let message = tokio::select! {
+            () = async {
+                if let Some(receiver) = &mut stop {
+                    while !*receiver.borrow() {
+                        if receiver.changed().await.is_err() { break; }
+                    }
+                } else { std::future::pending::<()>().await; }
+            } => break None,
             result = tasks.join_next(), if !tasks.is_empty() => {
                 if let Some(error) = task_error(result.as_ref()) {
                     break Some(error);
@@ -170,26 +199,30 @@ mod tests {
         let (observed, failure) = tokio::sync::oneshot::channel();
         let mut observed = Some(observed);
         let task = tokio::spawn(async move {
-            drive(&mut stream, |item| {
-                let entered = entered.clone();
-                let release = release.clone();
-                let completed = completed.clone();
-                let observed = if item == 0 { observed.take() } else { None };
-                async move {
-                    if item == 0 {
-                        entered.notified().await;
-                        if let Some(observed) = observed {
-                            observed.send(()).map_err(|()| Error::Invalid)?;
+            drive(
+                &mut stream,
+                |item| {
+                    let entered = entered.clone();
+                    let release = release.clone();
+                    let completed = completed.clone();
+                    let observed = if item == 0 { observed.take() } else { None };
+                    async move {
+                        if item == 0 {
+                            entered.notified().await;
+                            if let Some(observed) = observed {
+                                observed.send(()).map_err(|()| Error::Invalid)?;
+                            }
+                            Err(Error::Storage)
+                        } else {
+                            entered.notify_one();
+                            release.notified().await;
+                            completed.store(true, std::sync::atomic::Ordering::SeqCst);
+                            Ok(())
                         }
-                        Err(Error::Storage)
-                    } else {
-                        entered.notify_one();
-                        release.notified().await;
-                        completed.store(true, std::sync::atomic::Ordering::SeqCst);
-                        Ok(())
                     }
-                }
-            })
+                },
+                None,
+            )
             .await
         });
         assert!(failure.await.is_ok());

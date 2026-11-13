@@ -199,8 +199,8 @@ configurato e autenticato a ogni restart. Il database e la configurazione host
 sono autorita fidate; non si promette tolleranza a loro alterazioni malevole.
 Rischio residuo: test con servizi effimeri non qualificano TLS, permessi subject,
 backup/restore, failover o adapter di dominio reali. Chiusura: job reali verdi sul
-medesimo candidato e qualifica operativa del deploy. Le chiavi d'idempotenza
-host sono rifiutate fino allo scope autenticato P1.4/P1.5, come dichiarato in
+medesimo candidato e qualifica operativa del deploy. Le chiavi d'idempotenza host usano lo scope fidato tenant/operazione P1.4a,
+come dichiarato in
 [allineamento](contract-alignment.md). Nessuna qualifica di produzione attestata.
 
 ## Profilo scriptato catene non qualificato
@@ -209,5 +209,17 @@ Regola: nessuna superficie di produzione aggira boundary, autenticazione e
 negoziazione. Ambito: ScriptedHost e request/reply NATS di ADR 0010. Rischio:
 l'harness usa il tenant e la discovery forniti dalla configurazione fidata e
 non offre ancora il profilo protetto end-to-end. Non esporlo come prodotto di
-produzione. Chiusura: cablaggio al boundary e corpus RT completo su cinque
+produzione. Chiusura: corpus RT completo su cinque
 superfici, store/broker reali e revisione indipendente.
+
+## Worker P1.4b: ownership e arresto
+
+Regola: il lease di coordinamento non prova terminazione del provider. Ambito:
+worker host e CAS del journal; il fence impedisce conferme di un owner vecchio,
+la ricevuta runtime impedisce un secondo invoke anche prima del takeover.
+Rischio residuo: kill/drop esterno del processo e provider che non rispondono
+non sono arresti confermati; Running senza prova resta recovery, senza nuovo
+writer. Shutdown cooperativo drena il lavoro corrente; nessun claim di hard kill.
+Chiusura: qualifica dei provider/OS e deployment reale, separata dal criterio 2
+provato con adapter scriptati. PostgreSQL/NATS effimeri in CI non attestano TLS,
+permessi o failover di produzione.

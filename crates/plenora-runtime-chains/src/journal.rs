@@ -52,6 +52,17 @@ pub(crate) struct Intent {
     pub started: u64,
     pub deadline: u64,
     pub prior: Vec<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_started: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causation: Option<String>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct StepProgress {
+    pub started: u64,
+    pub deadline: u64,
+    pub last_message: Option<String>,
 }
 /// Opaque authoritative snapshot. Only the coordinator can construct transitions.
 #[derive(Clone, Serialize, Deserialize)]
@@ -72,6 +83,12 @@ pub struct Journal {
     pub(crate) events: Vec<Vec<u8>>,
     pub(crate) history: Vec<Vec<u8>>,
     pub(crate) evidence: Option<Vec<u8>>,
+    #[serde(default)]
+    pub(crate) progress: std::collections::BTreeMap<String, StepProgress>,
+    #[serde(default)]
+    pub(crate) retry_due: Option<u64>,
+    #[serde(default)]
+    pub(crate) waiting_recovery: bool,
 }
 impl std::fmt::Debug for Journal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -103,6 +120,29 @@ impl Journal {
     #[must_use]
     pub const fn created_ms(&self) -> u64 {
         self.created
+    }
+    /// Only the monotone cancel request may cross another coordinator's active lease.
+    /// This preserves every byte of intent, result, budget and scheduling state.
+    #[must_use]
+    pub fn is_cancel_successor(&self, next: &Self) -> bool {
+        if self.cancelled
+            || !next.cancelled
+            || self.revision.checked_add(1) != Some(next.revision)
+            || next.events.len() != self.events.len() + 1
+            || !next.events.starts_with(&self.events)
+            || next
+                .events
+                .last()
+                .and_then(|b| parse_event(b).ok())
+                .is_none_or(|e| e.kind != "cancel_requested")
+        {
+            return false;
+        }
+        let mut comparable = next.clone();
+        comparable.cancelled = self.cancelled;
+        comparable.revision = self.revision;
+        comparable.events.clone_from(&self.events);
+        matches!((encode(self),encode(&comparable)),(Ok(a),Ok(b)) if a==b)
     }
     /// Whether this successor introduces a new domain intention.
     #[must_use]
@@ -137,6 +177,13 @@ impl Journal {
         {
             return Err(Error::Conflict);
         }
+        if self.progress.iter().any(|(id, old)| {
+            next.progress
+                .get(id)
+                .is_none_or(|new| new.started != old.started || new.deadline != old.deadline)
+        }) {
+            return Err(Error::Conflict);
+        }
         if let (Some(old), Some(new)) = (&self.active, &next.active)
             && encode(old)? != encode(new)?
         {
@@ -155,7 +202,47 @@ impl Journal {
                 return Err(Error::Conflict);
             }
         }
+        self.schedule_successor(next, &before)?;
         self.transition(next, &before, &after)?;
+        Ok(())
+    }
+    fn schedule_successor(
+        &self,
+        next: &Self,
+        before: &crate::contracts::ChainResult,
+    ) -> Result<(), Error> {
+        let starting = self.active.is_none() && next.active.is_some();
+        let plan = parse_plan(&self.plan)?;
+        for (id, old) in &self.progress {
+            let new = next.progress.get(id).ok_or(Error::Conflict)?;
+            if new.last_message != old.last_message
+                && (!starting
+                    || next
+                        .active
+                        .as_ref()
+                        .and_then(|i| plan.steps.get(i.index))
+                        .is_none_or(|s| &s.id != id))
+            {
+                return Err(Error::Conflict);
+            }
+        }
+        if starting {
+            let intent = next.active.as_ref().ok_or(Error::Conflict)?;
+            let definition = plan.steps.get(intent.index).ok_or(Error::Conflict)?;
+            let step = before.steps.get(intent.index).ok_or(Error::Conflict)?;
+            let previous = self
+                .progress
+                .get(&definition.id)
+                .and_then(|p| p.last_message.as_ref());
+            if intent.causation.as_ref() != previous
+                || previous == Some(&intent.message_id)
+                || (step.attempt > 0
+                    && (self.retry_due.is_none_or(|due| intent.started < due)
+                        || crate::retry::backoff(step, definition).is_none()))
+            {
+                return Err(Error::Conflict);
+            }
+        }
         Ok(())
     }
     fn transition(
@@ -186,8 +273,18 @@ impl Journal {
                 let original =
                     crate::contracts::parse_step_result(raw).map_err(|_| Error::Conflict)?;
                 let completed = after.steps.get(intent.index).ok_or(Error::Conflict)?;
-                if !same_evidence(completed, &original)
-                    || completed.remote_effect == "unknown"
+                if !same_evidence(
+                    completed,
+                    &crate::retry::cumulative(
+                        parse_result(&intent.prior)?
+                            .steps
+                            .get(intent.index)
+                            .ok_or(Error::Conflict)?,
+                        &original,
+                        0,
+                    )?,
+                    crate::retry::elapsed(intent, next.events.last().ok_or(Error::Conflict)?)?,
+                ) || completed.remote_effect == "unknown"
                     || completed.attempt == 0
                     || self.evidence != next.evidence
                 {
@@ -221,11 +318,9 @@ impl Journal {
                             .any(|s| &s.step_id == *id && s.state != "succeeded")
                     })
                     .ok_or(Error::Conflict)?;
-                if before
-                    .steps
-                    .get(intent.index)
-                    .is_none_or(|s| &s.step_id != first || s.attempt != 0)
-                    || intent.prior != self.view
+                if before.steps.get(intent.index).is_none_or(|s| {
+                    &s.step_id != first || (s.attempt != 0 && self.retry_due.is_none())
+                }) || intent.prior != self.view
                     || self.view != next.view
                     || self.evidence != next.evidence
                 {
@@ -304,7 +399,55 @@ impl Journal {
         {
             return Err(Error::Invalid);
         }
+        if self.progress.iter().any(|(id, p)| {
+            !plan.steps.iter().any(|s| &s.id == id)
+                || p.deadline > self.deadline
+                || p.deadline <= p.started
+                || p.started < self.created
+                || p.last_message.as_ref().is_some_and(|id| !crate::uuid(id))
+        }) || (self.retry_due.is_some() && (self.active.is_some() || self.terminal))
+        {
+            return Err(Error::Invalid);
+        }
+        if self.waiting_recovery && self.active.is_none() {
+            return Err(Error::Invalid);
+        }
+        if let Some(due) = self.retry_due {
+            let pending = view
+                .steps
+                .iter()
+                .find(|s| s.state != "succeeded")
+                .ok_or(Error::Invalid)?;
+            let definition = plan
+                .steps
+                .iter()
+                .find(|s| s.id == pending.step_id)
+                .ok_or(Error::Invalid)?;
+            let progress = self.progress.get(&pending.step_id).ok_or(Error::Invalid)?;
+            if crate::retry::backoff(pending, definition).is_none()
+                || due >= progress.deadline
+                || due < progress.started
+                || view.counters.max_attempts >= plan.budgets.max_attempts
+            {
+                return Err(Error::Invalid);
+            }
+        }
         if let Some(active) = &self.active {
+            if let Some(first) = active.first_started {
+                let id = &plan.steps.get(active.index).ok_or(Error::Invalid)?.id;
+                let progress = self.progress.get(id).ok_or(Error::Invalid)?;
+                if progress.started != first
+                    || progress.deadline != active.deadline
+                    || progress.last_message.as_ref() != Some(&active.message_id)
+                    || active
+                        .causation
+                        .as_ref()
+                        .is_some_and(|id| !crate::uuid(id) || id == &active.message_id)
+                    || active.started < first
+                {
+                    return Err(Error::Invalid);
+                }
+            }
             validate_result(&parse_result(&active.prior)?, &plan, &registry)?;
         }
         for (index, bytes) in self.events.iter().enumerate() {
@@ -327,7 +470,7 @@ impl Journal {
             parse_result(&self.view)?.state
         } else if self.cancelled {
             "cancel_requested".into()
-        } else if self.evidence.is_some() && self.active.is_some() {
+        } else if self.waiting_recovery || parse_result(&self.view)?.state == "requires_recovery" {
             "requires_recovery".into()
         } else if self.active.is_some() {
             "running".into()
@@ -358,7 +501,26 @@ impl Journal {
             kind: kind.into(),
             state: state.into(),
             step_id: step.map(str::to_owned),
-            attempt: u64::from(step.is_some()),
+            attempt: if let Some(id) = step {
+                if let Some(intent) = &self.active {
+                    parse_result(&intent.prior)?
+                        .steps
+                        .get(intent.index)
+                        .ok_or(Error::Invalid)?
+                        .attempt
+                        .checked_add(1)
+                        .ok_or(Error::ResourceLimit)?
+                } else {
+                    parse_result(&self.view)?
+                        .steps
+                        .iter()
+                        .find(|s| s.step_id == id)
+                        .ok_or(Error::Invalid)?
+                        .attempt
+                }
+            } else {
+                0
+            },
             result_ref: (kind == "result_persisted")
                 .then(|| format!("ref:result-{}", self.options.run_id)),
             error: None,
@@ -373,6 +535,21 @@ impl Journal {
 /// Implementations enforce seven-day delivery, ninety-day reports and permanent tombstones.
 #[async_trait]
 pub trait Store: Send + Sync + 'static {
+    /// Claim one due run in the trusted tenant under a primary transaction, fencing older owners.
+    /// Lease duration is finite (1..=60000 ms); absence does not mean all runs are complete.
+    async fn claim_work(
+        &self,
+        _tenant: &str,
+        _owner: &str,
+        _lease_ms: u64,
+    ) -> Result<Option<crate::RunLease>, Error> {
+        Err(Error::Unsupported)
+    }
+    /// Release only the current owner/token. Expired owners cannot release a successor's lease.
+    async fn release_work(&self, _lease: &crate::RunLease) -> Result<(), Error> {
+        Err(Error::Unsupported)
+    }
+
     /// Lookup both identities before new-admission deadline checks. Two matching rows conflict.
     /// Expired identities return `Expired`, never absence; this does not authorize a mutation.
     async fn lookup(
@@ -401,8 +578,14 @@ impl Submission {
     }
 }
 /// Single-use transition authority. It is neither constructible nor deserializable by callers.
-pub struct Change(pub(crate) Journal);
+pub struct Change(pub(crate) Journal, pub(crate) Option<crate::RunLease>);
 impl Change {
+    /// Inspect the optional coordination fence before committing the successor.
+    #[must_use]
+    pub fn lease(&self) -> Option<&crate::RunLease> {
+        self.1.as_ref()
+    }
+
     /// Consume the authorized successor in a primary CAS implementation.
     #[must_use]
     pub fn into_journal(self) -> Journal {
@@ -428,8 +611,15 @@ impl std::io::Write for Size {
 fn same_evidence(
     completed: &crate::contracts::StepResult,
     original: &crate::contracts::StepResult,
+    elapsed: u64,
 ) -> bool {
+    if completed.counters.elapsed_ms < original.counters.elapsed_ms
+        || completed.counters.elapsed_ms > elapsed.max(original.counters.elapsed_ms)
+    {
+        return false;
+    }
     let mut checked = completed.clone();
+    checked.counters.elapsed_ms = original.counters.elapsed_ms;
     // The coordinator may add an observed timeout, never alter domain evidence.
     if checked != *original {
         let expected_state = if original.state == "succeeded" {

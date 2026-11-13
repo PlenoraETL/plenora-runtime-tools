@@ -33,6 +33,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("delivery-v1.sql", include_str!("delivery-v1.sql")),
     ("runs-v1.sql", include_str!("runs-v1.sql")),
     ("idempotency-v1.sql", include_str!("idempotency-v1.sql")),
+    ("work-v1.sql", include_str!("work-v1.sql")),
 ];
 
 /// Connection factory. Each operation opens a primary connection and a transaction;

@@ -20,6 +20,8 @@ serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
 uuid.workspace = true
+# Bounded cooperative backoff while the same durable run is observed in-process.
+tokio = { workspace = true, features = ["time"] }
 
 [dev-dependencies]
 plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }

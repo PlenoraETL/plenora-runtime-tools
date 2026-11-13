@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 from unittest.mock import patch
 import uuid
@@ -221,6 +222,50 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await binary("chain", "result", "--run", started["run_id"]))["state"], "cancelled")
         finally:
             await asyncio.to_thread(config_path.unlink)
+
+    async def test_retry_accounting_from_installed_sync_async_and_binary(self):
+        plan = json.loads(PLAN)
+        plan["steps"][1]["retry_policy"] = {"max_attempts": 2, "backoff_ms": 20}
+        outcomes = json.loads(CONFIG["outcomes"])
+        second = json.loads(json.dumps(outcomes["steps"][1]))
+        second["attempt"] = 2
+        for output in second["outputs"].values():
+            output["attempt"] = 2
+        first = outcomes["steps"][1]
+        first.update(state="failed", reason="upstream_error", outputs={}, remote_effect="none",
+                     retry={"kind": "safe"}, error={
+                         "contract": "plenora-chain-error-v2", "schema_version": 2,
+                         "category": "io", "phase": "read", "code": "CHAIN_UPSTREAM",
+                         "remote_effect": "none", "retry": {"kind": "safe"},
+                         "message": "Chain operation rejected or incomplete.",
+                         "step_id": "transform", "upstream_error": None, "reports": []})
+        config = dict(CONFIG, tenant="retry-" + str(uuid.uuid4()),
+                      outcomes=json.dumps(outcomes), attempts=[json.dumps(second)])
+        client = AsyncClient(config)
+        await client.migrate()
+        sync = Client(config)
+        def options():
+            return dict(OPTIONS, run_id=str(uuid.uuid4()))
+        results = [await asyncio.to_thread(sync.run, plan=json.dumps(plan), options=options()),
+                   await client.run(plan=json.dumps(plan), options=options())]
+        def binary():
+            with tempfile.TemporaryDirectory(dir=ROOT / "target") as folder:
+                config_path, plan_path = Path(folder) / "config.json", Path(folder) / "plan.json"
+                config_path.write_text(json.dumps(config), encoding="utf-8")
+                plan_path.write_text(json.dumps(plan), encoding="utf-8")
+                completed = subprocess.run([os.environ["PLENORA_CHAIN_BIN"], "chain", "run",
+                    "--plan", str(plan_path), "--run", str(uuid.uuid4()), "--config", str(config_path),
+                    "--json"], capture_output=True, text=True, encoding="utf-8", check=False)
+                self.assertEqual(completed.returncode, 0, completed.stdout)
+                self.assertEqual(completed.stderr, "")
+                return json.loads(completed.stdout)["value"]
+        results.append(await asyncio.to_thread(binary))
+        for result in results:
+            self.assertEqual(result["state"], "succeeded")
+            self.assertEqual(result["steps"][1]["attempt"], 2)
+            self.assertEqual(result["counters"]["max_attempts"], 4)
+            reports = await client.report(run_id=result["run_id"])
+            self.assertEqual(len(reports), 4)
 
 if __name__ == "__main__":
     unittest.main()

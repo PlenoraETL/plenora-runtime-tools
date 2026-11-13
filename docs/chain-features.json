@@ -641,8 +641,8 @@
             ]
           },
           "incremental_evidence": {
-            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
-            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
             "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
@@ -684,6 +684,11 @@
             "rejection": "unknown senza evidenza autenticata",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         }
       }
@@ -3554,8 +3559,8 @@
             "effect": "crash in ogni finestra C.4; commit remoto non atomico col journal"
           },
           "incremental_evidence": {
-            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
-            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
             "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
@@ -3597,6 +3602,11 @@
             "rejection": "store non autorevole o worker stale",
             "limit": "race multi-host e lease scaduto",
             "effect": "crash in ogni finestra C.4; commit remoto non atomico col journal"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         }
       }
@@ -4794,7 +4804,12 @@
             "limit": "max_attempts, deadline e quote cumulative anche su fallimento",
             "effect": "committed/partial/unknown non ritentati alla cieca; resource_limit none ha retry never"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "cli": {
           "status": "specificata",
@@ -4838,7 +4853,12 @@
             "limit": "max_attempts, deadline e quote cumulative anche su fallimento",
             "effect": "committed/partial/unknown non ritentati alla cieca; resource_limit none ha retry never"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         }
       }
     },

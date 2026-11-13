@@ -1832,10 +1832,11 @@ crates/plenora-runtime-chain-host/src/control.rs | impl Wire { } | fn capture (m
 crates/plenora-runtime-chain-host/src/control.rs | impl Wire { } | fn restore (self) -> SerializedMessage
 crates/plenora-runtime-chain-host/src/control.rs | impl Wire { } | pub (crate)
 crates/plenora-runtime-chain-host/src/control.rs | impl Wire { } | pub (crate)
-crates/plenora-runtime-chain-host/src/lib.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct ScriptedConfig { pub database : String , pub tenant : String , pub registry : String , pub outcomes : String , pub recovery : Option < String > , pub artifacts : BTreeMap < String , Vec < u8 > > , }
+crates/plenora-runtime-chain-host/src/lib.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct ScriptedConfig { pub database : String , pub tenant : String , pub registry : String , pub outcomes : String , pub recovery : Option < String > , # [serde (default)] pub attempts : Vec < String > , pub artifacts : BTreeMap < String , Vec < u8 > > , }
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod control ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod remote ;
-crates/plenora-runtime-chain-host/src/lib.rs |  | pub struct ScriptedHost < S : Store + plenora_runtime_boundary :: DurableExecutionStore = PostgresStore > { runtime : plenora_runtime_boundary :: DurableRuntime < S > , store : Arc < S > , }
+crates/plenora-runtime-chain-host/src/lib.rs |  | mod work ;
+crates/plenora-runtime-chain-host/src/lib.rs |  | pub struct ScriptedHost < S : Store + plenora_runtime_boundary :: DurableExecutionStore = PostgresStore > { runtime : plenora_runtime_boundary :: DurableRuntime < S > , store : Arc < S > , worker : work :: Worker < S > , }
 crates/plenora-runtime-chain-host/src/lib.rs |  | pub use remote :: RemoteClient ;
 crates/plenora-runtime-chain-host/src/lib.rs | # [async_trait] impl Adapter for ScriptedAdapter { } | 
 crates/plenora-runtime-chain-host/src/lib.rs | # [async_trait] impl Adapter for ScriptedAdapter { } | 
@@ -1854,7 +1855,9 @@ crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtim
 crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | async fn dispatch_message (& self , message : & plenora_runtime_messaging :: SerializedMessage ,) -> Response
 crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | async fn execute (& self , request : Request) -> Response
 crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | async fn process (& self , message : & plenora_runtime_messaging :: SerializedMessage ,) -> Result < plenora_runtime_messaging :: SerializedMessage , plenora_runtime_boundary :: SettlementError , >
+crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | async fn work (& self , stop : tokio :: sync :: watch :: Receiver < bool >) -> Result < () , Error >
 crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | fn with_store (config : ScriptedConfig , store : Arc < S > , clock : Arc < dyn plenora_runtime_core :: Clock > ,) -> Result < Self , Error >
+crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | pub
 crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | pub
 crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | pub
 crates/plenora-runtime-chain-host/src/lib.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | pub
@@ -1867,10 +1870,10 @@ crates/plenora-runtime-chain-host/src/remote.rs |  |
 crates/plenora-runtime-chain-host/src/remote.rs |  | 
 crates/plenora-runtime-chain-host/src/remote.rs |  | 
 crates/plenora-runtime-chain-host/src/remote.rs |  | async fn drain (tasks : & mut tokio :: task :: JoinSet < Result < () , Error > > , mut failure : Option < Error > ,) -> Result < () , Error >
-crates/plenora-runtime-chain-host/src/remote.rs |  | async fn drive < S , F , R > (stream : & mut S , mut invoke : F) -> Result < () , Error > where S : futures_util :: Stream + Unpin , F : FnMut (S :: Item) -> R , R : std :: future :: Future < Output = Result < () , Error > > + Send + 'static ,
+crates/plenora-runtime-chain-host/src/remote.rs |  | async fn drive < S , F , R > (stream : & mut S , mut invoke : F , mut stop : Option < tokio :: sync :: watch :: Receiver < bool > > ,) -> Result < () , Error > where S : futures_util :: Stream + Unpin , F : FnMut (S :: Item) -> R , R : std :: future :: Future < Output = Result < () , Error > > + Send + 'static ,
 crates/plenora-runtime-chain-host/src/remote.rs |  | fn task_error (result : Option < & Result < Result < () , Error > , tokio :: task :: JoinError > >) -> Option < Error >
 crates/plenora-runtime-chain-host/src/remote.rs |  | pub struct RemoteClient { client : async_nats :: Client , subject : String , }
-crates/plenora-runtime-chain-host/src/remote.rs |  | tokio :: select ! { result = tasks . join_next () , if ! tasks . is_empty () => { if let Some (error) = task_error (result . as_ref ()) { break Some (error) ; } continue ; } message = stream . next () , if tasks . len () < 16 => { let Some (message) = message else { break None } ; message } }
+crates/plenora-runtime-chain-host/src/remote.rs |  | tokio :: select ! { () = async { if let Some (receiver) = & mut stop { while !* receiver . borrow () { if receiver . changed () . await . is_err () { break ; } } } else { std :: future :: pending ::< () > () . await ; } } => break None , result = tasks . join_next () , if ! tasks . is_empty () => { if let Some (error) = task_error (result . as_ref ()) { break Some (error) ; } continue ; } message = stream . next () , if tasks . len () < 16 => { let Some (message) = message else { break None } ; message } }
 crates/plenora-runtime-chain-host/src/remote.rs | # [async_trait] impl Transport for RemoteClient { } | 
 crates/plenora-runtime-chain-host/src/remote.rs | # [async_trait] impl Transport for RemoteClient { } | async fn exchange (& self , request : Request) -> Result < Response , Error >
 crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | async fn call (& self , bytes : Vec < u8 >) -> Result < Response , Error >
@@ -1880,6 +1883,10 @@ crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | pub
 crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | pub
 crates/plenora-runtime-chain-host/src/remote.rs | impl ScriptedHost { } | async fn serve (self : Arc < Self > , server : & str , subject : & str , ready : tokio :: sync :: oneshot :: Sender < () > ,) -> Result < () , Error >
 crates/plenora-runtime-chain-host/src/remote.rs | impl ScriptedHost { } | pub
+crates/plenora-runtime-chain-host/src/remote.rs | impl ScriptedHost { } | tokio :: join ! (listener , worker)
+crates/plenora-runtime-chain-host/src/work.rs | impl < S : Store + DurableExecutionStore > Worker < S > { } | async fn run (& self , mut stop : tokio :: sync :: watch :: Receiver < bool >) -> Result < () , Error >
+crates/plenora-runtime-chain-host/src/work.rs | impl < S : Store + DurableExecutionStore > Worker < S > { } | pub
+crates/plenora-runtime-chain-host/src/work.rs | impl < S : Store + DurableExecutionStore > Worker < S > { } | tokio :: select ! { changed = stop . changed () => { if changed . is_err () { return Ok (()) ; } } , () = tokio :: time :: sleep (Duration :: from_millis (25)) => { } , }
 crates/plenora-runtime-chain-python/src/lib.rs |  | 
 crates/plenora-runtime-chain-python/src/lib.rs |  | 
 crates/plenora-runtime-chain-python/src/lib.rs |  | fn _native (module : & Bound < '_ , PyModule >) -> PyResult < () >
@@ -1933,6 +1940,7 @@ crates/plenora-runtime-chain-store/src/lib.rs |  | include_str ! ("idempotency-v
 crates/plenora-runtime-chain-store/src/lib.rs |  | include_str ! ("migration-v2.sql")
 crates/plenora-runtime-chain-store/src/lib.rs |  | include_str ! ("migration.sql")
 crates/plenora-runtime-chain-store/src/lib.rs |  | include_str ! ("runs-v1.sql")
+crates/plenora-runtime-chain-store/src/lib.rs |  | include_str ! ("work-v1.sql")
 crates/plenora-runtime-chain-store/src/lib.rs |  | mod delivery ;
 crates/plenora-runtime-chain-store/src/lib.rs |  | mod runs ;
 crates/plenora-runtime-chain-store/src/lib.rs |  | mod settlement ;
@@ -1985,10 +1993,14 @@ crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for 
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | 
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | 
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn claim_work (& self , tenant : & str , owner : & str , lease_ms : u64 ,) -> Result < Option < plenora_runtime_chains :: RunLease > , Error >
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn compare_exchange (& self , expected : u64 , next : plenora_runtime_chains :: Change ,) -> Result < () , Error >
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn create (& self , candidate : plenora_runtime_chains :: Submission ,) -> Result < Journal , Error >
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn load (& self , tenant : & str , run_id : & str) -> Result < Journal , Error >
 crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn lookup (& self , tenant : & str , run_id : & str , key : Option < & str > ,) -> Result < Option < Journal > , Error >
+crates/plenora-runtime-chain-store/src/runs.rs | # [async_trait] impl Store for PostgresStore { } | async fn release_work (& self , lease : & plenora_runtime_chains :: RunLease) -> Result < () , Error >
 crates/plenora-runtime-chain-store/src/settlement.rs | impl PostgresStore { } | async fn evidence_report (& self , id : MessageId) -> Result < Vec < u8 > , StoreError >
 crates/plenora-runtime-chain-store/src/settlement.rs | impl PostgresStore { } | async fn record_evidence (& self , permit : & StartPermit , report : & [u8] ,) -> Result < () , StoreError >
 crates/plenora-runtime-chain-store/src/settlement.rs | impl PostgresStore { } | pub
@@ -2028,7 +2040,8 @@ crates/plenora-runtime-chains/src/budget.rs |  | pub (crate)
 crates/plenora-runtime-chains/src/budget.rs |  | pub (crate)
 crates/plenora-runtime-chains/src/budget.rs |  | pub (crate)
 crates/plenora-runtime-chains/src/budget.rs |  | pub (crate)
-crates/plenora-runtime-chains/src/budget.rs | impl Reservation { } | fn new (global : & Budget , step : & Budget , used : & Counters , retained : u64 , now : u64 , deadline : u64 ,) -> Result < Self , Error >
+crates/plenora-runtime-chains/src/budget.rs | impl Reservation { } | fn new (global : & Budget , step : & Budget , used : & Counters , local : & Counters , retained : u64 , now : u64 , deadline : u64 ,) -> Result < Self , Error >
+crates/plenora-runtime-chains/src/budget.rs | impl Reservation { } | matches ! (i , 0 | 1 | 5)
 crates/plenora-runtime-chains/src/budget.rs | impl Reservation { } | pub (crate)
 crates/plenora-runtime-chains/src/client.rs |  | pub struct ChainClient < T > { transport : Arc < T > , }
 crates/plenora-runtime-chains/src/client.rs |  | pub struct EventCursor { run_id : String , sequence : u64 , limit : usize , }
@@ -2060,8 +2073,8 @@ crates/plenora-runtime-chains/src/engine.rs |  | matches ! (& b . source , Sourc
 crates/plenora-runtime-chains/src/engine.rs |  | matches ! (s . state . as_str () , "succeeded" | "skipped" | "blocked")
 crates/plenora-runtime-chains/src/engine.rs |  | matches ! (step . state . as_str () , "skipped" | "blocked")
 crates/plenora-runtime-chains/src/engine.rs |  | pub (crate)
-crates/plenora-runtime-chains/src/engine.rs |  | pub struct ChainEngine < S : plenora_runtime_boundary :: DurableExecutionStore > { store : Arc < S > , registry : Registry , clock : Arc < dyn Clock > , tenant : String , executor : crate :: execution :: StepExecutor < S > , }
-crates/plenora-runtime-chains/src/engine.rs |  | pub struct Invocation { pub tenant : String , pub run_id : String , pub message_id : String , pub step : Step , pub inputs : BTreeMap < String , Input > , pub reservation : Reservation , pub started_ms : u64 , }
+crates/plenora-runtime-chains/src/engine.rs |  | pub struct ChainEngine < S : plenora_runtime_boundary :: DurableExecutionStore > { store : Arc < S > , registry : Registry , clock : Arc < dyn Clock > , tenant : String , executor : Arc < crate :: execution :: StepExecutor < S > > , lease : Option < crate :: RunLease > , }
+crates/plenora-runtime-chains/src/engine.rs |  | pub struct Invocation { pub tenant : String , pub run_id : String , pub message_id : String , pub step : Step , pub inputs : BTreeMap < String , Input > , pub reservation : Reservation , pub started_ms : u64 , pub attempt : u64 , }
 crates/plenora-runtime-chains/src/engine.rs |  | vec ! []
 crates/plenora-runtime-chains/src/engine.rs |  | vec ! []
 crates/plenora-runtime-chains/src/engine.rs |  | vec ! []
@@ -2082,15 +2095,20 @@ crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | 
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | 
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | 
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | 
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | 
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | 
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn advance (& self , run_id : & str) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn artifact (& self , reference : & str) -> Result < Vec < u8 > , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn cancel (& self , run_id : & str , expected : u64) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn complete (& self , started : & Journal , invocation : & Invocation , mut evidence : StepResult ,) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn events (& self , run_id : & str , cursor : u64 , limit : usize ,) -> Result < Vec < Event > , Error >
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn finish (& self , started : & Journal , invocation : & Invocation , evidence : StepResult ,) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn load (& self , id : & str) -> Result < Journal , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn record_evidence (& self , started : & Journal , invocation : & Invocation , raw : Vec < u8 > ,) -> Result < () , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn reject (& self , mut j : Journal , index : usize , failure : Error ,) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn report (& self , run_id : & str) -> Result < Vec < Vec < u8 > > , Error >
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn require_recovery (& self , started : & Journal) -> Result < () , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn result (& self , run_id : & str) -> Result < ChainResult , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn resume (& self , run_id : & str , expected : u64) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn run (& self , plan : & Plan , options : RunOptions) -> Result < ChainResult , Error >
@@ -2098,12 +2116,17 @@ crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn save_step (& self , mut j : Journal , kind : & str , state : & str , step : Option < & str > ,) -> Result < Journal , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn status (& self , run_id : & str) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn submit (& self , plan : & Plan , options : RunOptions) -> Result < RunHandle , Error >
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn work_claimed (& self , run_id : & str) -> Result < RunHandle , Error >
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn work_once (& self , owner : & str , lease_ms : u64) -> Result < bool , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | const fn capabilities (& self) -> & Registry
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | fn delivery (& self , j : & Journal) -> Result < u64 , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | fn invocation (& self , j : & Journal , plan : & Plan , view : & ChainResult , intent : & Intent ,) -> Result < Invocation , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | fn new < A : Adapter > (store : Arc < S > , adapter : Arc < A > , registry : Registry , clock : Arc < dyn Clock > , tenant : & str ,) -> Result < Self , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | fn now (& self) -> Result < u64 , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | fn validate (& self , plan : & Plan) -> Result < ValidationReport , Error >
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | matches ! (result , Err (Error :: Conflict))
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | matches ! (result , Err (Error :: Recovery))
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | pub
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | pub
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | pub
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | pub
@@ -2140,6 +2163,7 @@ crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStor
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | 
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | async fn artifact (& self , tenant : & str , reference : & str , limit : usize ,) -> Result < Vec < u8 > , Error >
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | async fn cancel (& self , j : & Journal) -> Result < () , Error >
+crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | async fn confirmed_unknown (& self , j : & Journal) -> Result < bool , Error >
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | async fn execute (& self , message : & SerializedMessage) -> Result < Option < StepResult > , Error >
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | async fn invoke (& self , j : & Journal) -> Result < StepResult , Error >
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | async fn prepare (& self , invocation : & crate :: Invocation) -> Result < () , Error >
@@ -2158,6 +2182,7 @@ crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStor
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | pub (crate)
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | pub (crate)
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | pub (crate)
+crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | pub (crate)
 crates/plenora-runtime-chains/src/execution.rs | impl < S : DurableExecutionStore > StepExecutor < S > { } | vec ! [(route . into () , route_discovery . ok_or (Error :: Invalid) ?, sink ,)]
 crates/plenora-runtime-chains/src/execution.rs | impl AdmissionPolicy for Policy { } | 
 crates/plenora-runtime-chains/src/execution.rs | impl AdmissionPolicy for Policy { } | 
@@ -2170,16 +2195,21 @@ crates/plenora-runtime-chains/src/execution.rs | impl Mode { } | fn suffix (self
 crates/plenora-runtime-chains/src/journal.rs |  | 
 crates/plenora-runtime-chains/src/journal.rs |  | # [derive (Clone , Debug , PartialEq , Eq , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct RunHandle { pub run_id : String , pub revision : u64 , pub state : String , }
 crates/plenora-runtime-chains/src/journal.rs |  | # [derive (Clone , PartialEq , Eq , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct RunOptions { pub run_id : String , pub idempotency_key : Option < String > , pub deadline_ms : Option < u64 > , }
-crates/plenora-runtime-chains/src/journal.rs |  | # [derive (Clone , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Journal { pub (crate) version : u8 , pub (crate) tenant : String , pub (crate) options : RunOptions , pub (crate) created : u64 , pub (crate) deadline : u64 , pub (crate) revision : u64 , pub (crate) plan : Vec < u8 > , pub (crate) registry : Vec < u8 > , pub (crate) view : Vec < u8 > , pub (crate) active : Option < Intent > , pub (crate) cancelled : bool , pub (crate) terminal : bool , pub (crate) events : Vec < Vec < u8 > > , pub (crate) history : Vec < Vec < u8 > > , pub (crate) evidence : Option < Vec < u8 > > , }
-crates/plenora-runtime-chains/src/journal.rs |  | fn same_evidence (completed : & crate :: contracts :: StepResult , original : & crate :: contracts :: StepResult ,) -> bool
-crates/plenora-runtime-chains/src/journal.rs |  | pub struct Change (pub (crate) Journal) ;
+crates/plenora-runtime-chains/src/journal.rs |  | # [derive (Clone , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Journal { pub (crate) version : u8 , pub (crate) tenant : String , pub (crate) options : RunOptions , pub (crate) created : u64 , pub (crate) deadline : u64 , pub (crate) revision : u64 , pub (crate) plan : Vec < u8 > , pub (crate) registry : Vec < u8 > , pub (crate) view : Vec < u8 > , pub (crate) active : Option < Intent > , pub (crate) cancelled : bool , pub (crate) terminal : bool , pub (crate) events : Vec < Vec < u8 > > , pub (crate) history : Vec < Vec < u8 > > , pub (crate) evidence : Option < Vec < u8 > > , # [serde (default)] pub (crate) progress : std :: collections :: BTreeMap < String , StepProgress > , # [serde (default)] pub (crate) retry_due : Option < u64 > , # [serde (default)] pub (crate) waiting_recovery : bool , }
+crates/plenora-runtime-chains/src/journal.rs |  | fn same_evidence (completed : & crate :: contracts :: StepResult , original : & crate :: contracts :: StepResult , elapsed : u64 ,) -> bool
+crates/plenora-runtime-chains/src/journal.rs |  | pub struct Change (pub (crate) Journal , pub (crate) Option < crate :: RunLease >) ;
 crates/plenora-runtime-chains/src/journal.rs |  | pub struct Submission (pub (crate) Journal) ;
+crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn claim_work (& self , _tenant : & str , _owner : & str , _lease_ms : u64 ,) -> Result < Option < crate :: RunLease > , Error >
 crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn compare_exchange (& self , expected : u64 , next : Change) -> Result < () , Error >
 crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn create (& self , candidate : Submission) -> Result < Journal , Error >
 crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn load (& self , tenant : & str , run_id : & str) -> Result < Journal , Error >
 crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn lookup (& self , tenant : & str , run_id : & str , key : Option < & str > ,) -> Result < Option < Journal > , Error >
+crates/plenora-runtime-chains/src/journal.rs | # [async_trait] pub trait Store : Send + Sync + 'static { } | async fn release_work (& self , _lease : & crate :: RunLease) -> Result < () , Error >
 crates/plenora-runtime-chains/src/journal.rs | impl Change { } | fn into_journal (self) -> Journal
+crates/plenora-runtime-chains/src/journal.rs | impl Change { } | fn lease (& self) -> Option < & crate :: RunLease >
 crates/plenora-runtime-chains/src/journal.rs | impl Change { } | pub
+crates/plenora-runtime-chains/src/journal.rs | impl Change { } | pub
+crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | 
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | 
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | const fn created_ms (& self) -> u64
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | const fn revision (& self) -> u64
@@ -2187,8 +2217,10 @@ crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn event (& mu
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn from_json (bytes : & [u8]) -> Result < Self , Error >
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn handle (& self) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn idempotency_key (& self) -> Option < & str >
+crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn is_cancel_successor (& self , next : & Self) -> bool
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn run_id (& self) -> & str
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn same_submission (& self , other : & Self) -> bool
+crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn schedule_successor (& self , next : & Self , before : & crate :: contracts :: ChainResult ,) -> Result < () , Error >
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn starts_invocation_after (& self , previous : & Self) -> bool
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn tenant (& self) -> & str
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn to_json (& self) -> Result < Vec < u8 > , Error >
@@ -2196,8 +2228,10 @@ crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn transition 
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn validate (& self) -> Result < () , Error >
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn validate_successor (& self , next : & Self) -> Result < () , Error >
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | format ! ("ref:result-{}" , self . options . run_id)
+crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | matches ! ((encode (self) , encode (& comparable)) , (Ok (a) , Ok (b)) if a == b)
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | matches ! (new . state . as_str () , "skipped" | "blocked")
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | matches ! (old . state . as_str () , "skipped" | "blocked")
+crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | pub
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | pub
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | pub
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | pub
@@ -2232,6 +2266,8 @@ crates/plenora-runtime-chains/src/lib.rs |  | mod engine ;
 crates/plenora-runtime-chains/src/lib.rs |  | mod execution ;
 crates/plenora-runtime-chains/src/lib.rs |  | mod journal ;
 crates/plenora-runtime-chains/src/lib.rs |  | mod protocol ;
+crates/plenora-runtime-chains/src/lib.rs |  | mod retry ;
+crates/plenora-runtime-chains/src/lib.rs |  | mod work ;
 crates/plenora-runtime-chains/src/lib.rs |  | pub (crate)
 crates/plenora-runtime-chains/src/lib.rs |  | pub (crate)
 crates/plenora-runtime-chains/src/lib.rs |  | pub (crate)
@@ -2242,6 +2278,7 @@ crates/plenora-runtime-chains/src/lib.rs |  | pub use engine :: { Adapter , Chai
 crates/plenora-runtime-chains/src/lib.rs |  | pub use journal :: { Change , DELIVERY_MS , JOURNAL_BYTES , Journal , REPORT_MS , RunHandle , RunOptions , Store , Submission , } ;
 crates/plenora-runtime-chains/src/lib.rs |  | pub use plenora_runtime_chain_contracts as contracts ;
 crates/plenora-runtime-chains/src/lib.rs |  | pub use protocol :: { FUNCTIONS , Request , Response } ;
+crates/plenora-runtime-chains/src/lib.rs |  | pub use work :: RunLease ;
 crates/plenora-runtime-chains/src/lib.rs | impl From < contracts :: Rejection > for Error { } | 
 crates/plenora-runtime-chains/src/lib.rs | impl From < contracts :: Rejection > for Error { } | fn from (_ : contracts :: Rejection) -> Self
 crates/plenora-runtime-chains/src/lib.rs | impl fmt :: Display for Error { } | 
@@ -2255,6 +2292,31 @@ crates/plenora-runtime-chains/src/protocol.rs | impl < S : Store + plenora_runti
 crates/plenora-runtime-chains/src/protocol.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | json ! ({ "order" : r . order , "deferred" : r . deferred , "plan_digest" : r . plan_digest , "admission" : r . admission () })
 crates/plenora-runtime-chains/src/protocol.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | matches ! (request , Request :: Run { .. })
 crates/plenora-runtime-chains/src/protocol.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | pub
+crates/plenora-runtime-chains/src/retry.rs |  | 
+crates/plenora-runtime-chains/src/retry.rs |  | fn backoff (step : & StepResult , definition : & Step) -> Option < u64 >
+crates/plenora-runtime-chains/src/retry.rs |  | fn cumulative (prior : & StepResult , raw : & StepResult , elapsed : u64 ,) -> Result < StepResult , Error >
+crates/plenora-runtime-chains/src/retry.rs |  | fn delay (retry : & Retry) -> Option < u64 >
+crates/plenora-runtime-chains/src/retry.rs |  | fn elapsed (intent : & crate :: journal :: Intent , event : & [u8]) -> Result < u64 , Error >
+crates/plenora-runtime-chains/src/retry.rs |  | matches ! (error . remote_effect . as_str () , "none" | "rolled_back")
+crates/plenora-runtime-chains/src/retry.rs |  | matches ! (step . remote_effect . as_str () , "none" | "rolled_back")
+crates/plenora-runtime-chains/src/retry.rs |  | pub (crate)
+crates/plenora-runtime-chains/src/retry.rs |  | pub (crate)
+crates/plenora-runtime-chains/src/retry.rs |  | pub (crate)
+crates/plenora-runtime-chains/src/work.rs |  | # [derive (Clone , Debug , PartialEq , Eq)] pub struct RunLease { tenant : String , run_id : String , owner : String , token : u64 , until : u64 , }
+crates/plenora-runtime-chains/src/work.rs | impl Journal { } | fn work_due (& self , now : u64) -> bool
+crates/plenora-runtime-chains/src/work.rs | impl Journal { } | pub
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | const fn token (& self) -> u64
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | const fn until (& self) -> u64
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | fn new (tenant : & str , run_id : & str , owner : & str , token : u64 , until : u64 ,) -> Result < Self , Error >
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | fn owner (& self) -> & str
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | fn run_id (& self) -> & str
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | fn tenant (& self) -> & str
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | pub
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | pub
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | pub
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | pub
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | pub
+crates/plenora-runtime-chains/src/work.rs | impl RunLease { } | pub
 crates/plenora-runtime-control/src/component.rs |  | # [derive (Clone , Copy , Debug , Eq , Ord , PartialEq , PartialOrd)] pub enum ControlComponentKind { Worker , Scheduler , Memory , Subprocess , }
 crates/plenora-runtime-control/src/component.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum ControlComponentIdError { Empty , TooLong , InvalidCharacter , }
 crates/plenora-runtime-control/src/component.rs |  | # [derive (Clone , Debug , Eq , Ord , PartialEq , PartialOrd)] pub struct ControlComponentId (Arc < str >) ;

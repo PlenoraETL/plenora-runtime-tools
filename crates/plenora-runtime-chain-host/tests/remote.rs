@@ -14,6 +14,7 @@ async fn nats_real_scripted_calls_preserve_errors_and_discovery() -> Result<(), 
         registry: include_str!("../../../contracts/chains-v2/fixtures/context.json").into(),
         outcomes: include_str!("../../../contracts/chains-v2/fixtures/result-valid.json").into(),
         recovery: None,
+        attempts: vec![],
         artifacts: BTreeMap::new(),
     };
     let host = Arc::new(ScriptedHost::new(serde_json::from_value(

@@ -21,6 +21,7 @@ fn config(tenant: &str) -> ScriptedConfig {
         registry: include_str!("../../../../contracts/chains-v2/fixtures/context.json").into(),
         outcomes: include_str!("../../../../contracts/chains-v2/fixtures/result-valid.json").into(),
         recovery: None,
+        attempts: vec![],
         artifacts: BTreeMap::new(),
     }
 }
@@ -288,5 +289,43 @@ async fn scripted_output_reservation_is_checked_before_any_step_invocation() -> 
     assert_eq!(result.value["state"], "rejected");
     assert_eq!(result.value["error"]["category"], "resource_limit");
     assert_eq!(domain_attempts(&store)?, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn autonomous_host_worker_scans_runs_after_host_restart_and_drains_shutdown() -> ResultTest {
+    let store = Arc::new(ScriptStore::default());
+    store.3.advance(Duration::from_hours(498_492))?;
+    let first = host(store.clone(), "worker")?;
+    let accepted = first.execute(request(false, None)).await;
+    assert_eq!(accepted.error, None);
+    let run_id = accepted.value["run_id"].as_str().ok_or("run")?.to_owned();
+    drop(first);
+    let restarted = Arc::new(host(store.clone(), "worker")?);
+    let worker = restarted.clone();
+    let (stop, stopped) = tokio::sync::watch::channel(false);
+    let task = tokio::spawn(async move { worker.work(stopped).await });
+    let result = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let response = restarted
+                .execute(Request::Result {
+                    run_id: run_id.clone(),
+                })
+                .await;
+            if response.error.is_none() {
+                break response;
+            }
+            assert!(matches!(
+                response.error,
+                Some(Error::Pending | Error::Recovery)
+            ));
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await?;
+    stop.send(true)?;
+    task.await??;
+    assert_eq!(result.value["state"], "succeeded");
+    assert_eq!(domain_attempts(&store)?, 3);
     Ok(())
 }
