@@ -10,6 +10,8 @@
 //! ```compile_fail
 //! let plan: plenora_runtime_chain_contracts::Plan = serde_json::from_str("{}").unwrap();
 //! ```
+
+#![forbid(unsafe_code)]
 mod codec;
 mod error;
 mod outcome;
