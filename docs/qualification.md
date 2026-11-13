@@ -1,5 +1,27 @@
 # Stato della qualifica
 
+## Gate del prodotto catene
+
+[ADR 0008](adr/0008-chain-product-scope.md) estende il perimetro del repository.
+Le attestazioni storiche sotto riguardano lo scheletro generico, non il nuovo host.
+Il prodotto catene è progettato: tutte le celle dell’[inventario](chain-features.md)
+sono da fare. La completezza delle celle non prova l’implementazione.
+
+| Gate / regola | Ambito e rischio | Condizione di chiusura |
+|---|---|---|
+| P1.1 perimetro | Ownership esclusiva e cinque superfici; rischio di contaminare i generici o omettere funzionalità. | ADR e grafo registrati, inventario e test negativi verdi, nessun file Rust generico modificato. |
+| P1.2/P1.3 contratti | Piano/esito/eventi, versioni, archi e validazione; rischio di annunciare bozze come contratti ratificati. | Ratifica distinta, fixture e validatore concordi, rifiuti prima degli effetti. |
+| P2.1–P2.5 boundary | Nuovo host, cinque ingressi e trasporti; rischio di perdita esiti, replay e downgrade. Nessuna deviazione RT chiusa in P1.1. | PostgreSQL/NATS reali, corpus RT e conferma integrata stesso SHA; evidenze separate dai consumer legacy. |
+| Policy operativa prima di P2.2 | Finestre delivery/recovery e retention report; rischio di riaccettare identità scadute. | Durate fissate dal deployment e verificate contro broker/client; tombstone conservati fino a rifiuto equivalente via epoche. |
+| P1.4/P1.5 engine e facciate | Adapter scriptati non provano engine reali; rischio di dichiarare parità dal solo codec. | Stati/crash/budget/cancel/resume e tutte le funzioni da API pubblica, binario e wheel installati, SDK sync/async distinti. |
+| S3/S4/S5 qualifica prodotto | Librerie/provider/OS, APP, memoria e release; rischio di estendere claim a feature assenti o legacy. | Discovery effettive, pin/digest pubblicati DB10/IO8, oracoli per hop, inventario residuale APP, CI Linux e Windows stesso SHA e gate di rilascio. |
+
+Il grafo proposto si controlla con `python scripts/check_chain_graph.py` (Cargo
+metadata risolto, offline e locked); la matrice con
+`python scripts/check_chain_inventory.py`. Entrambi sono gate CI bloccanti.
+Il primo non compila e non qualifica le feature/provider del futuro prodotto.
+
+
 Questo documento tiene distinti lo scheletro runtime v0.1, la qualifica di rilascio e il congelamento
 dell'API per i consumer. Test locali verdi non qualificano da soli un commit e non provano che un
 consumer Plenora sia pronto.

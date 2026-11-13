@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "generics": [
+    "plenora-runtime-capabilities",
+    "plenora-runtime-control",
+    "plenora-runtime-core",
+    "plenora-runtime-http",
+    "plenora-runtime-messaging",
+    "plenora-runtime-observability",
+    "plenora-runtime-outbox",
+    "plenora-runtime-resources",
+    "plenora-runtime-scheduler",
+    "plenora-runtime-subprocess",
+    "plenora-runtime-testkit",
+    "plenora-runtime-worker",
+    "plenora-runtime-apalis",
+    "plenora-runtime-control-http",
+    "plenora-runtime-nats"
+  ],
+  "allowed_product_edges": {
+    "plenora-runtime-chain-contracts": [],
+    "plenora-runtime-boundary": [],
+    "plenora-runtime-chains": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-boundary"
+    ],
+    "plenora-runtime-chain-resources": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-chains"
+    ],
+    "plenora-runtime-chain-conversions": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-chains"
+    ],
+    "plenora-runtime-chain-store": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-boundary",
+      "plenora-runtime-chains"
+    ],
+    "plenora-runtime-adapter-data": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-boundary",
+      "plenora-runtime-chains"
+    ],
+    "plenora-runtime-adapter-database": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-boundary",
+      "plenora-runtime-chains"
+    ],
+    "plenora-runtime-adapter-io": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-boundary",
+      "plenora-runtime-chains"
+    ],
+    "plenora-runtime-adapter-storage": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-boundary",
+      "plenora-runtime-chains"
+    ],
+    "plenora-runtime-adapter-rest": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-boundary",
+      "plenora-runtime-chains"
+    ],
+    "plenora-runtime-chain-host": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-boundary",
+      "plenora-runtime-chains",
+      "plenora-runtime-chain-resources",
+      "plenora-runtime-chain-conversions",
+      "plenora-runtime-chain-store",
+      "plenora-runtime-adapter-data",
+      "plenora-runtime-adapter-database",
+      "plenora-runtime-adapter-io",
+      "plenora-runtime-adapter-storage",
+      "plenora-runtime-adapter-rest"
+    ],
+    "plenora-runtime-chain-cli": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-chains",
+      "plenora-runtime-chain-host"
+    ],
+    "plenora-runtime-chain-python": [
+      "plenora-runtime-chain-contracts",
+      "plenora-runtime-chains",
+      "plenora-runtime-chain-host"
+    ]
+  },
+  "no_domain": [
+    "plenora-runtime-chain-contracts",
+    "plenora-runtime-boundary",
+    "plenora-runtime-chains",
+    "plenora-runtime-chain-resources",
+    "plenora-runtime-chain-store"
+  ],
+  "no_infrastructure": [
+    "plenora-runtime-chain-contracts",
+    "plenora-runtime-boundary",
+    "plenora-runtime-chains"
+  ],
+  "domain_packages": [
+    "plenora-cli",
+    "plenora-io-tools",
+    "plenora-storage-core",
+    "plenora-rest-core"
+  ],
+  "domain_prefixes": [
+    "plenora-data-",
+    "plenora-database-",
+    "plenora-kernels-",
+    "arrow",
+    "plenora-io-",
+    "plenora-storage-",
+    "plenora-rest-"
+  ],
+  "infrastructure_packages": [
+    "sqlx",
+    "sqlx-core",
+    "postgres",
+    "tokio-postgres",
+    "diesel",
+    "rusqlite",
+    "async-nats",
+    "apalis",
+    "pyo3",
+    "pyo3-ffi",
+    "apalis-core",
+    "axum",
+    "tower-http"
+  ]
+}

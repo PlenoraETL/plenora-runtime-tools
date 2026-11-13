@@ -40,3 +40,10 @@ I vincoli seguenti sono normativi:
 
 Il crate `plenora-runtime-architecture-tests` impone queste direzioni di dipendenza e scandisce i
 sorgenti di produzione alla ricerca di scorciatoie che abortiscono.
+
+
+Lo strato prodotto catene è un consumer interno al repository: ownership e archi
+ammessi sono in [architecture](architecture.md#strato-catene-proposto-p11).
+I divieti sopra continuano ad applicarsi alle fondamenta generiche.
+`scripts/check_chain_graph.py` aggiunge i confini del prodotto e la ricerca
+transitiva di dipendenze ETL/Arrow nei generici, senza alterare i test Rust.

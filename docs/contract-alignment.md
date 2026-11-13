@@ -1,5 +1,29 @@
 # Allineamento ai contratti comuni
 
+## Ambito catene e profilo generico
+
+[ADR 0008](adr/0008-chain-product-scope.md) aggiunge il prodotto di orchestrazione
+nel repository; i generici mantengono il perimetro e le deviazioni registrate qui.
+Le righe RT e CAT sotto descrivono l’adozione esistente al pin, non la futura
+capability del prodotto. In particolare RT-015 resta vero per i generici:
+il consumer di dominio sarà nei nuovi crate prodotto, non dentro capabilities.
+CAT-002/CAT-003 non attestano il catalogo catene ancora da ratificare.
+
+P1.1 non cambia pin, vettori, manifesti di adozione o stato delle deviazioni RT.
+Piano/esito/eventi v2, capability `plenora.runtime-tools`, operazioni chain.*@2,
+archi DATA run@3/DB write@2 e conversioni sono proposte da ratificare in passi
+successivi senza reinterpretare v1. Catene v2 non è Runtime Binding 2.0:
+capability wire resta 1. Il target contratti 38d68b4 del progetto non è il pin
+attualmente adottato. Catalogo STORAGE e Primary Geometry restano lavoro futuro.
+
+Regola: ogni claim richiede contratto e prova sul profilo/trasporto effettivo.
+Ambito: nuovo host, consumer legacy ed esempi separati. Rischio: estendere una
+prova del wrapper alle superfici upstream o chiudere globalmente una deviazione.
+Condizione di chiusura: rapporto integrato P2.x e successive prove su artefatti
+reali, con scope esplicito. Vedere i [gate](qualification.md#gate-del-prodotto-catene)
+e l’[inventario delle superfici](chain-features.md).
+
+
 Pin adottato: `3aec9f724f5a0ad21366f293895b4d0dbcd0aad1` (precedente `90cffb2b78cace16edad352a19d86f674930c133`).
 
 Il registro sorgente e [contracts/adoption-source.json](../contracts/adoption-source.json); non e un attestato di release v4. Runtime Binding 2.0 e Public Catalogs 2.0 sono adottati con gli ambiti e le deviazioni seguenti. Non si dichiara conformita end-to-end.
