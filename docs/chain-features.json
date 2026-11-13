@@ -148,6 +148,15 @@
             "rejection": "store indisponibile",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "p2_2_primitives": {
+            "implementation": "crates/plenora-runtime-chain-store/src/lib.rs",
+            "tests": "crates/plenora-runtime-chain-store/src/tests.rs",
+            "scope": "Primitive PostgreSQL implementate; test backend reale ignorati e demandati alla CI, non eseguiti localmente. Nessuna facciata host o superficie promossa.",
+            "rt_register": [
+              "RT-022",
+              "RT-027"
+            ]
           }
         },
         "cli": {
@@ -264,6 +273,15 @@
             "rejection": "run di altro tenant",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "p2_2_primitives": {
+            "implementation": "crates/plenora-runtime-chain-store/src/lib.rs",
+            "tests": "crates/plenora-runtime-chain-store/src/tests.rs",
+            "scope": "Primitive PostgreSQL implementate; test backend reale ignorati e demandati alla CI, non eseguiti localmente. Nessuna facciata host o superficie promossa.",
+            "rt_register": [
+              "RT-022",
+              "RT-027"
+            ]
           }
         },
         "cli": {
@@ -323,7 +341,16 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "p2_2_primitives": {
+            "implementation": "crates/plenora-runtime-chain-store/src/lib.rs",
+            "tests": "crates/plenora-runtime-chain-store/src/tests.rs",
+            "scope": "Primitive PostgreSQL implementate; test backend reale ignorati e demandati alla CI, non eseguiti localmente. Nessuna facciata host o superficie promossa.",
+            "rt_register": [
+              "RT-022",
+              "RT-027"
+            ]
+          }
         },
         "cli": {
           "status": "specificata",
@@ -506,6 +533,15 @@
             "rejection": "unknown senza evidenza autenticata",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "p2_2_primitives": {
+            "implementation": "crates/plenora-runtime-chain-store/src/lib.rs",
+            "tests": "crates/plenora-runtime-chain-store/src/tests.rs",
+            "scope": "Primitive PostgreSQL implementate; test backend reale ignorati e demandati alla CI, non eseguiti localmente. Nessuna facciata host o superficie promossa.",
+            "rt_register": [
+              "RT-022",
+              "RT-027"
+            ]
           }
         },
         "cli": {

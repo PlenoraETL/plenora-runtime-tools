@@ -1534,6 +1534,69 @@ crates/plenora-runtime-chain-contracts/src/types.rs | wire | # [derive (Clone , 
 crates/plenora-runtime-chain-contracts/src/types.rs | wire | # [derive (Clone , PartialEq , Eq , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct StepRetryPolicy { pub max_attempts : u64 , pub backoff_ms : u64 , }
 crates/plenora-runtime-chain-contracts/src/types.rs | wire | # [derive (Clone , PartialEq , Eq , Serialize , Deserialize)] # [serde (untagged)] pub enum Retry { Variant0 (Retry0) , Variant1 (Retry1) , }
 crates/plenora-runtime-chain-contracts/src/types.rs | wire | # [derive (Clone , PartialEq , Eq , Serialize , Deserialize)] # [serde (untagged)] pub enum Source { Variant0 (Source0) , Variant1 (Source1) , }
+crates/plenora-runtime-chain-store/src/lib.rs |  | 
+crates/plenora-runtime-chain-store/src/lib.rs |  | # [derive (Clone)] pub struct PostgresStore { config : Config , }
+crates/plenora-runtime-chain-store/src/lib.rs |  | fn validate (input : & Invocation < '_ >) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs |  | mod types ;
+crates/plenora-runtime-chain-store/src/lib.rs |  | pub use types :: { Invocation , Publication , Retention , ScopedKey , StartDecision , StartPermit , StoreError , StoredStep , } ;
+crates/plenora-runtime-chain-store/src/lib.rs | # [async_trait] impl InboxStore for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/lib.rs | # [async_trait] impl InboxStore for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/lib.rs | # [async_trait] impl InboxStore for PostgresStore { } | async fn contains (& self , id : MessageId) -> Result < bool , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | # [async_trait] impl InboxStore for PostgresStore { } | async fn record_processed (& self , id : MessageId) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl AcceptanceStore for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/lib.rs | impl AcceptanceStore for PostgresStore { } | fn accept (& self , id : & MessageId , proposed : Option < NegotiationContext > ,) -> Result < AcceptanceRecord , NegotiationError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn accept_async (& self , id : MessageId , proposed : Option < NegotiationContext > ,) -> Result < AcceptanceRecord , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn claim (& self) -> Result < Option < Publication > , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn commit (tx : Transaction < '_ >) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn confirm (& self , publication : & Publication) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn connect (& self) -> Result < Client , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn expire (tx : & Transaction < '_ >) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn finish (& self , permit : & StartPermit , result_id : MessageId , report : & [u8] , envelope : & [u8] ,) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn maintain (& self) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn migrate (& self , retention : Retention) -> Result < () , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn read (& self , id : MessageId) -> Result < StoredStep , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn start (& self , input : Invocation < '_ >) -> Result < StartDecision , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | async fn transaction (client : & mut Client) -> Result < Transaction < '_ > , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | fn new (connection : & str) -> Result < Self , StoreError >
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | include_str ! ("migration.sql")
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
+crates/plenora-runtime-chain-store/src/lib.rs | impl PostgresStore { } | pub
+crates/plenora-runtime-chain-store/src/lib.rs | impl fmt :: Debug for PostgresStore { } | 
+crates/plenora-runtime-chain-store/src/lib.rs | impl fmt :: Debug for PostgresStore { } | fn fmt (& self , f : & mut fmt :: Formatter < '_ >) -> fmt :: Result
+crates/plenora-runtime-chain-store/src/types.rs |  | # [allow (clippy :: struct_excessive_bools , reason = "Independent execution, retention and delivery evidence axes")] pub struct StoredStep { pub finished : bool , pub result_id : Option < String > , pub report : Option < Vec < u8 > > , pub report_expired : bool , pub delivered : bool , pub delivery_expired : bool , }
+crates/plenora-runtime-chain-store/src/types.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum StoreError { Invalid , Unavailable , Unconfirmed , Conflict , Expired , Missing , StaleFence , }
+crates/plenora-runtime-chain-store/src/types.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct Retention { pub (crate) delivery : i64 , pub (crate) reports : i64 , }
+crates/plenora-runtime-chain-store/src/types.rs |  | # [derive (Clone , Copy)] pub struct ScopedKey < 'a > { pub scope : & 'a str , pub value : & 'a str , }
+crates/plenora-runtime-chain-store/src/types.rs |  | # [derive (Debug)] pub enum StartDecision { Started (StartPermit) , RequiresRecovery (plenora_runtime_messaging :: MessageId) , Replay (plenora_runtime_messaging :: MessageId) , }
+crates/plenora-runtime-chain-store/src/types.rs |  | pub struct Invocation < 'a > { pub message_id : plenora_runtime_messaging :: MessageId , pub scope : & 'a str , pub step : & 'a str , pub key : Option < ScopedKey < 'a > > , pub canonical_input : & 'a [u8] , }
+crates/plenora-runtime-chain-store/src/types.rs |  | pub struct Publication { pub (crate) id : String , pub (crate) fence : String , pub result_id : String , pub payload : Vec < u8 > , }
+crates/plenora-runtime-chain-store/src/types.rs |  | pub struct StartPermit { pub (crate) id : String , pub (crate) fence : String , }
+crates/plenora-runtime-chain-store/src/types.rs | impl Default for Retention { } | 
+crates/plenora-runtime-chain-store/src/types.rs | impl Default for Retention { } | fn default () -> Self
+crates/plenora-runtime-chain-store/src/types.rs | impl From < tokio_postgres :: Error > for StoreError { } | 
+crates/plenora-runtime-chain-store/src/types.rs | impl From < tokio_postgres :: Error > for StoreError { } | fn from (_ : tokio_postgres :: Error) -> Self
+crates/plenora-runtime-chain-store/src/types.rs | impl Retention { } | fn reduced (delivery_seconds : u32 , report_seconds : u32) -> Result < Self , StoreError >
+crates/plenora-runtime-chain-store/src/types.rs | impl Retention { } | pub
+crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Debug for Publication { } | 
+crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Debug for Publication { } | fn fmt (& self , f : & mut fmt :: Formatter < '_ >) -> fmt :: Result
+crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Debug for StartPermit { } | 
+crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Debug for StartPermit { } | fn fmt (& self , f : & mut fmt :: Formatter < '_ >) -> fmt :: Result
+crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Debug for StoredStep { } | 
+crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Debug for StoredStep { } | fn fmt (& self , f : & mut fmt :: Formatter < '_ >) -> fmt :: Result
+crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Display for StoreError { } | 
+crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Display for StoreError { } | fn fmt (& self , f : & mut fmt :: Formatter < '_ >) -> fmt :: Result
+crates/plenora-runtime-chain-store/src/types.rs | impl fmt :: Display for StoreError { } | write ! (f , "chain store {self:?}")
 crates/plenora-runtime-control/src/component.rs |  | # [derive (Clone , Copy , Debug , Eq , Ord , PartialEq , PartialOrd)] pub enum ControlComponentKind { Worker , Scheduler , Memory , Subprocess , }
 crates/plenora-runtime-control/src/component.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum ControlComponentIdError { Empty , TooLong , InvalidCharacter , }
 crates/plenora-runtime-control/src/component.rs |  | # [derive (Clone , Debug , Eq , Ord , PartialEq , PartialOrd)] pub struct ControlComponentId (Arc < str >) ;

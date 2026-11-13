@@ -298,3 +298,28 @@ Geometry e completezza dei rapporti a tutte le uscite e a tutti gli errori.
 Rischio: confondere controllo statico con interoperabilità reale. Condizione
 di chiusura: ratifica e adapter S3, host con prove su payload, discovery,
 fidelity e autorizzazioni reali. Le deviazioni RT dei generici restano aperte.
+
+
+## P2.2: primitive durevoli PostgreSQL
+
+Regola: RT-022 e RT-027, registro D.2; nessuna accettazione/autorità di avvio
+senza commit confermato, nessuna identità scaduta riutilizzabile. Ambito:
+[chain-store](../crates/plenora-runtime-chain-store/README.md), esclusivamente
+primitive Rust. Implementati acceptance autorevole, dedup identità/chiave
+scoped e passo, alias, fence, report/inbox/outbox atomici, relay fenced e
+retention 7/90 giorni riducibile con tombstone permanenti.
+Le prove di race/crash/restart PostgreSQL sono scritte e collegate alla CI,
+ma non eseguite su questo host: non costituiscono chiusura di RT-022/027.
+RT-010/020/024 ricevono solo supporto di persistenza, non finalizzazione P2.4.
+Le 21 sequenze/header/forwarding RT-027 e selezione RT-026 restano P2.3.
+
+Scostamento d'interfaccia: il trait OutboxStore generico non trasporta un
+fence nella conferma; non viene implementato con una garanzia indebolita.
+Si usa claim/confirm con autorità esplicita. InboxStore.record_processed
+rifiuta nuovi record isolati: soltanto finish crea inbox, report e outbox
+atomicamente. IdempotencyStore.begin non sostituisce il CAS per passo.
+Motivo e contratti mancanti nel checkout sono nell'[ADR 0009](adr/0009-chain-postgres.md).
+Rischio: usare queste primitive come prova di un host già cablato o di
+settlement distribuita. Chiusura: prove PostgreSQL verdi sul candidato,
+poi integrazione P2.3/P2.4 e conferma unica P2.5. Nessun claim globale dei
+generici, delle cinque superfici o delle librerie ETL viene promosso.

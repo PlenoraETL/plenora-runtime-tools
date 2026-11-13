@@ -91,7 +91,10 @@ dal broker.
 
 ## Strato catene proposto (P1.1)
 
-Nomi proposti, non pacchetti implementati. Il prefisso è `plenora-runtime-`.
+La tabella descrive il grafo obiettivo, non attesta tutti i pacchetti.
+Il prefisso è `plenora-runtime-`. Sono presenti chain-contracts, boundary e
+le primitive PostgreSQL di [chain-store](../crates/plenora-runtime-chain-store/README.md).
+Il resto del prodotto e il cablaggio dello store nell'host restano da realizzare.
 Il prodotto usa direttamente le librerie Rust; `plenora-cli` DATA è una libreria,
 non un subprocess. Pin e feature ETL appartengono al prodotto.
 

@@ -171,3 +171,18 @@ Gate aperto: real_nats e coverage su Linux con Docker, CI Linux/Windows sulla
 correzione e profilo di deployment. Condizione di chiusura: esecuzione di questi
 gate e qualificazione del settlement confermato in P2.4. Nessun gate reale è
 attestato dalla sola prova offline della sequenza rifiuto/valido.
+
+
+## P2.2: rischio residuo dello store PostgreSQL
+
+Regola: durabilità e lettura autorevole senza perdita silenziosa. Ambito:
+[store catene](../crates/plenora-runtime-chain-store/README.md). Rischio residuo:
+NoTls richiede rete fidata/loopback; fsync e synchronous_commit confermano il
+primary locale, non disaster recovery n? promozione di una replica aggiornata.
+Amministrazione del clock, permessi, backup, crescita dei tombstone permanenti,
+quote database e throughput del lock globale richiedono qualifica operativa.
+Errori del client non espongono dati o source del driver. Il token di avvio
+non viene riemesso dopo restart; un'intenzione pendente richiede riconciliazione.
+Condizione di chiusura: profilo deployment autenticato/TLS, failover e recovery
+provati, monitoraggio capacità/readiness, gate PostgreSQL sul candidato e
+integrazione dell'host P2.3/P2.4. Nessuna qualifica di produzione è attestata.

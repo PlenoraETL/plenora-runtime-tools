@@ -6,3 +6,5 @@ riscriverne la storia.
 
 
 Decisione di perimetro del prodotto: [ADR 0008](0008-chain-product-scope.md).
+
+Store operativo catene: [ADR 0009](0009-chain-postgres.md).
