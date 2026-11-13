@@ -156,3 +156,16 @@ Regola CAP-004; ambito discovery con versioni simultanee. Rientrata il 2026-10-2
 
 
 Public Security 1.0 e selezionato dal profilo: la protezione del payload opaco e dei riferimenti resta delegata agli adapter (deviazione RT-013); nessun claim di conformita SEC complessiva.
+
+## Bozza catene P1.2: ratifica separata
+
+Regola: nessuna reinterpretazione dei contratti v1 o claim di archi non ratificati.
+Ambito: [CHAIN-PLAN-2.0](specs/CHAIN-PLAN-2.0.md), schemi e archi locali in
+`contracts/chains-v2`. Stato: specificati e verificati con fixture, **bozze da
+proporre**, non adozione centrale. Il profilo restringe a porte obbligatorie
+singole e riferimenti a documenti di dominio immutabili, con contratto e digest;
+non cambia gli schemi upstream e non presume validati quei documenti esterni.
+Rischio: confondere validità della forma o del registro sintetico con disponibilità
+e interoperabilità reali. Chiusura: ratifica centrale di piano/esito/eventi/errori,
+catalogo e descrittori degli archi, distinta dalla ratifica DB write@2 e dei suoi
+input/result v2 e WriteOutcome v3, poi pin adottato e prove P1.3/S3.

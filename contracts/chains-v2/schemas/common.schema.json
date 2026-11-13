@@ -1,0 +1,891 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Bozza locale CHAIN-PLAN-2.0 da proporre a plenora-contracts; nessuna ratifica o disponibilita runtime.",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_-]{0,63}(?![\\s\\S])"
+    },
+    "uuid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "contract": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^plenora-[a-z0-9-]+-v[1-9][0-9]*(?![\\s\\S])"
+    },
+    "operation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*(?![\\s\\S])"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "opaque": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 124,
+      "pattern": "^ref:[a-zA-Z0-9_-]{1,120}(?![\\s\\S])"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}(?:[.][0-9]{1,9})?(?:[Zz]|[+]00:00)(?![\\s\\S])",
+      "format": "date-time"
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "$ref": "common.schema.json#/$defs/contract"
+        },
+        "artifact_ref": {
+          "$ref": "common.schema.json#/$defs/opaque"
+        },
+        "sha256": {
+          "$ref": "common.schema.json#/$defs/digest"
+        }
+      },
+      "required": [
+        "contract",
+        "artifact_ref",
+        "sha256"
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "rows_read": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "rows_produced": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "artifact_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "spool_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "request_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "result_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "memory_bytes",
+        "elapsed_ms",
+        "rows_read",
+        "rows_produced",
+        "artifact_bytes",
+        "spool_bytes",
+        "request_bytes",
+        "result_bytes",
+        "max_attempts"
+      ]
+    },
+    "counters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rows_read": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rows_produced": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "artifact_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "spool_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "request_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "result_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "memory_bytes",
+        "elapsed_ms",
+        "rows_read",
+        "rows_produced",
+        "artifact_bytes",
+        "spool_bytes",
+        "request_bytes",
+        "result_bytes",
+        "max_attempts"
+      ]
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "$ref": "common.schema.json#/$defs/contract"
+        },
+        "content_type": {
+          "enum": [
+            "application/vnd.apache.arrow.stream",
+            "application/vnd.apache.arrow.file",
+            "application/json",
+            "application/octet-stream"
+          ]
+        },
+        "cardinality": {
+          "const": "one"
+        },
+        "required": {
+          "const": true
+        },
+        "schema_digest": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "primary_geometry": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "contract",
+        "content_type",
+        "cardinality",
+        "required",
+        "schema_digest",
+        "primary_geometry"
+      ]
+    },
+    "source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "input"
+            },
+            "input": {
+              "$ref": "common.schema.json#/$defs/id"
+            }
+          },
+          "required": [
+            "kind",
+            "input"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "step"
+            },
+            "step": {
+              "$ref": "common.schema.json#/$defs/id"
+            },
+            "port": {
+              "$ref": "common.schema.json#/$defs/id"
+            }
+          },
+          "required": [
+            "kind",
+            "step",
+            "port"
+          ]
+        }
+      ]
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "common.schema.json#/$defs/source"
+        },
+        "expected": {
+          "$ref": "common.schema.json#/$defs/port"
+        },
+        "boundary": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "schema_barrier": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "source",
+        "expected",
+        "boundary",
+        "schema_barrier"
+      ]
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "fidelity",
+            "loss_report",
+            "write_outcome",
+            "upstream_result",
+            "diagnostics"
+          ]
+        },
+        "availability": {
+          "enum": [
+            "available",
+            "unavailable"
+          ]
+        },
+        "document": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/document"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "availability",
+        "document"
+      ]
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_ref": {
+          "$ref": "common.schema.json#/$defs/opaque"
+        },
+        "port": {
+          "$ref": "common.schema.json#/$defs/port"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sha256": {
+          "$ref": "common.schema.json#/$defs/digest"
+        },
+        "rows": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "columns": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "producer_step": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "publication": {
+          "enum": [
+            "confirmed",
+            "unconfirmed"
+          ]
+        },
+        "lease_ref": {
+          "$ref": "common.schema.json#/$defs/opaque"
+        },
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/report"
+          },
+          "maxItems": 64,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "artifact_ref",
+        "port",
+        "bytes",
+        "sha256",
+        "rows",
+        "columns",
+        "producer_step",
+        "attempt",
+        "publication",
+        "lease_ref",
+        "reports"
+      ]
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_ref": {
+          "$ref": "common.schema.json#/$defs/opaque"
+        },
+        "port": {
+          "$ref": "common.schema.json#/$defs/port"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sha256": {
+          "$ref": "common.schema.json#/$defs/digest"
+        }
+      },
+      "required": [
+        "artifact_ref",
+        "port",
+        "bytes",
+        "sha256"
+      ]
+    },
+    "retry": {
+      "$ref": "../../upstream/schemas/error-v1.schema.json#/$defs/retry"
+    },
+    "effect": {
+      "enum": [
+        "none",
+        "rolled_back",
+        "partial",
+        "committed",
+        "unknown"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "const": "plenora-chain-error-v2"
+        },
+        "schema_version": {
+          "const": 2
+        },
+        "category": {
+          "$ref": "../../upstream/schemas/error-v1.schema.json#/properties/category"
+        },
+        "phase": {
+          "$ref": "../../upstream/schemas/error-v1.schema.json#/properties/phase"
+        },
+        "code": {
+          "enum": [
+            "CHAIN_DOCUMENT",
+            "CHAIN_SCHEMA",
+            "CHAIN_VERSION",
+            "CHAIN_DUPLICATE",
+            "CHAIN_REFERENCE",
+            "CHAIN_CYCLE",
+            "CHAIN_BOUNDARY",
+            "CHAIN_CONSENT",
+            "CHAIN_BUDGET",
+            "CHAIN_LIMIT",
+            "CHAIN_RESULT",
+            "CHAIN_EVENT",
+            "CHAIN_UPSTREAM",
+            "CHAIN_CANCEL",
+            "CHAIN_RECOVERY",
+            "CHAIN_CONFLICT"
+          ]
+        },
+        "remote_effect": {
+          "$ref": "common.schema.json#/$defs/effect"
+        },
+        "retry": {
+          "$ref": "common.schema.json#/$defs/retry"
+        },
+        "message": {
+          "const": "Chain operation rejected or incomplete."
+        },
+        "step_id": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "upstream_error": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/document"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/report"
+          },
+          "maxItems": 64,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "contract",
+        "schema_version",
+        "category",
+        "phase",
+        "code",
+        "remote_effect",
+        "retry",
+        "message",
+        "step_id",
+        "upstream_error",
+        "reports"
+      ]
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "$ref": "common.schema.json#/$defs/contract"
+        },
+        "package_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)(?![\\s\\S])"
+        },
+        "artifact_sha256": {
+          "$ref": "common.schema.json#/$defs/digest"
+        },
+        "discovery_sha256": {
+          "$ref": "common.schema.json#/$defs/digest"
+        },
+        "catalog": {
+          "$ref": "common.schema.json#/$defs/document"
+        },
+        "contracts_revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "pattern": "^[0-9a-f]{40}(?![\\s\\S])"
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/contract"
+          },
+          "maxItems": 64,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "identity",
+        "package_version",
+        "artifact_sha256",
+        "discovery_sha256",
+        "catalog",
+        "contracts_revision",
+        "claims"
+      ]
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "step_version": {
+          "const": 1
+        },
+        "component": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "operation": {
+          "$ref": "common.schema.json#/$defs/operation"
+        },
+        "operation_version": {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        "input_contract": {
+          "$ref": "common.schema.json#/$defs/contract"
+        },
+        "output_contract": {
+          "$ref": "common.schema.json#/$defs/contract"
+        },
+        "parameters": {
+          "$ref": "common.schema.json#/$defs/document"
+        },
+        "inputs": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "$ref": "common.schema.json#/$defs/binding"
+          },
+          "maxProperties": 64,
+          "minProperties": 0
+        },
+        "outputs": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "$ref": "common.schema.json#/$defs/port"
+          },
+          "maxProperties": 64,
+          "minProperties": 0
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "maxItems": 1024,
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "budgets": {
+          "$ref": "common.schema.json#/$defs/budget"
+        },
+        "materialization": {
+          "enum": [
+            "bounded",
+            "spill"
+          ]
+        },
+        "retry_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "backoff_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 86400000
+            }
+          },
+          "required": [
+            "max_attempts",
+            "backoff_ms"
+          ]
+        },
+        "destination_ref": {
+          "$ref": "common.schema.json#/$defs/opaque"
+        },
+        "loss_consent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "step_version",
+        "component",
+        "operation",
+        "operation_version",
+        "input_contract",
+        "output_contract",
+        "parameters",
+        "inputs",
+        "outputs",
+        "depends_on",
+        "budgets",
+        "materialization",
+        "retry_policy"
+      ]
+    },
+    "grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "step": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "operation": {
+          "const": "database.write"
+        },
+        "operation_version": {
+          "const": 2
+        },
+        "destination_ref": {
+          "$ref": "common.schema.json#/$defs/opaque"
+        },
+        "input_digest": {
+          "$ref": "common.schema.json#/$defs/digest"
+        },
+        "parameters_digest": {
+          "$ref": "common.schema.json#/$defs/digest"
+        }
+      },
+      "required": [
+        "step",
+        "operation",
+        "operation_version",
+        "destination_ref",
+        "input_digest",
+        "parameters_digest"
+      ]
+    },
+    "step_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "step_id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "operation": {
+          "$ref": "common.schema.json#/$defs/operation"
+        },
+        "operation_version": {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "state": {
+          "enum": [
+            "succeeded",
+            "rejected",
+            "failed",
+            "cancelled",
+            "requires_recovery",
+            "blocked",
+            "skipped",
+            "partial"
+          ]
+        },
+        "input_manifests": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "$ref": "common.schema.json#/$defs/input"
+          },
+          "maxProperties": 64,
+          "minProperties": 0
+        },
+        "outputs": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "$ref": "common.schema.json#/$defs/artifact"
+          },
+          "maxProperties": 64,
+          "minProperties": 0
+        },
+        "remote_effect": {
+          "$ref": "common.schema.json#/$defs/effect"
+        },
+        "retry": {
+          "$ref": "common.schema.json#/$defs/retry"
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "other_errors": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/error"
+          },
+          "maxItems": 64,
+          "minItems": 0
+        },
+        "reports": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/report"
+          },
+          "maxItems": 64,
+          "minItems": 0
+        },
+        "counters": {
+          "$ref": "common.schema.json#/$defs/counters"
+        },
+        "started_at": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "finished_at": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stop_confirmed": {
+          "type": "boolean"
+        },
+        "reason": {
+          "enum": [
+            "completed",
+            "upstream_error",
+            "dependency_failed",
+            "stopped",
+            "not_started",
+            "recovery_required"
+          ]
+        },
+        "upstream_result": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/document"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "step_id",
+        "operation",
+        "operation_version",
+        "attempt",
+        "state",
+        "input_manifests",
+        "outputs",
+        "remote_effect",
+        "retry",
+        "error",
+        "other_errors",
+        "reports",
+        "counters",
+        "started_at",
+        "finished_at",
+        "stop_confirmed",
+        "reason",
+        "upstream_result"
+      ]
+    }
+  }
+}

@@ -307,54 +307,59 @@
       "source": "E.1",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "lettura anche di esito fallito e rapporti completi",
             "rejection": "run sconosciuto senza risultato inventato",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "lettura anche di esito fallito e rapporti completi",
             "rejection": "run sconosciuto senza risultato inventato",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "lettura anche di esito fallito e rapporti completi",
             "rejection": "run sconosciuto senza risultato inventato",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "lettura anche di esito fallito e rapporti completi",
             "rejection": "run sconosciuto senza risultato inventato",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "lettura anche di esito fallito e rapporti completi",
             "rejection": "run sconosciuto senza risultato inventato",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -365,54 +370,59 @@
       "source": "E.1",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "ordine, paginazione e ripresa del cursore dopo restart",
             "rejection": "cursore alterato o di altro run",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "ordine, paginazione e ripresa del cursore dopo restart",
             "rejection": "cursore alterato o di altro run",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "ordine, paginazione e ripresa del cursore dopo restart",
             "rejection": "cursore alterato o di altro run",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "ordine, paginazione e ripresa del cursore dopo restart",
             "rejection": "cursore alterato o di altro run",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "ordine, paginazione e ripresa del cursore dopo restart",
             "rejection": "cursore alterato o di altro run",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -2453,54 +2463,59 @@
       "source": "B.1",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "digest identico per forma canonica; versioni pacchetto/catalogo/operazione/payload/wire distinte",
             "rejection": "duplicati, ignoti, UUID/versioni non canonici, latest e overflow",
             "limit": "1024 step, 64 porte/step, profondità 64, 1 MiB e restrizioni host",
             "effect": "rifiuto prima di resolver/invoke"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "digest identico per forma canonica; versioni pacchetto/catalogo/operazione/payload/wire distinte",
             "rejection": "duplicati, ignoti, UUID/versioni non canonici, latest e overflow",
             "limit": "1024 step, 64 porte/step, profondità 64, 1 MiB e restrizioni host",
             "effect": "rifiuto prima di resolver/invoke"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "digest identico per forma canonica; versioni pacchetto/catalogo/operazione/payload/wire distinte",
             "rejection": "duplicati, ignoti, UUID/versioni non canonici, latest e overflow",
             "limit": "1024 step, 64 porte/step, profondità 64, 1 MiB e restrizioni host",
             "effect": "rifiuto prima di resolver/invoke"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "digest identico per forma canonica; versioni pacchetto/catalogo/operazione/payload/wire distinte",
             "rejection": "duplicati, ignoti, UUID/versioni non canonici, latest e overflow",
             "limit": "1024 step, 64 porte/step, profondità 64, 1 MiB e restrizioni host",
             "effect": "rifiuto prima di resolver/invoke"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "digest identico per forma canonica; versioni pacchetto/catalogo/operazione/payload/wire distinte",
             "rejection": "duplicati, ignoti, UUID/versioni non canonici, latest e overflow",
             "limit": "1024 step, 64 porte/step, profondità 64, 1 MiB e restrizioni host",
             "effect": "rifiuto prima di resolver/invoke"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -2511,54 +2526,59 @@
       "source": "B.1/B.7/C.1",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "fan-in/out e sink senza output, ordine topologico con spareggio lessicografico",
             "rejection": "cicli, sorgenti multiple per porta e output obbligatorio mancante",
             "limit": "step e porte al limite e oltre",
             "effect": "stop al primo errore: blocked discendenti, skipped altri; successi precedenti conservati"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "fan-in/out e sink senza output, ordine topologico con spareggio lessicografico",
             "rejection": "cicli, sorgenti multiple per porta e output obbligatorio mancante",
             "limit": "step e porte al limite e oltre",
             "effect": "stop al primo errore: blocked discendenti, skipped altri; successi precedenti conservati"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "fan-in/out e sink senza output, ordine topologico con spareggio lessicografico",
             "rejection": "cicli, sorgenti multiple per porta e output obbligatorio mancante",
             "limit": "step e porte al limite e oltre",
             "effect": "stop al primo errore: blocked discendenti, skipped altri; successi precedenti conservati"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "fan-in/out e sink senza output, ordine topologico con spareggio lessicografico",
             "rejection": "cicli, sorgenti multiple per porta e output obbligatorio mancante",
             "limit": "step e porte al limite e oltre",
             "effect": "stop al primo errore: blocked discendenti, skipped altri; successi precedenti conservati"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "fan-in/out e sink senza output, ordine topologico con spareggio lessicografico",
             "rejection": "cicli, sorgenti multiple per porta e output obbligatorio mancante",
             "limit": "step e porte al limite e oltre",
             "effect": "stop al primo errore: blocked discendenti, skipped altri; successi precedenti conservati"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -2627,54 +2647,59 @@
       "source": "B.4",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "minimo piano/step/host/componente/trasporto; copie, buffer nativi, spool e righe per tentativo conteggiati",
             "rejection": "budget mancanti, zero usato come infinito, step che amplia quota",
             "limit": "fan-out, join espansivo, retry e fallimenti consumano quote globali",
             "effect": "resource_limit con fase/effetto provati, nessun reset al retry"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "minimo piano/step/host/componente/trasporto; copie, buffer nativi, spool e righe per tentativo conteggiati",
             "rejection": "budget mancanti, zero usato come infinito, step che amplia quota",
             "limit": "fan-out, join espansivo, retry e fallimenti consumano quote globali",
             "effect": "resource_limit con fase/effetto provati, nessun reset al retry"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "minimo piano/step/host/componente/trasporto; copie, buffer nativi, spool e righe per tentativo conteggiati",
             "rejection": "budget mancanti, zero usato come infinito, step che amplia quota",
             "limit": "fan-out, join espansivo, retry e fallimenti consumano quote globali",
             "effect": "resource_limit con fase/effetto provati, nessun reset al retry"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "minimo piano/step/host/componente/trasporto; copie, buffer nativi, spool e righe per tentativo conteggiati",
             "rejection": "budget mancanti, zero usato come infinito, step che amplia quota",
             "limit": "fan-out, join espansivo, retry e fallimenti consumano quote globali",
             "effect": "resource_limit con fase/effetto provati, nessun reset al retry"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "minimo piano/step/host/componente/trasporto; copie, buffer nativi, spool e righe per tentativo conteggiati",
             "rejection": "budget mancanti, zero usato come infinito, step che amplia quota",
             "limit": "fan-out, join espansivo, retry e fallimenti consumano quote globali",
             "effect": "resource_limit con fase/effetto provati, nessun reset al retry"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -2685,54 +2710,59 @@
       "source": "B.4/D.2/E.1",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "ManualClock; UTC Z/z T/t +00:00 accettati, emissione Z; deadline persistita",
             "rejection": "-00:00, offset non zero, deadline doppia e deadline <= now",
             "limit": "attesa/backoff/pubblicazione inclusi; cleanup finito separato",
             "effect": "restart non rinnova deadline; timeout attesa non cancella run"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "ManualClock; UTC Z/z T/t +00:00 accettati, emissione Z; deadline persistita",
             "rejection": "-00:00, offset non zero, deadline doppia e deadline <= now",
             "limit": "attesa/backoff/pubblicazione inclusi; cleanup finito separato",
             "effect": "restart non rinnova deadline; timeout attesa non cancella run"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "ManualClock; UTC Z/z T/t +00:00 accettati, emissione Z; deadline persistita",
             "rejection": "-00:00, offset non zero, deadline doppia e deadline <= now",
             "limit": "attesa/backoff/pubblicazione inclusi; cleanup finito separato",
             "effect": "restart non rinnova deadline; timeout attesa non cancella run"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "ManualClock; UTC Z/z T/t +00:00 accettati, emissione Z; deadline persistita",
             "rejection": "-00:00, offset non zero, deadline doppia e deadline <= now",
             "limit": "attesa/backoff/pubblicazione inclusi; cleanup finito separato",
             "effect": "restart non rinnova deadline; timeout attesa non cancella run"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "ManualClock; UTC Z/z T/t +00:00 accettati, emissione Z; deadline persistita",
             "rejection": "-00:00, offset non zero, deadline doppia e deadline <= now",
             "limit": "attesa/backoff/pubblicazione inclusi; cleanup finito separato",
             "effect": "restart non rinnova deadline; timeout attesa non cancella run"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -2743,54 +2773,59 @@
       "source": "B.5",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "default deny; consenso step/destinazione/operazione/input/digest fino a LossConsent",
             "rejection": "nuovo input/destinazione/policy senza nuova autorizzazione",
             "limit": "NULL, input vuoto, valori esatti e perdita effettiva; strict/range/provider non aggirati",
             "effect": "rollback confermato, committed e uncertain; rischio non equivale a perdita"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "default deny; consenso step/destinazione/operazione/input/digest fino a LossConsent",
             "rejection": "nuovo input/destinazione/policy senza nuova autorizzazione",
             "limit": "NULL, input vuoto, valori esatti e perdita effettiva; strict/range/provider non aggirati",
             "effect": "rollback confermato, committed e uncertain; rischio non equivale a perdita"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "default deny; consenso step/destinazione/operazione/input/digest fino a LossConsent",
             "rejection": "nuovo input/destinazione/policy senza nuova autorizzazione",
             "limit": "NULL, input vuoto, valori esatti e perdita effettiva; strict/range/provider non aggirati",
             "effect": "rollback confermato, committed e uncertain; rischio non equivale a perdita"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "default deny; consenso step/destinazione/operazione/input/digest fino a LossConsent",
             "rejection": "nuovo input/destinazione/policy senza nuova autorizzazione",
             "limit": "NULL, input vuoto, valori esatti e perdita effettiva; strict/range/provider non aggirati",
             "effect": "rollback confermato, committed e uncertain; rischio non equivale a perdita"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "default deny; consenso step/destinazione/operazione/input/digest fino a LossConsent",
             "rejection": "nuovo input/destinazione/policy senza nuova autorizzazione",
             "limit": "NULL, input vuoto, valori esatti e perdita effettiva; strict/range/provider non aggirati",
             "effect": "rollback confermato, committed e uncertain; rischio non equivale a perdita"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -2801,54 +2836,59 @@
       "source": "B.5/B.6",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "risk/evaluation/effective completi in successo ed errore; scarti deliberati distinti dai filtri",
             "rejection": "rapporto mancante non vale zero; consenso DB non autorizza IO/REST",
             "limit": "report grande come artefatto solo se previsto dal contratto",
             "effect": "elenco per step/output/regola senza sommare celle non uniche; partial mai successo"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "risk/evaluation/effective completi in successo ed errore; scarti deliberati distinti dai filtri",
             "rejection": "rapporto mancante non vale zero; consenso DB non autorizza IO/REST",
             "limit": "report grande come artefatto solo se previsto dal contratto",
             "effect": "elenco per step/output/regola senza sommare celle non uniche; partial mai successo"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "risk/evaluation/effective completi in successo ed errore; scarti deliberati distinti dai filtri",
             "rejection": "rapporto mancante non vale zero; consenso DB non autorizza IO/REST",
             "limit": "report grande come artefatto solo se previsto dal contratto",
             "effect": "elenco per step/output/regola senza sommare celle non uniche; partial mai successo"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "risk/evaluation/effective completi in successo ed errore; scarti deliberati distinti dai filtri",
             "rejection": "rapporto mancante non vale zero; consenso DB non autorizza IO/REST",
             "limit": "report grande come artefatto solo se previsto dal contratto",
             "effect": "elenco per step/output/regola senza sommare celle non uniche; partial mai successo"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "risk/evaluation/effective completi in successo ed errore; scarti deliberati distinti dai filtri",
             "rejection": "rapporto mancante non vale zero; consenso DB non autorizza IO/REST",
             "limit": "report grande come artefatto solo se previsto dal contratto",
             "effect": "elenco per step/output/regola senza sommare celle non uniche; partial mai successo"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -2859,54 +2899,59 @@
       "source": "B.6",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "tutti gli step anche non avviati, output, errori ordinati, budget e recovery",
             "rejection": "file presente non basta per succeeded",
             "limit": "quote risultati e canale minimo errore separate",
             "effect": "effetto dominio, pubblicazione e consegna separati; unknown conserva commit noti"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "tutti gli step anche non avviati, output, errori ordinati, budget e recovery",
             "rejection": "file presente non basta per succeeded",
             "limit": "quote risultati e canale minimo errore separate",
             "effect": "effetto dominio, pubblicazione e consegna separati; unknown conserva commit noti"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "tutti gli step anche non avviati, output, errori ordinati, budget e recovery",
             "rejection": "file presente non basta per succeeded",
             "limit": "quote risultati e canale minimo errore separate",
             "effect": "effetto dominio, pubblicazione e consegna separati; unknown conserva commit noti"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "tutti gli step anche non avviati, output, errori ordinati, budget e recovery",
             "rejection": "file presente non basta per succeeded",
             "limit": "quote risultati e canale minimo errore separate",
             "effect": "effetto dominio, pubblicazione e consegna separati; unknown conserva commit noti"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "tutti gli step anche non avviati, output, errori ordinati, budget e recovery",
             "rejection": "file presente non basta per succeeded",
             "limit": "quote risultati e canale minimo errore separate",
             "effect": "effetto dominio, pubblicazione e consegna separati; unknown conserva commit noti"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -2917,54 +2962,59 @@
       "source": "B.3",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "oracolo schema/valori/null/ordine/field metadata/field_id/CRS; IPC esplicito fra versioni incompatibili",
             "rejection": "cast, stringificazione o perdita implicita di colonne/metadata",
             "limit": "IPC stream/file limitato, non caricare tutto per deduzione dal content type",
             "effect": "digest byte distinto da uguaglianza semantica; pubblicazione confermata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "oracolo schema/valori/null/ordine/field metadata/field_id/CRS; IPC esplicito fra versioni incompatibili",
             "rejection": "cast, stringificazione o perdita implicita di colonne/metadata",
             "limit": "IPC stream/file limitato, non caricare tutto per deduzione dal content type",
             "effect": "digest byte distinto da uguaglianza semantica; pubblicazione confermata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "oracolo schema/valori/null/ordine/field metadata/field_id/CRS; IPC esplicito fra versioni incompatibili",
             "rejection": "cast, stringificazione o perdita implicita di colonne/metadata",
             "limit": "IPC stream/file limitato, non caricare tutto per deduzione dal content type",
             "effect": "digest byte distinto da uguaglianza semantica; pubblicazione confermata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "oracolo schema/valori/null/ordine/field metadata/field_id/CRS; IPC esplicito fra versioni incompatibili",
             "rejection": "cast, stringificazione o perdita implicita di colonne/metadata",
             "limit": "IPC stream/file limitato, non caricare tutto per deduzione dal content type",
             "effect": "digest byte distinto da uguaglianza semantica; pubblicazione confermata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "oracolo schema/valori/null/ordine/field metadata/field_id/CRS; IPC esplicito fra versioni incompatibili",
             "rejection": "cast, stringificazione o perdita implicita di colonne/metadata",
             "limit": "IPC stream/file limitato, non caricare tutto per deduzione dal content type",
             "effect": "digest byte distinto da uguaglianza semantica; pubblicazione confermata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -2975,54 +3025,59 @@
       "source": "B.3/E.2",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "51 vettori 0023 e vettori 0022: rename/drop/join/append/union/remap, mixed",
             "rejection": "primaria invalida o richiesta assente: schema; GeoParquet senza primaria: unsupported",
             "limit": "più geometrie/CRS, primaria non prima; sink mono-geometria rifiuta perdita",
             "effect": "nessuna elezione implicita; none conservato e claim per ogni hop"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "51 vettori 0023 e vettori 0022: rename/drop/join/append/union/remap, mixed",
             "rejection": "primaria invalida o richiesta assente: schema; GeoParquet senza primaria: unsupported",
             "limit": "più geometrie/CRS, primaria non prima; sink mono-geometria rifiuta perdita",
             "effect": "nessuna elezione implicita; none conservato e claim per ogni hop"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "51 vettori 0023 e vettori 0022: rename/drop/join/append/union/remap, mixed",
             "rejection": "primaria invalida o richiesta assente: schema; GeoParquet senza primaria: unsupported",
             "limit": "più geometrie/CRS, primaria non prima; sink mono-geometria rifiuta perdita",
             "effect": "nessuna elezione implicita; none conservato e claim per ogni hop"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "51 vettori 0023 e vettori 0022: rename/drop/join/append/union/remap, mixed",
             "rejection": "primaria invalida o richiesta assente: schema; GeoParquet senza primaria: unsupported",
             "limit": "più geometrie/CRS, primaria non prima; sink mono-geometria rifiuta perdita",
             "effect": "nessuna elezione implicita; none conservato e claim per ogni hop"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "51 vettori 0023 e vettori 0022: rename/drop/join/append/union/remap, mixed",
             "rejection": "primaria invalida o richiesta assente: schema; GeoParquet senza primaria: unsupported",
             "limit": "più geometrie/CRS, primaria non prima; sink mono-geometria rifiuta perdita",
             "effect": "nessuna elezione implicita; none conservato e claim per ogni hop"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -3381,54 +3436,59 @@
       "source": "C.4/D.2",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "stessa chiave/input riusa run e risultato; identità messaggio/tentativo distinte",
             "rejection": "stessa chiave/input diverso: conflict; controllo non supportato: unsupported",
             "limit": "chiave vuota/oltre bound; race e restart",
             "effect": "assenza esito non prova none; niente dedup remota inventata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "stessa chiave/input riusa run e risultato; identità messaggio/tentativo distinte",
             "rejection": "stessa chiave/input diverso: conflict; controllo non supportato: unsupported",
             "limit": "chiave vuota/oltre bound; race e restart",
             "effect": "assenza esito non prova none; niente dedup remota inventata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "stessa chiave/input riusa run e risultato; identità messaggio/tentativo distinte",
             "rejection": "stessa chiave/input diverso: conflict; controllo non supportato: unsupported",
             "limit": "chiave vuota/oltre bound; race e restart",
             "effect": "assenza esito non prova none; niente dedup remota inventata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "stessa chiave/input riusa run e risultato; identità messaggio/tentativo distinte",
             "rejection": "stessa chiave/input diverso: conflict; controllo non supportato: unsupported",
             "limit": "chiave vuota/oltre bound; race e restart",
             "effect": "assenza esito non prova none; niente dedup remota inventata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "stessa chiave/input riusa run e risultato; identità messaggio/tentativo distinte",
             "rejection": "stessa chiave/input diverso: conflict; controllo non supportato: unsupported",
             "limit": "chiave vuota/oltre bound; race e restart",
             "effect": "assenza esito non prova none; niente dedup remota inventata"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },
@@ -4541,54 +4601,59 @@
       "source": "B.1/B.6/C.4",
       "surfaces": {
         "rust": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
           "required_tests": {
             "positive": "tentativi finiti, backoff limitato e selezione di step riprendibili secondo evidenza",
             "rejection": "retry intera catena come OR degli step; chiave inoltrata a componente senza supporto",
             "limit": "max_attempts, deadline e quote cumulative anche su fallimento",
             "effect": "committed/partial/unknown non ritentati alla cieca; resource_limit none ha retry never"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "cli": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
           "required_tests": {
             "positive": "tentativi finiti, backoff limitato e selezione di step riprendibili secondo evidenza",
             "rejection": "retry intera catena come OR degli step; chiave inoltrata a componente senza supporto",
             "limit": "max_attempts, deadline e quote cumulative anche su fallimento",
             "effect": "committed/partial/unknown non ritentati alla cieca; resource_limit none ha retry never"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_sync": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
           "required_tests": {
             "positive": "tentativi finiti, backoff limitato e selezione di step riprendibili secondo evidenza",
             "rejection": "retry intera catena come OR degli step; chiave inoltrata a componente senza supporto",
             "limit": "max_attempts, deadline e quote cumulative anche su fallimento",
             "effect": "committed/partial/unknown non ritentati alla cieca; resource_limit none ha retry never"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "python_async": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
           "required_tests": {
             "positive": "tentativi finiti, backoff limitato e selezione di step riprendibili secondo evidenza",
             "rejection": "retry intera catena come OR degli step; chiave inoltrata a componente senza supporto",
             "limit": "max_attempts, deadline e quote cumulative anche su fallimento",
             "effect": "committed/partial/unknown non ritentati alla cieca; resource_limit none ha retry never"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         },
         "runtime": {
-          "status": "da fare",
+          "status": "specificata",
           "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
           "required_tests": {
             "positive": "tentativi finiti, backoff limitato e selezione di step riprendibili secondo evidenza",
             "rejection": "retry intera catena come OR degli step; chiave inoltrata a componente senza supporto",
             "limit": "max_attempts, deadline e quote cumulative anche su fallimento",
             "effect": "committed/partial/unknown non ritentati alla cieca; resource_limit none ha retry never"
-          }
+          },
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
       }
     },

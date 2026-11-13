@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Bozza locale CHAIN-PLAN-2.0 da proporre a plenora-contracts; nessuna ratifica o disponibilita runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "const": "plenora-chain-plan-v2"
+    },
+    "schema_version": {
+      "const": 2
+    },
+    "plan_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "revision": {
+      "$ref": "common.schema.json#/$defs/version"
+    },
+    "components": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/component"
+      },
+      "maxProperties": 64,
+      "minProperties": 1
+    },
+    "inputs": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/input"
+      },
+      "maxProperties": 64,
+      "minProperties": 0
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/step"
+      },
+      "maxItems": 1024,
+      "minItems": 1
+    },
+    "outputs": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "$ref": "common.schema.json#/$defs/source"
+          },
+          "expected": {
+            "$ref": "common.schema.json#/$defs/port"
+          },
+          "publication": {
+            "const": "durable"
+          }
+        },
+        "required": [
+          "source",
+          "expected",
+          "publication"
+        ]
+      },
+      "maxProperties": 64,
+      "minProperties": 0
+    },
+    "budgets": {
+      "$ref": "common.schema.json#/$defs/budget"
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "const": "sequential"
+        },
+        "max_parallel_steps": {
+          "const": 1
+        },
+        "on_error": {
+          "const": "stop"
+        },
+        "recovery": {
+          "const": "durable"
+        },
+        "cleanup_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400000
+        }
+      },
+      "required": [
+        "mode",
+        "max_parallel_steps",
+        "on_error",
+        "recovery",
+        "cleanup_ms"
+      ]
+    },
+    "loss_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "const": "deny"
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/grant"
+          },
+          "maxItems": 1024,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "default",
+        "grants"
+      ]
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contracts": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/contract"
+          },
+          "maxItems": 64,
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "host_profile_version": {
+          "const": 1
+        },
+        "fidelity": {
+          "enum": [
+            "exact",
+            "reported"
+          ]
+        }
+      },
+      "required": [
+        "contracts",
+        "host_profile_version",
+        "fidelity"
+      ]
+    },
+    "annotations": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/id"
+      },
+      "maxProperties": 64,
+      "minProperties": 0
+    }
+  },
+  "required": [
+    "contract",
+    "schema_version",
+    "plan_id",
+    "revision",
+    "components",
+    "inputs",
+    "steps",
+    "outputs",
+    "budgets",
+    "execution",
+    "loss_policy",
+    "requirements"
+  ]
+}

@@ -170,3 +170,17 @@ Condizione di chiusura: eseguire i gate CI sul medesimo SHA candidato, con
 Linux e Windows verdi, controlli supply-chain aggiornati, NATS reale,
 coverage e fuzz smoke; verificare il consumatore con il vettore coerente
 delle versioni Plenora. Nessuno dei gate omessi è dichiarato passato.
+
+## Gate P1.2: bozze dei contratti catene
+
+Regola: schemi chiusi e validazione di riferimento concordi sulle fixture;
+v1 invariato, ratifica e implementazione separate.
+Ambito: [CHAIN-PLAN-2.0](specs/CHAIN-PLAN-2.0.md), schema piano/esito/eventi/errori,
+archi e inventario. Il test `scripts/test_chain_contract.py` verifica parser,
+schema Draft 2020-12 e verdetti semantici distinti, incluse regressioni su
+duplicati/cicli/versioni/porte/consenso/budget/campi ignoti/limiti.
+Rischio residuo: la referenza non prova discovery, payload, autorizzazioni,
+conservazione geometrica, pubblicazione o ripresa reali. Condizione di chiusura
+successiva: P1.3 per registri/barriere effettivi, P2.x per boundary/store e S3
+per adapter e ratifica centrale. CI Linux e Windows sullo SHA resta obbligatoria
+prima del merge; un test locale non chiude quel gate.

@@ -105,3 +105,15 @@ SHA candidato e controllo dell'artefatto effettivamente distribuito, affinché
 le fixture non siano usate come credenziali di deploy. Nessun artefatto di
 rilascio è stato prodotto in questa sessione. Inventario dei percorsi e
 limiti nel [rapporto 0.1.1](dependency-alignment-0.1.1.md).
+
+## Rischio residuo del contratto catene di riferimento
+
+Regola: nessun resolver/invoke prima dell'ammissione e nessun successo senza prove.
+Ambito: [CHAIN-PLAN-2.0](specs/CHAIN-PLAN-2.0.md), P1.2.
+Il validatore Python verifica forma e invarianti su un contesto fixture esplicito;
+non verifica autorizzazione reale, digest dei documenti esterni, validità del
+payload upstream, provider, report disponibili o conservazione Arrow effettiva.
+Rischio: usare `reference_only` come ammissione di produzione o considerare
+`reports_complete` una prova autenticata. Chiusura: validatore P1.3 e host con
+registry congelato, resolver autorizzati, barriere effettive, store e adapter
+qualificati. Nessuna promessa runtime o chiusura delle deviazioni RT legacy.

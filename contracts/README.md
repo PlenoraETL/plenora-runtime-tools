@@ -31,3 +31,9 @@ cargo test -p plenora-runtime-capabilities --offline --locked
 
 Stati e limiti: [registro contratti](../docs/contract-alignment.md).
 Non modificare i vettori: aggiornare pin e hash insieme alle copie originali.
+
+## Bozze catene v2
+
+La directory [chains-v2](chains-v2/README.md) contiene le bozze locali P1.2,
+separate dalle copie upstream e dai vettori v1. Non è un aggiornamento del pin
+centrale né un'attestazione di disponibilità delle operazioni proposte.

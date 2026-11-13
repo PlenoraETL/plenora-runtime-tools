@@ -61,6 +61,9 @@ jobs:
         run: python scripts/check-contract-adoption.py
 
       - name: Test Python quality gates
+        run: python -m pip install -r scripts/requirements-chains.txt
+
+      - name: Test Python gates and chain contract fixtures
         run: python -m unittest discover -s scripts -p 'test_*.py'
 
       - name: Check comment quality
