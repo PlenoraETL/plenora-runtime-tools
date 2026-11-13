@@ -790,5 +790,32 @@
     "code": "CHAIN_DOCUMENT",
     "context": "context.json",
     "plan": null
+  },
+  {
+    "file": "dynamic-static-valid.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": true,
+    "code": null,
+    "context": "dynamic-static-valid-context.json",
+    "plan": null
+  },
+  {
+    "file": "dynamic-static-no-barrier.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BOUNDARY",
+    "context": "dynamic-static-no-barrier-context.json",
+    "plan": null
+  },
+  {
+    "file": "dynamic-static-port-mismatch.json",
+    "kind": "plan",
+    "schema": true,
+    "valid": false,
+    "code": "CHAIN_BOUNDARY",
+    "context": "dynamic-static-port-mismatch-context.json",
+    "plan": null
   }
 ]

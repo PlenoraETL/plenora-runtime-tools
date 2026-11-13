@@ -300,3 +300,18 @@ the scripted profile. P1.4c-1 separately covers the serialized journal only;
 the resource resolver/lease/cleanup gates above remain open. Tests of immutable plan confirmation
 and pre-invocation denial are incremental evidence only. Real PostgreSQL/NATS
 coverage remains ignored locally and wired to the existing CI job.
+
+## Evidenza incrementale P1.4c-2
+
+Regola: resolver, digest, schema e fedelta si verificano prima dell'effetto.
+Ambito: provider immutabile di risorse e oracoli JSON dichiaratamente fake,
+comune a Rust, CLI, SDK sync/async e client remoto. I test host esercitano
+riferimenti mancanti/alterati, documenti chiusi, schema statico/dinamico,
+metadata/primaria/counts, consenso DB e recovery dopo cambio delle risorse.
+Il corpus differenziale controlla la barriera dynamic-static in Rust/Python.
+I test remote/worker PostgreSQL/NATS e quelli wheel/binario installati usano
+il nuovo corpus e sono eseguiti dai job CI esistenti, ignorati localmente.
+Rischio: scambiare l'oracolo fake per un decoder Arrow o una libreria reale.
+Condizione di chiusura dell'adozione: prove equivalenti sui provider reali e
+CI Linux/Windows verde. Lease/fan-out/cleanup restano aperti. Esiti locali
+puntuali e gate non eseguiti sono registrati in target/P1-4-5.md.

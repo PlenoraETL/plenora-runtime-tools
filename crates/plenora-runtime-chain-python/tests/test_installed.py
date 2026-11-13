@@ -12,9 +12,9 @@ import uuid
 from plenora_runtime import AsyncClient, ChainError, Client, FUNCTIONS
 
 ROOT = Path(__file__).resolve().parents[3]
-FIXTURES = ROOT / "contracts/chains-v2/fixtures"
+FIXTURES = ROOT / "crates/plenora-runtime-chain-host/tests/fixtures"
 PLAN = (FIXTURES / "plan-valid.json").read_text(encoding="utf-8")
-EVENT = json.loads((FIXTURES / "event-valid.json").read_text(encoding="utf-8"))
+EVENT = json.loads((ROOT / "contracts/chains-v2/fixtures/event-valid.json").read_text(encoding="utf-8"))
 CONFIG = {
     "database": os.environ.get("PLENORA_POSTGRES_URL", "host=127.0.0.1 port=1 dbname=not_running connect_timeout=1"),
     "tenant": "wheel-qualification",
@@ -22,7 +22,7 @@ CONFIG = {
     "outcomes": (FIXTURES / "result-valid.json").read_text(encoding="utf-8"),
     "authorized_plans": [PLAN],
     "recovery": None,
-    "artifacts": {"ref:fixture": [0, 1, 2, 255]},
+    "artifacts": {**json.loads((FIXTURES / "artifacts.json").read_text(encoding="utf-8")), "ref:fixture": [0, 1, 2, 255]},
 }
 OPTIONS = {"run_id": "00000000-0000-0000-0000-000000000011", "idempotency_key": None, "deadline_ms": None}
 CASES = {
@@ -226,7 +226,7 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await asyncio.to_thread(lambda: list(sync.iter_events(receipt["run_id"], limit=2))), events)
         self.assertEqual([e["sequence"] for e in events], list(range(1, len(events) + 1)))
         config_path = ROOT / "target" / (config["tenant"] + ".json")
-        plan_path = ROOT / "contracts/chains-v2/fixtures/plan-valid.json"
+        plan_path = FIXTURES / "plan-valid.json"
         await asyncio.to_thread(config_path.write_text, json.dumps(config), encoding="utf-8")
         async def binary(*arguments, lines=False):
             result = await asyncio.to_thread(subprocess.run,
@@ -246,6 +246,40 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await binary("chain", "result", "--run", started["run_id"]))["state"], "cancelled")
         finally:
             await asyncio.to_thread(config_path.unlink)
+
+    async def test_resource_integrity_before_effect_on_installed_surfaces(self):
+        config = json.loads(json.dumps(CONFIG))
+        config["tenant"] = "resolver-" + str(uuid.uuid4())
+        config["artifacts"]["ref:fidelity-write"].append(0)
+        client = AsyncClient(config)
+        await client.migrate()
+        sync = Client(config)
+        failures = []
+        with self.assertRaises(ChainError) as rejected:
+            await asyncio.to_thread(sync.run, plan=PLAN, options=dict(OPTIONS, run_id=str(uuid.uuid4())))
+        failures.append(rejected.exception)
+        with self.assertRaises(ChainError) as rejected:
+            await client.run(plan=PLAN, options=dict(OPTIONS, run_id=str(uuid.uuid4())))
+        failures.append(rejected.exception)
+        def binary():
+            with tempfile.TemporaryDirectory(dir=ROOT / "target") as folder:
+                profile = Path(folder) / "config.json"
+                profile.write_text(json.dumps(config), encoding="utf-8")
+                return subprocess.run([os.environ["PLENORA_CHAIN_BIN"], "chain", "run",
+                    "--plan", str(FIXTURES / "plan-valid.json"), "--run", str(uuid.uuid4()),
+                    "--config", str(profile), "--json"], capture_output=True, text=True,
+                    encoding="utf-8", check=False)
+        completed = await asyncio.to_thread(binary)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(completed.stderr, "")
+        response = json.loads(completed.stdout)
+        for failure in failures:
+            self.assertEqual(failure.code, response["error"])
+        for result in [f.result for f in failures] + [response["value"]]:
+            self.assertEqual([s["state"] for s in result["steps"][:2]], ["succeeded", "succeeded"])
+            self.assertEqual(result["steps"][2]["remote_effect"], "none")
+            reports = await client.report(run_id=result["run_id"])
+            self.assertEqual(len(reports), 2)
 
     async def test_journal_budget_rejects_on_installed_surfaces(self):
         config = dict(CONFIG, tenant="journal-" + str(uuid.uuid4()), journal_bytes=1)

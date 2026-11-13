@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 mod control;
 mod remote;
+mod verification;
 mod work;
 use async_trait::async_trait;
 use plenora_runtime_chain_store::{PostgresStore, Retention};
@@ -47,7 +48,7 @@ fn journal_budget() -> usize {
 }
 struct ScriptedAdapter {
     tenant: String,
-    authorized: std::collections::BTreeSet<String>,
+    authorized: BTreeMap<String, plenora_runtime_chains::contracts::Plan>,
     steps: Vec<StepResult>,
     recovery: Vec<StepResult>,
     artifacts: BTreeMap<String, Vec<u8>>,
@@ -62,14 +63,14 @@ impl Adapter for ScriptedAdapter {
         if tenant != self.tenant
             || !self
                 .authorized
-                .contains(&plenora_runtime_chains::contracts::plan_digest(plan)?)
+                .contains_key(&plenora_runtime_chains::contracts::plan_digest(plan)?)
         {
             return Err(Error::Invalid);
         }
         Ok(())
     }
     async fn prepare(&self, i: &Invocation) -> Result<(), Error> {
-        if i.tenant != self.tenant || !self.authorized.contains(&i.plan_digest) {
+        if i.tenant != self.tenant || !self.authorized.contains_key(&i.plan_digest) {
             return Err(Error::Invalid);
         }
         let s = self
@@ -91,6 +92,7 @@ impl Adapter for ScriptedAdapter {
         {
             return Err(Error::ResourceLimit);
         }
+        self.verify(i, s)?;
         Ok(())
     }
     async fn invoke(&self, i: &Invocation) -> Result<StepResult, Error> {
@@ -109,6 +111,7 @@ impl Adapter for ScriptedAdapter {
             .iter()
             .find(|s| s.step_id == i.step.id && s.attempt == i.attempt);
         if let Some(proof) = proof {
+            self.verify(i, proof)?;
             let bytes = serde_json::to_vec(proof).map_err(|_| Error::Invalid)?;
             if u64::try_from(bytes.len()).map_err(|_| Error::ResourceLimit)?
                 > i.reservation.limits.result_bytes
@@ -192,9 +195,12 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ScriptedHost<S>
             .iter()
             .map(|raw| {
                 let plan = plenora_runtime_chains::contracts::parse_plan(raw.as_bytes())?;
-                Ok(plenora_runtime_chains::contracts::validate_plan(&plan, &registry)?.plan_digest)
+                Ok((
+                    plenora_runtime_chains::contracts::validate_plan(&plan, &registry)?.plan_digest,
+                    plan,
+                ))
             })
-            .collect::<Result<std::collections::BTreeSet<_>, Error>>()?;
+            .collect::<Result<BTreeMap<_, _>, Error>>()?;
         let adapter = Arc::new(ScriptedAdapter {
             tenant: config.tenant.clone(),
             authorized,

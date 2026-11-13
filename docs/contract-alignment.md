@@ -604,3 +604,42 @@ Real PostgreSQL/NATS tests and installed wheel/bin byte-for-byte reconstruction
 are wired in the existing infrastructure job and remain ignored locally.
 Resource resolver/digest/schema/fidelity, artifact lease/fan-out/cleanup and
 real-library qualification remain open.
+
+## P1.4c-2: risoluzione e prove di schema/fedelta del profilo scriptato
+
+Regola: prima di ogni step verificare riferimenti, digest, schema effettivo e
+fedelta; nessuna perdita senza consenso specifico. Ambito: ScriptedHost e tutte
+le sue facciate usano verification.rs nello stesso adapter durevole, anche
+in recovery. La mappa risorse e il piano confermato sono immutabili per istanza;
+al riavvio non si riusa una precedente approvazione dei byte. Autorizzazione
+per tenant e digest dell'intero piano precede la lettura dei riferimenti.
+Cataloghi, parametri, input, output, rapporti e upstream/error document sono
+verificati contro SHA-256 dei byte; manifest confrontati anche per dimensione.
+Un riferimento mancante/alterato ferma lo step prima di invoke. Le prove di
+schema restano separate dai manifest originali, compreso schema_digest=null.
+
+Deviazione dichiarata: il provider di dominio e un doppio JSON canonico
+scripted-v1/scripted-arrow-v1, NON un decoder IPC o schema di libreria reale.
+Il suo schema completo include ordine dei campi, ID, tipi, nullabilita e tutti
+i metadata; il digest e SHA-256 del JSON canonico del doppio. Il dominio dei
+tipi fake e int64/utf8/binary; righe, colonne e celle del doppio sono controllate.
+Primary Geometry applica none, ID esplicito e inferenza solo con una geometria.
+Il trasporto di piu geometrie senza primaria resta lecito se non richiesta.
+Un producer dinamico puo incontrare uno schema consumer fisso soltanto con
+barriera obbligatoria: gli altri attributi restano esatti. Rust e oracolo Python
+condividono i vettori dynamic-static, inclusi i rifiuti.
+
+La prova fake di fedelta e un documento integro legato a step, operazione/versione,
+parametri, porte/riferimenti/digest input-output e destinazione. Exact non ammette
+DatabaseLoss; reported lo ammette solo per database.write@2, consenso esplicito
+con grant validato e loss_report riferito alla medesima prova. ForbiddenLoss
+resta vietato anche con consenso DB. Il documento e un oracolo scriptato fidato,
+non una deduzione della fedelta dal solo hash dei byte. I rapporti originali
+restano disponibili senza riscrittura. Una verifica fallita in recovery non
+trasforma l'effetto unknown in none.
+
+Rischio/chiusura: questa qualifica non attesta schemi parametri reali, Arrow IPC,
+CRS/WKB, algoritmi di trasformazione, WriteOutcome/loss_report DB v3 o resolver
+di connessioni/segreti dei provider. Occorrono adapter e oracoli delle librerie
+adottate. Il profilo non apre file/path/URL del piano. Lease/fan-out/cleanup e
+criteri 5-6 restano fuori da questo passo; nessuna casella completa e promossa.

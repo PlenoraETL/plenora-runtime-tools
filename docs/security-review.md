@@ -234,3 +234,16 @@ successful merely by understating counters. Legacy intents without a proven
 report reservation cannot start new work. Real provider containment, resource
 leases and cleanup remain open. Closure of those risks requires their separate
 qualification; no library artifact is attested by the scripted profile.
+
+## Risorse fake P1.4c-2
+
+Regola: nessun uso di risorse alterate o perdite non autorizzate. Ambito:
+ScriptedHost verifica hash effettivi e prove fake prima di invoke/recovery;
+i JSON fake devono essere canonici, quindi membri duplicati anche annidati
+non possono essere normalizzati. Errori e Debug non riportano i dati.
+Rischio residuo: i documenti di fedelta provengono dal profilo host fidato;
+non sono firme o attestazioni delle librerie, ne proteggono da amministratori
+che falsifichino intenzionalmente l'intero profilo. Connessioni/segreti e
+validazione semantica dei provider reali restano all'adozione successiva.
+Chiusura: provider autenticati, decoder e oracoli reali qualificati con le
+stesse prove prima di promuovere le relative funzionalita.

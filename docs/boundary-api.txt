@@ -1837,6 +1837,7 @@ crates/plenora-runtime-chain-host/src/lib.rs |  | # [derive (Serialize , Deseria
 crates/plenora-runtime-chain-host/src/lib.rs |  | fn journal_budget () -> usize
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod control ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod remote ;
+crates/plenora-runtime-chain-host/src/lib.rs |  | mod verification ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod work ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | pub struct ScriptedHost < S : Store + plenora_runtime_boundary :: DurableExecutionStore = PostgresStore > { runtime : plenora_runtime_boundary :: DurableRuntime < S > , store : Arc < S > , worker : work :: Worker < S > , }
 crates/plenora-runtime-chain-host/src/lib.rs |  | pub use remote :: RemoteClient ;
@@ -1888,6 +1889,33 @@ crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | pub
 crates/plenora-runtime-chain-host/src/remote.rs | impl ScriptedHost { } | async fn serve (self : Arc < Self > , server : & str , subject : & str , ready : tokio :: sync :: oneshot :: Sender < () > ,) -> Result < () , Error >
 crates/plenora-runtime-chain-host/src/remote.rs | impl ScriptedHost { } | pub
 crates/plenora-runtime-chain-host/src/remote.rs | impl ScriptedHost { } | tokio :: join ! (listener , worker)
+crates/plenora-runtime-chain-host/src/verification.rs |  | 
+crates/plenora-runtime-chain-host/src/verification.rs |  | 
+crates/plenora-runtime-chain-host/src/verification.rs |  | 
+crates/plenora-runtime-chain-host/src/verification.rs |  | # [derive (Deserialize)] # [serde (rename_all = "snake_case")] enum Verdict { Exact , DatabaseLoss , ForbiddenLoss , }
+crates/plenora-runtime-chain-host/src/verification.rs |  | # [derive (Deserialize)] # [serde (tag = "kind" , rename_all = "snake_case" , deny_unknown_fields)] enum Body { Catalog , Parameters { operation : String , version : u64 , } , Upstream , Fidelity { step : String , operation : String , version : u64 , parameters_sha256 : String , destination : Option < String > , inputs : BTreeMap < String , (String , String) > , outputs : BTreeMap < String , (String , String) > , verdict : Verdict , } , }
+crates/plenora-runtime-chain-host/src/verification.rs |  | fn decode < T : serde :: de :: DeserializeOwned > (bytes : & [u8]) -> Result < T , Error >
+crates/plenora-runtime-chain-host/src/verification.rs |  | fn digest (bytes : & [u8]) -> String
+crates/plenora-runtime-chain-host/src/verification.rs |  | fn object_digest (value : & impl Serialize) -> Result < String , Error >
+crates/plenora-runtime-chain-host/src/verification.rs |  | format ! ("{:x}" , Sha256 :: digest (bytes))
+crates/plenora-runtime-chain-host/src/verification.rs | impl Schema { } | 
+crates/plenora-runtime-chain-host/src/verification.rs | impl Schema { } | fn primary (& self) -> Result < bool , Error >
+crates/plenora-runtime-chain-host/src/verification.rs | impl Schema { } | matches ! (field . data_type . as_str () , "int64" | "utf8" | "binary")
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | 
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | 
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | 
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | 
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | 
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | fn arrow (& self , reference : & str , sha256 : & str , bytes : u64 , port : & Port ,) -> Result < (usize , usize) , Error >
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | fn document (& self , d : & Document) -> Result < FixtureDocument , Error >
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | fn fidelity (& self , i : & Invocation , result : & StepResult , requirement : & str ,) -> Result < () , Error >
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | fn reports (& self , reports : & [Report]) -> Result < () , Error >
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | fn resource (& self , reference : & str , sha256 : & str) -> Result < & [u8] , Error >
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | fn verify (& self , i : & Invocation , result : & StepResult) -> Result < () , Error >
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | matches ! (port . content_type . as_str () , "application/vnd.apache.arrow.stream" | "application/vnd.apache.arrow.file")
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | matches ! (self . document (& component . catalog) ?. body , Body :: Catalog)
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | matches ! (self . document (d) ?. body , Body :: Upstream)
+crates/plenora-runtime-chain-host/src/verification.rs | impl ScriptedAdapter { } | pub (super)
 crates/plenora-runtime-chain-host/src/work.rs | impl < S : Store + DurableExecutionStore > Worker < S > { } | async fn run (& self , mut stop : tokio :: sync :: watch :: Receiver < bool >) -> Result < () , Error >
 crates/plenora-runtime-chain-host/src/work.rs | impl < S : Store + DurableExecutionStore > Worker < S > { } | pub
 crates/plenora-runtime-chain-host/src/work.rs | impl < S : Store + DurableExecutionStore > Worker < S > { } | tokio :: select ! { changed = stop . changed () => { if changed . is_err () { return Ok (()) ; } } , () = tokio :: time :: sleep (Duration :: from_millis (25)) => { } , }
@@ -2309,7 +2337,7 @@ crates/plenora-runtime-chains/src/journal.rs | impl std :: fmt :: Debug for Jour
 crates/plenora-runtime-chains/src/journal.rs | impl std :: fmt :: Debug for Journal { } | fn fmt (& self , f : & mut std :: fmt :: Formatter < '_ >) -> std :: fmt :: Result
 crates/plenora-runtime-chains/src/journal.rs | impl std :: fmt :: Debug for RunOptions { } | 
 crates/plenora-runtime-chains/src/journal.rs | impl std :: fmt :: Debug for RunOptions { } | fn fmt (& self , f : & mut std :: fmt :: Formatter < '_ >) -> std :: fmt :: Result
-crates/plenora-runtime-chains/src/lib.rs |  | # [derive (Clone , Copy , Debug , PartialEq , Eq , Serialize , Deserialize)] # [serde (rename_all = "snake_case")] pub enum Error { Invalid , Unsupported , Conflict , ResourceLimit , Timeout , Storage , Pending , Recovery , Failed , Cancelled , Expired , NotFound , }
+crates/plenora-runtime-chains/src/lib.rs |  | # [derive (Clone , Copy , Debug , PartialEq , Eq , Serialize , Deserialize)] # [serde (rename_all = "snake_case")] pub enum Error { Invalid , Schema , Unsupported , Conflict , ResourceLimit , Timeout , Storage , Pending , Recovery , Failed , Cancelled , Expired , NotFound , }
 crates/plenora-runtime-chains/src/lib.rs |  | fn encode (value : & impl Serialize) -> Result < Vec < u8 > , Error >
 crates/plenora-runtime-chains/src/lib.rs |  | fn scope (value : & str) -> bool
 crates/plenora-runtime-chains/src/lib.rs |  | fn timestamp (ms : u64) -> Result < String , Error >

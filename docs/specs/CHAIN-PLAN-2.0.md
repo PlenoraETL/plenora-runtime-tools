@@ -108,6 +108,9 @@ type comuni; `adapter_required` un adapter nominato/versionato presente e
 qualificato; `provisional` è sempre rifiutato. Un arco direct riguarda le porte
 Arrow, NON l'intero documento io.read → richiesta data.run.
 I descrittori di mapping devono conservare tutti i manifest e rapporti.
+Un digest schema produttore dinamico (null) puo essere verificato contro quello
+fisso del consumer alla barriera obbligatoria; gli altri attributi delle porte
+direct devono coincidere esattamente. Il manifest originale non si riscrive.
 
 Handoff: `plenora-arrow-interchange-v1`, IPC stream/file, o valori nativi
 compatibili; il profilo iniziale effettua checkpoint durevoli tra step.

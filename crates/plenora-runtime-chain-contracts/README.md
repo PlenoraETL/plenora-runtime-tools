@@ -28,7 +28,7 @@ da `cargo fmt --all`. La generazione e uno strumento di sviluppo offline,
 non una dipendenza di compilazione o esecuzione. Gli schemi locali sono inclusi
 nel binario: il valutatore accetta solo il loro vocabolario e non carica URI.
 
-Prove: `cargo test -p plenora-runtime-chain-contracts` esegue tutte le 88 fixture,
+Prove: `cargo test -p plenora-runtime-chain-contracts` esegue tutte le fixture enumerate nel manifest,
 confronta i codici dell'oracolo e verifica roundtrip, limiti e regressioni oltre
 le fixture. `python -m unittest discover -s scripts -p 'test_chain_contract.py'`
 verifica separatamente la referenza Python sugli stessi attesi.

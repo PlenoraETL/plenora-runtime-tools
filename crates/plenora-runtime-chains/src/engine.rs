@@ -862,6 +862,7 @@ pub(crate) fn problem(error: Error, effect: &str, step: Option<&str>) -> ChainEr
             Error::ResourceLimit => "resource_limit",
             Error::Timeout => "timeout",
             Error::Unsupported => "unsupported",
+            Error::Schema => "schema",
             _ => "execution",
         }
         .into(),

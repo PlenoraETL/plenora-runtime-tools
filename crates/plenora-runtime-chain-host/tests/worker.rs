@@ -2,7 +2,7 @@
 use plenora_runtime_chain_host::{RemoteClient, ScriptedConfig, ScriptedHost};
 use plenora_runtime_chain_store::PostgresStore;
 use plenora_runtime_chains::{Error, Request, RunOptions, Store, Transport};
-use std::{collections::BTreeMap, error::Error as StdError, sync::Arc, time::Duration};
+use std::{error::Error as StdError, sync::Arc, time::Duration};
 
 #[allow(
     clippy::too_many_lines,
@@ -15,13 +15,11 @@ async fn postgres_nats_real_worker_restarts_and_retries_persisted_runs()
     let database = std::env::var("PLENORA_POSTGRES_URL")?;
     let server = std::env::var("PLENORA_NATS_URL")?;
     let tenant = format!("worker-{}", uuid::Uuid::new_v4());
-    let mut plan: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../contracts/chains-v2/fixtures/plan-valid.json"
-    ))?;
+    let mut plan: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/plan-valid.json"))?;
     plan["steps"][1]["retry_policy"] = serde_json::json!({"max_attempts":2,"backoff_ms":20});
-    let mut outcomes: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../contracts/chains-v2/fixtures/result-valid.json"
-    ))?;
+    let mut outcomes: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/result-valid.json"))?;
     let mut second = outcomes["steps"][1].clone();
     second["attempt"] = serde_json::json!(2);
     for output in second["outputs"]
@@ -44,12 +42,12 @@ async fn postgres_nats_real_worker_restarts_and_retries_persisted_runs()
         journal_bytes: plenora_runtime_chains::JOURNAL_BYTES,
         database: database.clone(),
         tenant: tenant.clone(),
-        registry: include_str!("../../../contracts/chains-v2/fixtures/context.json").into(),
+        registry: include_str!("fixtures/context.json").into(),
         outcomes: serde_json::to_string(&outcomes)?,
         authorized_plans: vec![serde_json::to_string(&plan)?],
         recovery: None,
         attempts: vec![serde_json::to_string(&second)?],
-        artifacts: BTreeMap::new(),
+        artifacts: serde_json::from_str(include_str!("fixtures/artifacts.json"))?,
     };
     let serialized = serde_json::to_vec(&config)?;
     let first = ScriptedHost::new(config)?;

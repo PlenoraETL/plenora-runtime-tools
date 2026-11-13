@@ -203,7 +203,10 @@ def validate_plan(plan, context):
                     reject("CHAIN_BOUNDARY")
                 if edge["mode"] == "adapter_required" and edge["adapter"] not in context["adapters"]:
                     reject("CHAIN_BOUNDARY")
-                if edge["mode"] == "direct" and actual != expected:
+                comparable = dict(actual)
+                if comparable["schema_digest"] is None:
+                    comparable["schema_digest"] = expected["schema_digest"]
+                if edge["mode"] == "direct" and comparable != expected:
                     reject("CHAIN_BOUNDARY")
                 if actual["primary_geometry"] and not expected["primary_geometry"]:
                     reject("CHAIN_BOUNDARY")

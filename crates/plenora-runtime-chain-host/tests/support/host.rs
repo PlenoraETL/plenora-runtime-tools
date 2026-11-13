@@ -14,30 +14,29 @@ use std::{
 mod primary;
 use primary::ScriptStore;
 type ResultTest = Result<(), Box<dyn StdError>>;
-fn config(tenant: &str) -> ScriptedConfig {
-    ScriptedConfig {
+fn config(tenant: &str) -> Result<ScriptedConfig, Error> {
+    Ok(ScriptedConfig {
         journal_bytes: plenora_runtime_chains::JOURNAL_BYTES,
         database: "host=127.0.0.1 port=1".into(),
         tenant: tenant.into(),
-        registry: include_str!("../../../../contracts/chains-v2/fixtures/context.json").into(),
-        outcomes: include_str!("../../../../contracts/chains-v2/fixtures/result-valid.json").into(),
-        authorized_plans: vec![
-            include_str!("../../../../contracts/chains-v2/fixtures/plan-valid.json").into(),
-        ],
+        registry: include_str!("../fixtures/context.json").into(),
+        outcomes: include_str!("../fixtures/result-valid.json").into(),
+        authorized_plans: vec![include_str!("../fixtures/plan-valid.json").into()],
         recovery: None,
         attempts: vec![],
-        artifacts: BTreeMap::new(),
-    }
+        artifacts: serde_json::from_str(include_str!("../fixtures/artifacts.json"))
+            .map_err(|_| Error::Invalid)?,
+    })
 }
 fn host(store: Arc<ScriptStore>, tenant: &str) -> Result<ScriptedHost<ScriptStore>, Error> {
     ScriptedHost::with_store(
-        config(tenant),
+        config(tenant)?,
         store,
         Arc::new(ManualClock::new(UNIX_EPOCH + Duration::from_hours(498_492))),
     )
 }
 fn request(run: bool, key: Option<&str>) -> Request {
-    let plan = include_str!("../../../../contracts/chains-v2/fixtures/plan-valid.json").into();
+    let plan = include_str!("../fixtures/plan-valid.json").into();
     let options = RunOptions {
         run_id: uuid::Uuid::new_v4().to_string(),
         idempotency_key: key.map(str::to_owned),
@@ -203,11 +202,9 @@ async fn raw_rejections_and_remote_carrier_cannot_bypass_admission() -> ResultTe
 #[tokio::test]
 async fn unknown_and_recovery_keep_complete_runtime_evidence_without_reinvoke() -> ResultTest {
     let store = Arc::new(ScriptStore::default());
-    let mut config = config("tenant");
-    config.outcomes =
-        include_str!("../../../../contracts/chains-v2/fixtures/result-recovery-valid.json").into();
-    config.recovery =
-        Some(include_str!("../../../../contracts/chains-v2/fixtures/result-valid.json").into());
+    let mut config = config("tenant")?;
+    config.outcomes = include_str!("../fixtures/result-recovery-valid.json").into();
+    config.recovery = Some(include_str!("../fixtures/result-valid.json").into());
     let h = ScriptedHost::with_store(
         config,
         store.clone(),
@@ -255,7 +252,7 @@ async fn rt022_replay_after_deadline_and_new_admission_error_precedence() -> Res
         );
     }
     let clock = Arc::new(ManualClock::new(UNIX_EPOCH + Duration::from_hours(498_492)));
-    let h = ScriptedHost::with_store(config("deadline"), store.clone(), clock.clone())?;
+    let h = ScriptedHost::with_store(config("deadline")?, store.clone(), clock.clone())?;
     let mut message = control::message(request(false, Some("replay-key")))?;
     let deadline = "2026-11-13T12:00:01Z";
     message.headers.insert_text(
@@ -287,7 +284,7 @@ async fn scripted_output_reservation_is_checked_before_any_step_invocation() -> 
         value["steps"][0]["budgets"]["result_bytes"] = json!(1);
         *plan = serde_json::to_string(&value)?;
     }
-    let mut profile = config("tenant");
+    let mut profile = config("tenant")?;
     if let Request::Run { plan, .. } = &call {
         profile.authorized_plans = vec![plan.clone()];
     }
@@ -346,7 +343,7 @@ async fn autonomous_host_worker_scans_runs_after_host_restart_and_drains_shutdow
 async fn complete_plan_confirmation_is_default_deny_and_cannot_authorize_a_changed_plan()
 -> ResultTest {
     let store = Arc::new(ScriptStore::default());
-    let mut denied = config("tenant");
+    let mut denied = config("tenant")?;
     denied.authorized_plans.clear();
     let clock = Arc::new(ManualClock::new(UNIX_EPOCH + Duration::from_hours(498_492)));
     let h = ScriptedHost::with_store(denied, store.clone(), clock)?;
@@ -376,7 +373,7 @@ async fn complete_plan_confirmation_is_default_deny_and_cannot_authorize_a_chang
                 plenora_runtime_chains::contracts::parse_plan(&serde_json::to_vec(&value)?)?;
             plenora_runtime_chains::contracts::validate_plan(
                 &parsed,
-                &parse_registry(config("tenant").registry.as_bytes())?,
+                &parse_registry(config("tenant")?.registry.as_bytes())?,
             )?;
             assert_ne!(
                 plenora_runtime_chains::contracts::plan_digest(&parsed)?,
@@ -401,7 +398,9 @@ async fn oversized_fault_report_is_fully_recoverable_through_bounded_host_pages(
     let engine = ChainEngine::new(
         store.clone(),
         Arc::new(large_report::Oversized),
-        parse_registry(config("large").registry.as_bytes())?,
+        parse_registry(include_bytes!(
+            "../../../../contracts/chains-v2/fixtures/context.json"
+        ))?,
         Arc::new(ManualClock::new(UNIX_EPOCH + Duration::from_hours(498_492))),
         "large",
     )?;
@@ -425,7 +424,15 @@ async fn oversized_fault_report_is_fully_recoverable_through_bounded_host_pages(
         engine.report(&accepted.run_id).await?,
         vec![expected.clone()]
     );
-    let host = host(store, "large")?;
+    let mut legacy = config("large")?;
+    legacy.registry = include_str!("../../../../contracts/chains-v2/fixtures/context.json").into();
+    legacy.authorized_plans =
+        vec![include_str!("../../../../contracts/chains-v2/fixtures/plan-valid.json").into()];
+    let host = ScriptedHost::with_store(
+        legacy,
+        store,
+        Arc::new(ManualClock::new(UNIX_EPOCH + Duration::from_hours(498_492))),
+    )?;
     let mut cursor = Some(plenora_runtime_chains::ReportCursor {
         index: 0,
         offset: 0,
@@ -462,3 +469,6 @@ async fn oversized_fault_report_is_fully_recoverable_through_bounded_host_pages(
     );
     Ok(())
 }
+
+#[path = "verification.rs"]
+mod verification_tests;

@@ -23,6 +23,8 @@ async-nats.workspace = true
 futures-util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# Same exact digest implementation as chain-contracts; verifies immutable fake resource bytes.
+sha2 = "=0.10.9"
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "sync", "time"] }
 
 [lints]

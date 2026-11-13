@@ -55,6 +55,8 @@ use std::fmt;
 pub enum Error {
     /// Closed admission failed.
     Invalid,
+    /// Resolved Arrow schema or geometry requirements disagree.
+    Schema,
     /// Unsupported execution profile or control.
     Unsupported,
     /// Identity, immutable binding or state revision disagrees.

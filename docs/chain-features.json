@@ -2746,6 +2746,20 @@
           },
           "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
+      },
+      "incremental_evidence": {
+        "p14c2": {
+          "scope": "ScriptedHost: immutable fake resources, byte SHA-256, closed parameter doubles, resolved schema barriers and scoped fidelity evidence; not real libraries",
+          "local_tests": [
+            "crates/plenora-runtime-chain-host/tests/support/verification.rs",
+            "crates/plenora-runtime-chain-contracts/tests/parity.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-host/tests/remote.rs",
+            "crates/plenora-runtime-chain-python/tests/test_installed.py"
+          ],
+          "remaining": "Real provider adoption; lease/fan-out/cleanup; criteria 5-6. No full surface promotion."
+        }
       }
     },
     {
@@ -3273,6 +3287,20 @@
           },
           "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
+      },
+      "incremental_evidence": {
+        "p14c2": {
+          "scope": "ScriptedHost: immutable fake resources, byte SHA-256, closed parameter doubles, resolved schema barriers and scoped fidelity evidence; not real libraries",
+          "local_tests": [
+            "crates/plenora-runtime-chain-host/tests/support/verification.rs",
+            "crates/plenora-runtime-chain-contracts/tests/parity.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-host/tests/remote.rs",
+            "crates/plenora-runtime-chain-python/tests/test_installed.py"
+          ],
+          "remaining": "Real provider adoption; lease/fan-out/cleanup; criteria 5-6. No full surface promotion."
+        }
       }
     },
     {
@@ -3567,6 +3595,20 @@
             "limit": "riferimenti e accessi limitati",
             "effect": "zero aperture prima di ammissione; sentinelle assenti da log/Debug/Display/source"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p14c2": {
+          "scope": "ScriptedHost: immutable fake resources, byte SHA-256, closed parameter doubles, resolved schema barriers and scoped fidelity evidence; not real libraries",
+          "local_tests": [
+            "crates/plenora-runtime-chain-host/tests/support/verification.rs",
+            "crates/plenora-runtime-chain-contracts/tests/parity.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-host/tests/remote.rs",
+            "crates/plenora-runtime-chain-python/tests/test_installed.py"
+          ],
+          "remaining": "Real provider adoption; lease/fan-out/cleanup; criteria 5-6. No full surface promotion."
         }
       }
     },

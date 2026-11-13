@@ -120,6 +120,8 @@ impl<A: Adapter> Component<A> {
                 if let Err(error) = self.adapter.prepare(&invocation).await {
                     let category = if error == Error::ResourceLimit {
                         Category::ResourceLimit
+                    } else if error == Error::Schema {
+                        Category::Schema
                     } else {
                         Category::InvalidConfiguration
                     };
