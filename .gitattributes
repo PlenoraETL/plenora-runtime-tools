@@ -2,6 +2,8 @@
 *.rs text eol=lf
 *.toml text eol=lf
 *.md text eol=lf
+# Generated API snapshots are compared byte for byte on every platform.
+docs/boundary-api.txt text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
 *.sh text eol=lf

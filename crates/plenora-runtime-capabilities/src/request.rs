@@ -3,12 +3,11 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
 };
 
-// Adoption deviations RT-012/016..023 (docs/contract-alignment.md): this
-// capability codec does not yet implement the entire canonical transport
-// admission/rejection boundary. Generic integer parsing below is not evidence
-// of RT-017 lexical conformance. Do not advertise full Runtime Binding 2.0.
+// P2.1b: only outbound candidate construction lives in this generic crate.
+// Canonical decoding and the only registered dispatcher live in runtime-boundary.
+// Constructing or encoding a candidate is not evidence of admission.
 
-use plenora_runtime_messaging::{MessageCodec, MetadataKeyError, SerializedMessage};
+use plenora_runtime_messaging::{MetadataKeyError, SerializedMessage};
 
 use crate::{
     CapabilityId, CapabilityIdentifierError, ContractId, ContractIdentifierError, OperationName,
@@ -34,7 +33,8 @@ pub const EXECUTION_DEADLINE_METADATA_KEY: &str = "plenora.execution.deadline";
 /// Metadata key carrying a bounded opaque idempotency key.
 pub const IDEMPOTENCY_KEY_METADATA_KEY: &str = "plenora.execution.idempotency_key";
 
-/// Transport-neutral request routed to one registered capability.
+/// Unadmitted outbound candidate or input inspected by an adapter.
+/// Constructing this DTO never authorizes runtime dispatch.
 #[derive(Clone, Eq, PartialEq)]
 pub struct CapabilityRequest {
     capability: CapabilityId,
@@ -117,14 +117,19 @@ impl Debug for CapabilityRequest {
     }
 }
 
-/// Portable codec storing capability routing in namespaced message metadata.
+/// Outbound encoder storing routing in namespaced message metadata.
+/// Decoding is exclusively owned by the runtime boundary.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CapabilityMessageCodec;
 
-impl MessageCodec<CapabilityRequest> for CapabilityMessageCodec {
-    type Error = CapabilityMessageCodecError;
-
-    fn encode(&self, request: &CapabilityRequest) -> Result<SerializedMessage, Self::Error> {
+impl CapabilityMessageCodec {
+    /// Encode an outbound candidate; this does not admit it for execution.
+    /// # Errors
+    /// Rejects metadata exceeding the portable limits.
+    pub fn encode(
+        &self,
+        request: &CapabilityRequest,
+    ) -> Result<SerializedMessage, CapabilityMessageCodecError> {
         let mut message = request.input.clone();
         let _previous = message
             .headers
@@ -156,43 +161,6 @@ impl MessageCodec<CapabilityRequest> for CapabilityMessageCodec {
             .insert_text(INPUT_CONTRACT_METADATA_KEY, request.input_contract.as_str())
             .map_err(CapabilityMessageCodecError::Metadata)?;
         Ok(message)
-    }
-
-    fn decode(&self, message: &SerializedMessage) -> Result<CapabilityRequest, Self::Error> {
-        let name = required_text(message, CAPABILITY_NAME_METADATA_KEY)?;
-        let version = required_text(message, CAPABILITY_VERSION_METADATA_KEY)?
-            .parse::<u16>()
-            .map_err(|_error| {
-                CapabilityMessageCodecError::InvalidVersion(CAPABILITY_VERSION_METADATA_KEY)
-            })?;
-        let operation = required_text(message, CAPABILITY_OPERATION_METADATA_KEY)?;
-        let operation_version = required_text(message, OPERATION_VERSION_METADATA_KEY)?
-            .parse::<u16>()
-            .ok()
-            .and_then(|value| OperationVersion::new(value).ok())
-            .ok_or(CapabilityMessageCodecError::InvalidVersion(
-                OPERATION_VERSION_METADATA_KEY,
-            ))?;
-        let input_contract = required_text(message, INPUT_CONTRACT_METADATA_KEY)?;
-        let capability =
-            CapabilityId::new(name, version).map_err(CapabilityMessageCodecError::Identifier)?;
-        let operation =
-            OperationName::new(operation).map_err(CapabilityMessageCodecError::Identifier)?;
-        let input_contract =
-            ContractId::new(input_contract).map_err(CapabilityMessageCodecError::Contract)?;
-        let mut input = message.clone();
-        let _name = input.headers.remove(CAPABILITY_NAME_METADATA_KEY);
-        let _version = input.headers.remove(CAPABILITY_VERSION_METADATA_KEY);
-        let _operation = input.headers.remove(CAPABILITY_OPERATION_METADATA_KEY);
-        let _operation_version = input.headers.remove(OPERATION_VERSION_METADATA_KEY);
-        let _input_contract = input.headers.remove(INPUT_CONTRACT_METADATA_KEY);
-        Ok(CapabilityRequest::new(
-            capability,
-            operation,
-            operation_version,
-            input_contract,
-            input,
-        ))
     }
 }
 
@@ -265,15 +233,4 @@ impl Error for CapabilityMessageCodecError {
             Self::Missing(_) | Self::InvalidEncoding(_) | Self::InvalidVersion(_) => None,
         }
     }
-}
-
-fn required_text<'a>(
-    message: &'a SerializedMessage,
-    key: &'static str,
-) -> Result<&'a str, CapabilityMessageCodecError> {
-    message
-        .headers
-        .get_text(key)
-        .map_err(|_error| CapabilityMessageCodecError::InvalidEncoding(key))?
-        .ok_or(CapabilityMessageCodecError::Missing(key))
 }

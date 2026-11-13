@@ -3,7 +3,9 @@
 Fondamenta Rust riusabili per servizi e worker asincroni dell'ecosistema Plenora,
 con un nuovo strato prodotto di orchestrazione catene progettato nello stesso repository.
 [ADR 0008](docs/adr/0008-chain-product-scope.md) ne registra il perimetro:
-i crate catene non sono ancora implementati; le fondamenta generiche restano invariate.
+sono presenti contratti catene e ammissione runtime locale; engine e host restano
+da realizzare. Il [boundary](crates/plenora-runtime-boundary/README.md) dichiara
+prove e limiti del profilo P2.1, senza attestare settlement o dedup durevoli.
 Il progetto è agnostico rispetto all'infrastruttura ai propri confini pubblici: le tecnologie
 concrete di HTTP, worker, broker e persistenza stanno dietro gli adapter.
 

@@ -920,7 +920,7 @@ fn runtime_capacity_concurrency_payload_and_security_defaults_are_explicit()
     )?;
     require_compact_code(
         &root,
-        "crates/plenora-runtime-capabilities/src/registry.rs",
+        "crates/plenora-runtime-boundary/src/registry.rs",
         &[
             "ifmax_capabilities==0",
             "ifself.registrations.len()>=self.config.max_capabilities",
@@ -929,7 +929,7 @@ fn runtime_capacity_concurrency_payload_and_security_defaults_are_explicit()
     )?;
     require_compact_code(
         &root,
-        "crates/plenora-runtime-capabilities/src/dispatcher.rs",
+        "crates/plenora-runtime-boundary/src/dispatcher.rs",
         &[
             "ifmax_payload_bytes==0",
             "ifrequest.input().len()>self.config.max_payload_bytes",

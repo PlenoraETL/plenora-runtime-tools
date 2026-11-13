@@ -1,8 +1,8 @@
+use crate::CapabilityRegistry;
 use std::{
     error::Error,
     fmt::{self, Debug, Display, Formatter},
     sync::Arc,
-    time::SystemTime,
 };
 
 // Adoption deviations RT-007/010/013/016/019/020/023/026/027 are tracked in
@@ -10,19 +10,17 @@ use std::{
 // negotiated transport, durable acceptance store, domain payload validator,
 // or terminal public-error publisher. A green model test does not close them.
 
-use async_trait::async_trait;
 use chrono::DateTime;
 use plenora_runtime_core::{Clock, SystemClock};
 use plenora_runtime_messaging::{ClassifyRetry, CorrelationId, PublishOutcome, RetryErrorClass};
-use plenora_runtime_worker::{WorkerContext, WorkerHandler};
+use plenora_runtime_worker::WorkerContext;
 
-use crate::{
-    CapabilityFailure, CapabilityId, CapabilityPayload, CapabilityRegistry, CapabilityRemoteEffect,
-    CapabilityRequest, CapabilityRequestRejection, CapabilityResponse, CapabilityResult,
-    CapabilityResultBuildError, CapabilityResultPublishError, CapabilityResultSink,
-    EXECUTION_DEADLINE_METADATA_KEY, OperationName, OperationVersion, PlenoraError,
-    PlenoraErrorCategory, PlenoraErrorPhase, PlenoraErrorRemoteEffect, PlenoraErrorRetry,
-    PlenoraErrorValidationError,
+use plenora_runtime_capabilities::{
+    CapabilityFailure, CapabilityId, CapabilityPayload, CapabilityRemoteEffect, CapabilityRequest,
+    CapabilityRequestRejection, CapabilityResponse, CapabilityResult, CapabilityResultBuildError,
+    CapabilityResultPublishError, CapabilityResultSink, EXECUTION_DEADLINE_METADATA_KEY,
+    OperationName, OperationVersion, PlenoraError, PlenoraErrorCategory, PlenoraErrorPhase,
+    PlenoraErrorRemoteEffect, PlenoraErrorRetry, PlenoraErrorValidationError,
 };
 
 /// Hard upper bound for opaque input passed to one capability adapter: 64 MiB.
@@ -278,15 +276,16 @@ impl Debug for CapabilityDispatcher {
     }
 }
 
-#[async_trait]
-impl WorkerHandler<CapabilityRequest> for CapabilityDispatcher {
-    type Error = CapabilityDispatchError;
-
-    async fn handle(
+impl CapabilityDispatcher {
+    #[allow(
+        clippy::result_large_err,
+        reason = "Private dispatch preserves typed evidence by value until the boundary maps it once"
+    )]
+    pub(crate) async fn handle(
         &self,
         context: WorkerContext,
         request: CapabilityRequest,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), CapabilityDispatchError> {
         let capability = request.capability().clone();
         let operation = request.operation().clone();
         let operation_version = request.operation_version();
@@ -327,13 +326,20 @@ impl WorkerHandler<CapabilityRequest> for CapabilityDispatcher {
             }
         })?;
         let remaining = match deadline {
-            Some(deadline) => Some(deadline.duration_since(self.clock.now()).map_err(
-                |_elapsed| CapabilityDispatchError::DeadlineExceeded {
-                    capability: capability.clone(),
-                    operation: operation.clone(),
-                    invocation_started: false,
-                },
-            )?),
+            // RT-021: timeout(0, future) may poll the future once. Reject equality
+            // here, before even constructing the handler future.
+            Some(deadline) => Some(
+                deadline
+                    .signed_duration_since(DateTime::<chrono::Utc>::from(self.clock.now()))
+                    .to_std()
+                    .ok()
+                    .filter(|remaining| !remaining.is_zero())
+                    .ok_or_else(|| CapabilityDispatchError::DeadlineExceeded {
+                        capability: capability.clone(),
+                        operation: operation.clone(),
+                        invocation_started: false,
+                    })?,
+            ),
             None => None,
         };
         let cancellation = context.cancellation.clone();
@@ -866,7 +872,7 @@ pub enum CapabilityResponseRejection {
 
 fn request_deadline(
     request: &CapabilityRequest,
-) -> Result<Option<SystemTime>, CapabilityRequestRejection> {
+) -> Result<Option<DateTime<chrono::Utc>>, CapabilityRequestRejection> {
     let value = request
         .input()
         .headers
@@ -880,8 +886,9 @@ fn request_deadline(
     if deadline.offset().local_minus_utc() != 0 {
         return Err(CapabilityRequestRejection::InvalidDeadline);
     }
-    let deadline: SystemTime = deadline.into();
-    Ok(Some(deadline))
+    // Preserve sub-100ns deadlines on Windows; converting to SystemTime here
+    // would round them before the RT-021 comparison and timeout calculation.
+    Ok(Some(deadline.with_timezone(&chrono::Utc)))
 }
 
 const fn request_error_category(reason: CapabilityRequestRejection) -> PlenoraErrorCategory {

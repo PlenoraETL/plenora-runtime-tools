@@ -85,3 +85,13 @@ formato dei messaggi oltre a una nuova identità di capability versionata, e non
 dipendenza concreta ai crate core, messaging, worker, NATS, Apalis, HTTP, observability o outbox.
 Capacità del worker, heartbeat, retry, dead-letter, health e comportamento di arresto esistenti
 restano condivisi.
+
+## Migrazione P2.1b
+
+CapabilityRegistry, CapabilityRegistryBuilder e CapabilityDispatcher sono ora
+esportati da plenora-runtime-boundary. CapabilityRequest resta un candidato
+outbound e CapabilityMessageCodec espone solo encode. Per ricevere usare
+RuntimeBoundary come decoder e handler, con discovery, AdmissionPolicy, clock e
+sink espliciti. Il dispatch grezzo è privato. WorkerContext.metadata contiene
+solo metadati del messaggio; le osservazioni del broker sono in broker_metadata.
+Vedere [allineamento del profilo](contract-alignment.md#p21b-confine-delle-facciate-esistenti).

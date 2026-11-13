@@ -1,0 +1,32 @@
+{
+  "step": "P2.1b",
+  "rules": [
+    "RT-012",
+    "RT-016",
+    "RT-017",
+    "RT-018",
+    "RT-019",
+    "RT-020",
+    "RT-021",
+    "RT-022",
+    "RT-023"
+  ],
+  "probe": "tests/integration/tests/boundary_facades.rs",
+  "scope": "Existing raw JSON, portable worker, NATS wire decoder and Apalis delivery service: canonical admission and registered dispatch; not deployed brokers, durable replay or terminal settlement",
+  "remaining": {
+    "RT-019": "Terminal publication and settlement: P2.4",
+    "RT-020": "Durable result identity replay and terminal retries: P2.2/P2.4",
+    "RT-022": "Authoritative digest/CAS, conflict, race and restart: P2.2"
+  },
+  "facades": [
+    "raw-json",
+    "portable-worker",
+    "nats-wire-worker",
+    "apalis-delivery",
+    "nats-wire-apalis-delivery"
+  ],
+  "architecture": "tests/architecture/tests/boundary_api.rs",
+  "api_inventory": "docs/boundary-api.txt",
+  "type_proof": "crates/plenora-runtime-boundary/src/lib.rs compile_fail",
+  "excluded": "Generic document parsers, management HTTP, scheduler/outbox and explicitly marked non-runtime examples do not construct AdmittedRequest. Domain adapters and chain SDK/CLI are not implemented."
+}

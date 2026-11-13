@@ -97,3 +97,9 @@ Liste di server, dimensioni degli URL, dimensione del token, concorrenza dei wor
 payload, ACK pendenti, tentativi di riconnessione, timeout delle operazioni e drain di arresto sono
 limitati. L'output su console contiene identità e stato del ciclo di vita, mai corpi dei messaggi
 o credenziali.
+
+P2.1b: il consumer usa RuntimeBoundary con discovery fixture example.execute@1,
+input plenora-example-input-v1 application/json e output plenora-example-output-v1.
+Lo stream esistente deve includere il subject plenora.work.results: il producer
+attende conferma JetStream prima del successo. Non è implementata qui la
+pubblicazione terminale dei rifiuti (P2.4), né la deduplicazione durevole (P2.2).

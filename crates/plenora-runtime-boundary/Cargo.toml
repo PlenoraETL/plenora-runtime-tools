@@ -1,0 +1,33 @@
+[package]
+name = "plenora-runtime-boundary"
+description = "Canonical raw admission boundary for the chain runtime."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+# Existing exact workspace pins: async worker facade, UTC grammar and raw JSON metadata.
+async-trait.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# Dispatcher timeout moved here to keep raw dispatch private.
+tokio = { workspace = true, features = ["time"] }
+# Generic discovery, dispatcher and public error axes; no domain engine.
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../plenora-runtime-capabilities" }
+# Injectable admission clock.
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+# Opaque transport payload and canonical identity types.
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+# Shared decoder and dispatcher facade, independent of the worker adapter.
+plenora-runtime-worker = { version = "=0.1.0", path = "../plenora-runtime-worker" }
+
+[dev-dependencies]
+# Deterministic clock and runtime context fixtures only.
+plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }
+tokio = { workspace = true, features = ["macros", "rt", "time"] }
+
+[lints]
+workspace = true

@@ -164,3 +164,13 @@ titolare: non si aggira il dispatcher né si modifica il generico implicitamente
 
 Le prove del nuovo host non qualificano consumer legacy o esempi. La matrice
 [funzionalità × superfici](chain-features.md) esplicita il lavoro ancora da fare.
+
+## Migrazione P2.1b
+
+CapabilityRegistry, CapabilityRegistryBuilder e CapabilityDispatcher sono ora
+esportati da plenora-runtime-boundary. CapabilityRequest resta un candidato
+outbound e CapabilityMessageCodec espone solo encode. Per ricevere usare
+RuntimeBoundary come decoder e handler, con discovery, AdmissionPolicy, clock e
+sink espliciti. Il dispatch grezzo è privato. WorkerContext.metadata contiene
+solo metadati del messaggio; le osservazioni del broker sono in broker_metadata.
+Vedere [allineamento del profilo](contract-alignment.md#p21b-confine-delle-facciate-esistenti).

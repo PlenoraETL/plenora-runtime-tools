@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
+use plenora_runtime_capabilities::{
     CapabilityDiscovery, CapabilityDiscoveryError, CapabilityHandler, CapabilityId, REST_COMPONENT,
     REST_RUNTIME_CAPABILITY, RestCapabilityProfile, RestProfileError,
 };

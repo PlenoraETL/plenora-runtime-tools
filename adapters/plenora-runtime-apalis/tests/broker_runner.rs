@@ -816,7 +816,7 @@ fn monitor_run_error_exposes_category_and_source_without_private_text() {
 }
 
 #[tokio::test]
-async fn decode_and_metadata_settlement_failures_preserve_both_sources()
+async fn decode_settlement_preserves_sources_and_metadata_channels_are_independent()
 -> Result<(), Box<dyn Error>> {
     let runtime = runtime();
 
@@ -846,46 +846,20 @@ async fn decode_and_metadata_settlement_failures_preserve_both_sources()
     assert!(decode_error.acknowledgement_error().is_some());
     assert!(Error::source(&decode_error).is_some());
 
-    for settlement_fails in [false, true] {
-        let broker = FakeBroker::default();
-        let mut message = worker_message(String::from("metadata-bound"))?;
-        for index in message.headers.len()..MAX_METADATA_ENTRIES {
-            message
-                .headers
-                .insert_text(format!("application.fill{index}"), "x")?;
-        }
-        broker.enqueue(message)?;
-        if settlement_fails {
-            broker.fail_next_nack("private metadata settlement")?;
-        }
-        let delivery = broker
-            .dequeue()?
-            .ok_or(TestError("missing metadata-bound delivery"))?
-            .into_delivery();
-        let service = BrokerDeliveryService::new(
-            MetadataMessageDecoder::<_, String>::new(TextCodec),
-            SuccessfulHandler,
-            FixedPolicy(RetryDecision::DoNotRetry),
-            adapter_config(1)?,
-            runtime.shutdown_signal(),
-        )?;
-        let error = service
-            .execute(delivery)
-            .await
-            .err()
-            .ok_or(TestError("metadata overflow unexpectedly succeeded"))?;
-        assert_eq!(
-            error.kind(),
-            if settlement_fails {
-                BrokerWorkerErrorKind::MetadataSettlement
-            } else {
-                BrokerWorkerErrorKind::Metadata
-            }
-        );
-        assert!(error.metadata_error().is_some());
-        assert_eq!(error.acknowledgement_error().is_some(), settlement_fails);
-        assert!(Error::source(&error).is_some());
+    let broker = FakeBroker::default();
+    let mut message = worker_message(String::from("metadata-bound"))?;
+    for index in message.headers.len()..MAX_METADATA_ENTRIES {
+        message
+            .headers
+            .insert_text(format!("application.fill{index}"), "x")?;
     }
+    broker.enqueue(message)?;
+    let delivery = broker
+        .dequeue()?
+        .ok_or(TestError("missing metadata-bound delivery"))?
+        .into_delivery();
+    assert!(!delivery.broker_metadata.is_empty());
+    decode_service.execute(delivery).await?;
     Ok(())
 }
 

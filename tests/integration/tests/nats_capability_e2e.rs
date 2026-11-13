@@ -1,4 +1,6 @@
-//! Opt-in, full-chain NATS capability worker qualification.
+//! Opt-in NATS capability worker lifecycle test; durable replay is not qualified.
+mod support;
+use plenora_runtime_boundary::RuntimeBoundary;
 
 use std::{
     collections::BTreeMap,
@@ -14,8 +16,7 @@ use std::{
 use async_trait::async_trait;
 use plenora_runtime_apalis::{ApalisAdapterConfig, BrokerWorkerRunner};
 use plenora_runtime_capabilities::{
-    CapabilityDispatcher, CapabilityDispatcherConfig, CapabilityFailure, CapabilityHandler,
-    CapabilityId, CapabilityMessageCodec, CapabilityRegistryBuilder, CapabilityRegistryConfig,
+    CapabilityFailure, CapabilityHandler, CapabilityId, CapabilityMessageCodec,
     CapabilityRemoteEffect, CapabilityRequest, CapabilityResponse, ContractId, OperationName,
     OperationVersion,
 };
@@ -23,17 +24,16 @@ use plenora_runtime_core::{RuntimeHandle, ServiceMetadata, SystemClock};
 use plenora_runtime_messaging::{
     CORRELATION_ID_METADATA_KEY, CorrelationId, DEAD_LETTER_REASON_METADATA_KEY,
     DeliveryHeartbeatConfig, ExponentialBackoff, ExponentialBackoffConfig, MESSAGE_ID_METADATA_KEY,
-    MessageCodec, MessageConsumer as _, MessageId, MessageProducer as _, PublishOutcome,
-    RetryErrorClass, SerializedMessage,
+    MessageConsumer as _, MessageId, MessageProducer as _, PublishOutcome, RetryErrorClass,
+    SerializedMessage,
 };
 use plenora_runtime_nats::{
     InfrastructureMode, JetStreamConsumerConfig, JetStreamProducerConfig, NatsConfig,
     NatsConnection, NatsTlsConfig, TlsMode,
 };
 use plenora_runtime_worker::{
-    MetadataMessageDecoder, WorkerConcurrency, WorkerConfig, WorkerContext,
-    WorkerInstanceHeartbeat, WorkerInstanceHeartbeatConfig, WorkerInstanceHeartbeatObserver,
-    WorkerInstanceStatus,
+    WorkerConcurrency, WorkerConfig, WorkerContext, WorkerInstanceHeartbeat,
+    WorkerInstanceHeartbeatConfig, WorkerInstanceHeartbeatObserver, WorkerInstanceStatus,
 };
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -284,14 +284,15 @@ async fn multi_worker_scenario() -> Result<(), Box<dyn Error>> {
         "0.1.0",
         format!("first-{suffix}"),
     ));
+    let dispatcher = dispatcher_for(MultiWorkerHandler {
+        worker: "worker-one",
+        block_crash: true,
+        state: state.clone(),
+    })?;
     let first_runner = BrokerWorkerRunner::new(
         first_consumer,
-        MetadataMessageDecoder::<_, CapabilityRequest>::new(CapabilityMessageCodec),
-        dispatcher_for(MultiWorkerHandler {
-            worker: "worker-one",
-            block_crash: true,
-            state: state.clone(),
-        })?,
+        dispatcher.clone(),
+        dispatcher,
         retry_policy()?,
         worker_config("worker-one", 1)?,
         first_runtime.shutdown_signal(),
@@ -322,14 +323,15 @@ async fn multi_worker_scenario() -> Result<(), Box<dyn Error>> {
             InfrastructureMode::BindExisting,
         )?)
         .await?;
+    let dispatcher = dispatcher_for(MultiWorkerHandler {
+        worker: "worker-two",
+        block_crash: false,
+        state: state.clone(),
+    })?;
     let second_runner = BrokerWorkerRunner::new(
         second_consumer,
-        MetadataMessageDecoder::<_, CapabilityRequest>::new(CapabilityMessageCodec),
-        dispatcher_for(MultiWorkerHandler {
-            worker: "worker-two",
-            block_crash: false,
-            state: state.clone(),
-        })?,
+        dispatcher.clone(),
+        dispatcher,
         retry_policy()?,
         worker_config("worker-two", 1)?,
         second_runtime.shutdown_signal(),
@@ -362,14 +364,15 @@ async fn multi_worker_scenario() -> Result<(), Box<dyn Error>> {
             InfrastructureMode::BindExisting,
         )?)
         .await?;
+    let dispatcher = dispatcher_for(MultiWorkerHandler {
+        worker: "worker-one-restarted",
+        block_crash: false,
+        state: state.clone(),
+    })?;
     let replacement_runner = BrokerWorkerRunner::new(
         replacement_consumer,
-        MetadataMessageDecoder::<_, CapabilityRequest>::new(CapabilityMessageCodec),
-        dispatcher_for(MultiWorkerHandler {
-            worker: "worker-one-restarted",
-            block_crash: false,
-            state: state.clone(),
-        })?,
+        dispatcher.clone(),
+        dispatcher,
         retry_policy()?,
         worker_config("worker-one-restarted", 1)?,
         replacement_runtime.shutdown_signal(),
@@ -411,16 +414,23 @@ async fn multi_worker_scenario() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn dispatcher_for<H>(handler: H) -> Result<CapabilityDispatcher, Box<dyn Error>>
-where
-    H: CapabilityHandler + 'static,
-{
-    let mut registry = CapabilityRegistryBuilder::new(CapabilityRegistryConfig::new(1)?)?;
-    registry.register(CapabilityId::new(CAPABILITY_NAME, 1)?, handler)?;
-    Ok(CapabilityDispatcher::new(
-        registry.build(),
-        CapabilityDispatcherConfig::new(64 * 1024)?,
-    )?)
+fn dispatcher_for<H: CapabilityHandler + 'static>(
+    handler: H,
+) -> Result<RuntimeBoundary, Box<dyn Error>> {
+    support::host(
+        CAPABILITY_NAME,
+        "plenora-fake-operation-input-v1",
+        &[
+            "fake.succeed",
+            "fake.retry-once",
+            "fake.heartbeat",
+            "fake.cancel",
+            "fake.dead-letter",
+            "fake.crash",
+            "fake.saturate",
+        ],
+        handler,
+    )
 }
 
 fn retry_policy() -> Result<ExponentialBackoff, Box<dyn Error>> {
@@ -494,17 +504,9 @@ async fn full_chain_scenario() -> Result<(), Box<dyn Error>> {
     ))?;
 
     let state = FakeCapabilityState::default();
-    let mut registry = CapabilityRegistryBuilder::new(CapabilityRegistryConfig::new(1)?)?;
-    registry.register(
-        CapabilityId::new(CAPABILITY_NAME, 1)?,
-        FakeCapabilityHandler {
-            state: state.clone(),
-        },
-    )?;
-    let dispatcher = CapabilityDispatcher::new(
-        registry.build(),
-        CapabilityDispatcherConfig::new(64 * 1024)?,
-    )?;
+    let dispatcher = dispatcher_for(FakeCapabilityHandler {
+        state: state.clone(),
+    })?;
     let retry = ExponentialBackoff::new(ExponentialBackoffConfig {
         initial_delay: Duration::from_millis(25),
         max_delay: Duration::from_millis(25),
@@ -515,7 +517,7 @@ async fn full_chain_scenario() -> Result<(), Box<dyn Error>> {
     let heartbeat_recorder = HeartbeatRecorder::default();
     let runner = BrokerWorkerRunner::new(
         consumer,
-        MetadataMessageDecoder::<_, CapabilityRequest>::new(CapabilityMessageCodec),
+        dispatcher.clone(),
         dispatcher,
         retry,
         ApalisAdapterConfig::new(
@@ -566,8 +568,13 @@ async fn full_chain_scenario() -> Result<(), Box<dyn Error>> {
             .get_text(DEAD_LETTER_REASON_METADATA_KEY)?,
         Some("handler_failed")
     );
-    let decoded = CapabilityMessageCodec.decode(&dead_letter.message)?;
-    assert_eq!(decoded.operation().as_str(), "fake.dead-letter");
+    assert_eq!(
+        dead_letter
+            .message
+            .headers
+            .get_text(plenora_runtime_capabilities::CAPABILITY_OPERATION_METADATA_KEY)?,
+        Some("fake.dead-letter")
+    );
     dead_letter.ack().await?;
 
     let retry_attempts = state.attempts("retry-once");

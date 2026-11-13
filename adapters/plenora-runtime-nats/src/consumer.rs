@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use futures_util::StreamExt as _;
 use plenora_runtime_messaging::{
     AckError, AckOperation, Delivery, DeliveryAcknowledger, DeliveryHeartbeatConfig,
-    MessageConsumer, MessageMetadata, NackReason, SerializedMessage,
+    MessageConsumer, MessageMetadata, NackReason,
 };
 
 use crate::{
@@ -31,10 +31,10 @@ pub struct JetStreamConsumer {
 }
 
 impl JetStreamConsumer {
-    /// Returns how many malformed deliveries were terminated without stopping consumption.
+    /// Returns how many malformed deliveries had a TERM request sent without stopping consumption.
     ///
-    /// A protocol-level rejection settles one delivery and never ends the consumer stream, so a
-    /// single poisoned message cannot stop a worker.
+    /// A protocol-level rejection sends TERM and continues consumption. A failed send is
+    /// returned as an error; successful sending does not attest server confirmation.
     #[must_use]
     pub const fn rejected_deliveries(&self) -> u64 {
         self.rejected_deliveries
@@ -260,7 +260,7 @@ fn validate_bound_consumer(
 enum ConvertedDelivery {
     /// A well-formed delivery ready for handler execution.
     Accepted(Box<Delivery>),
-    /// A malformed delivery that was TERM-settled; consumption continues.
+    /// A malformed delivery whose TERM request was sent; consumption continues.
     Rejected(NatsAdapterError),
 }
 
@@ -323,22 +323,25 @@ fn broker_metadata(
     Ok(metadata)
 }
 
-/// Settles one malformed delivery so a poisoned message can never stop the consumer.
+/// Sends TERM for one malformed delivery before continuing consumption.
 ///
-/// Only a failed settlement is escalated, because an unsettled malformed delivery would be
-/// redelivered and could poison the worker again after a restart.
+/// A failed send is escalated. Successful sending is not a server confirmation;
+/// durable settlement qualification remains tracked in docs/security-review.md.
 async fn reject_delivery(
-    acker: jetstream::message::Acker,
+    acknowledger: impl DeliveryAcknowledger + 'static,
     rejection: NatsAdapterError,
 ) -> Result<ConvertedDelivery, NatsAdapterError> {
-    acker.ack_with(AckKind::Term).await.map_err(|error| {
-        NatsAdapterError::with_source(
-            NatsErrorCategory::Broker,
-            NatsOperation::Receive,
-            "malformed JetStream delivery could not be terminated",
-            BoxedAckSource(error),
-        )
-    })?;
+    Box::new(acknowledger)
+        .nack(NackReason::ConsumerRejected)
+        .await
+        .map_err(|error| {
+            NatsAdapterError::with_source(
+                NatsErrorCategory::Broker,
+                NatsOperation::Receive,
+                "malformed JetStream delivery could not be terminated",
+                error,
+            )
+        })?;
     Ok(ConvertedDelivery::Rejected(rejection))
 }
 
@@ -350,34 +353,44 @@ async fn convert_delivery(
 ) -> Result<ConvertedDelivery, NatsAdapterError> {
     let facts = delivery_facts(&message);
     let (message, acker) = message.split();
+    convert_parts(
+        message,
+        facts,
+        max_payload_bytes,
+        heartbeat,
+        NatsAcknowledger {
+            acker,
+            shutdown_nak_delay,
+        },
+    )
+    .await
+}
+
+// Operational and replay consumers validate transport admission before exposing
+// a Delivery, independently of the application decoder used by their caller.
+async fn convert_parts(
+    message: async_nats::Message,
+    facts: Result<DeliveryFacts, NatsAdapterError>,
+    max_payload_bytes: usize,
+    heartbeat: Option<DeliveryHeartbeatConfig>,
+    acknowledger: impl DeliveryAcknowledger + 'static,
+) -> Result<ConvertedDelivery, NatsAdapterError> {
     let facts = match facts {
         Ok(facts) => facts,
-        Err(rejection) => return reject_delivery(acker, rejection).await,
-    };
-    if message.payload.len() > max_payload_bytes {
-        return reject_delivery(
-            acker,
-            NatsAdapterError::new(
-                NatsErrorCategory::Protocol,
-                NatsOperation::Receive,
-                "JetStream delivery exceeds the configured payload limit",
-            ),
-        )
-        .await;
-    }
-    let (content_type, headers) = match metadata::decode(message.headers.as_ref()) {
-        Ok(decoded) => decoded,
-        Err(rejection) => return reject_delivery(acker, rejection).await,
+        Err(rejection) => return reject_delivery(acknowledger, rejection).await,
     };
     let broker_metadata = match broker_metadata(&message.subject, &facts) {
         Ok(metadata) => metadata,
-        Err(rejection) => return reject_delivery(acker, rejection).await,
+        Err(rejection) => return reject_delivery(acknowledger, rejection).await,
     };
     let attempt = facts.attempt;
-    let message = SerializedMessage::new(content_type, message.payload).with_headers(headers);
-    let acknowledger = NatsAcknowledger {
-        acker,
-        shutdown_nak_delay,
+    let message = match metadata::decode_delivery(
+        message.headers.as_ref(),
+        message.payload,
+        max_payload_bytes,
+    ) {
+        Ok(message) => message,
+        Err(rejection) => return reject_delivery(acknowledger, rejection).await,
     };
     Ok(ConvertedDelivery::Accepted(Box::new(match heartbeat {
         Some(config) => {
@@ -491,4 +504,174 @@ where
         message,
         source,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    use bytes::Bytes;
+
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn Error>>;
+
+    struct RecordingAcknowledger {
+        events: Arc<Mutex<Vec<&'static str>>>,
+        fail: bool,
+    }
+
+    #[async_trait]
+    impl DeliveryAcknowledger for RecordingAcknowledger {
+        async fn ack(self: Box<Self>) -> Result<(), AckError> {
+            self.events
+                .lock()
+                .map_err(|_| AckError::new(AckOperation::Ack, "test event lock failed"))?
+                .push("ack");
+            Ok(())
+        }
+
+        async fn nack(self: Box<Self>, reason: NackReason) -> Result<(), AckError> {
+            assert_eq!(reason, NackReason::ConsumerRejected);
+            self.events
+                .lock()
+                .map_err(|_| AckError::new(AckOperation::Nack, "test event lock failed"))?
+                .push("term");
+            if self.fail {
+                Err(AckError::new(
+                    AckOperation::Nack,
+                    "injected settlement failure",
+                ))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    fn facts() -> DeliveryFacts {
+        DeliveryFacts {
+            attempt: 1,
+            stream: "STREAM".into(),
+            consumer: "CONSUMER".into(),
+            stream_sequence: 1,
+            consumer_sequence: 1,
+            pending: 0,
+        }
+    }
+
+    fn wire(payload: Bytes, headers: Option<async_nats::HeaderMap>) -> async_nats::Message {
+        async_nats::Message {
+            subject: "test.input".into(),
+            reply: None,
+            length: payload.len(),
+            payload,
+            headers,
+            status: None,
+            description: None,
+        }
+    }
+
+    fn poisoned_deliveries() -> Vec<async_nats::Message> {
+        let mut malformed = async_nats::HeaderMap::new();
+        malformed.insert("Plenora-Content-Type-B64", "not!valid!base64");
+        let mut duplicate = async_nats::HeaderMap::new();
+        duplicate.append("Plenora-Content-Type-B64", "eA");
+        duplicate.append("Plenora-Content-Type-B64", "eA");
+        let mut raw = async_nats::HeaderMap::new();
+        raw.insert(
+            format!("Plenora-Meta-{}", URL_SAFE_NO_PAD.encode("invalid key")),
+            "eA",
+        );
+        let mut content_type = async_nats::HeaderMap::new();
+        content_type.insert(
+            "Plenora-Content-Type-B64",
+            URL_SAFE_NO_PAD
+                .encode("x".repeat(plenora_runtime_messaging::MAX_METADATA_KEY_BYTES + 1)),
+        );
+        vec![
+            wire(Bytes::from(vec![7; 4096]), None),
+            wire(Bytes::from_static(b"poison"), Some(malformed)),
+            wire(Bytes::from_static(b"poison"), Some(duplicate)),
+            wire(Bytes::from_static(b"poison"), Some(raw)),
+            wire(Bytes::from_static(b"poison"), Some(content_type)),
+        ]
+    }
+
+    #[tokio::test]
+    async fn consumer_transport_parity_rejects_poison_then_exposes_valid_delivery() -> TestResult {
+        for poison in poisoned_deliveries() {
+            let events = Arc::new(Mutex::new(Vec::new()));
+            let mut accepted = 0;
+            let mut rejected = 0;
+            // Exercise the same conversion and settlement used by receive/replay,
+            // without relying on a downstream boundary decoder to catch poison.
+            for message in [poison, wire(Bytes::from_static(b"small-payload"), None)] {
+                match convert_parts(
+                    message,
+                    Ok(facts()),
+                    64,
+                    None,
+                    RecordingAcknowledger {
+                        events: events.clone(),
+                        fail: false,
+                    },
+                )
+                .await?
+                {
+                    ConvertedDelivery::Rejected(error) => {
+                        assert_eq!(error.category(), NatsErrorCategory::Protocol);
+                        rejected += 1;
+                    }
+                    ConvertedDelivery::Accepted(delivery) => {
+                        assert_eq!(delivery.message.bytes.as_ref(), b"small-payload");
+                        assert_eq!(
+                            *events.lock().map_err(|_| "test event lock failed")?,
+                            ["term"]
+                        );
+                        assert_eq!(delivery.attempt, 1);
+                        assert_eq!(
+                            delivery.broker_metadata.get_text("plenora.nats.subject")?,
+                            Some("test.input")
+                        );
+                        accepted += 1;
+                        delivery.ack().await?;
+                    }
+                }
+            }
+            assert_eq!((rejected, accepted), (1, 1));
+            assert_eq!(
+                *events.lock().map_err(|_| "test event lock failed")?,
+                ["term", "ack"]
+            );
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn consumer_transport_parity_propagates_failed_termination() -> TestResult {
+        for poison in poisoned_deliveries() {
+            let events = Arc::new(Mutex::new(Vec::new()));
+            let outcome = convert_parts(
+                poison,
+                Ok(facts()),
+                64,
+                None,
+                RecordingAcknowledger {
+                    events: events.clone(),
+                    fail: true,
+                },
+            )
+            .await;
+            let error = outcome
+                .err()
+                .ok_or("failed termination reported as success")?;
+            assert_eq!(error.category(), NatsErrorCategory::Broker);
+            assert_eq!(
+                *events.lock().map_err(|_| "test event lock failed")?,
+                ["term"]
+            );
+        }
+        Ok(())
+    }
 }

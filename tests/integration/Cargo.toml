@@ -11,6 +11,14 @@ publish = false
 path = "src/lib.rs"
 
 [dev-dependencies]
+# Fixture boundary host exercises the real admission path through broker runners.
+plenora-runtime-boundary = { version = "=0.1.0", path = "../../crates/plenora-runtime-boundary" }
+serde_json.workspace = true
+chrono.workspace = true
+# Construct actual NATS wire fields before portable-map conversion in parity probes.
+async-nats.workspace = true
+base64.workspace = true
+bytes.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 plenora-runtime-apalis = { version = "=0.1.0", path = "../../adapters/plenora-runtime-apalis" }

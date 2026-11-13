@@ -131,3 +131,43 @@ autorizzazione del consenso, disponibilità dei rapporti o quote effettive.
 provare; non è un token di esecuzione. Condizione di chiusura: host e adapter
 qualificati che eseguano tali verifiche prima dell'invoke e rifiutino mutazioni
 di discovery/input/consenso. Nessuna garanzia runtime è promossa da queste prove.
+
+## P2.1: rischio residuo di composizione del boundary
+
+Regola: nessuna perdita silenziosa e rifiuto prima di effetti.
+Ambito: `plenora-runtime-boundary`, policy di contratto, sink e ingressi legacy.
+Rischio: una policy host che compie I/O viola il contratto di validazione pura;
+un consumer che ignora `Rejection` può lasciare il caller senza esito. Il decoder
+generico del runner non equivale a un finalizzatore durevole. Nessuna promessa
+di dedup/CAS o replay persistito è implementata da questo crate.
+Condizione di chiusura: policy concrete qualificate con resolver strumentati,
+wrapper dei trasporti che persistono/pubblicano anche i rifiuti, store P2.2 e
+finalizzatore P2.4 con prove di risposta/ACK persi e restart. Gli esempi legacy
+non sono ingressi qualificati del prodotto catene. Le prove locali sono
+circoscritte in [qualification](qualification.md#gate-p21-ammissione-raw-e-limite-della-consegna).
+
+## P2.1b: ammissione e limiti della prova
+
+Regola RT-012/016..023: il dispatch registrato richiede il tipo ammesso dal
+boundary. Ambito: API Rust, wire NATS e delivery Apalis locali. La raccolta
+completa precede la migrazione del registro/dispatcher; i metadati operativi del
+broker sono separati da quelli ammessi. Rischio residuo: attribuire a questa
+prova la durabilità o la pubblicazione terminale, oppure estenderla ai futuri
+adapter di dominio. Condizione di chiusura: P2.2 (CAS/digest, race e restart),
+P2.4 (settlement terminale confermato), S3 (schemi reali), CI Linux/Windows e
+profilo del broker effettivo. Questi gate rimangono aperti; nessuna garanzia
+end-to-end è dedotta dalla sola parità locale delle facciate.
+
+
+## CI PR 21: rifiuto del consumer NATS
+
+Regola: nessuna Delivery esposta prima dell'ammissione di trasporto (RT-012/016..023).
+Ambito: consumer JetStream operativo e replay; la parità locale del carrier wire
+non copre la precedenza dei rifiuti di trasporto, descritta in
+[contract-alignment](contract-alignment.md#p21b-confine-delle-facciate-esistenti).
+Rischio residuo: TERM inviato tramite `ack_with` non equivale a conferma durevole
+del server; i fake verificano richiesta e propagazione errori, non durabilità.
+Gate aperto: real_nats e coverage su Linux con Docker, CI Linux/Windows sulla
+correzione e profilo di deployment. Condizione di chiusura: esecuzione di questi
+gate e qualificazione del settlement confermato in P2.4. Nessun gate reale è
+attestato dalla sola prova offline della sequenza rifiuto/valido.

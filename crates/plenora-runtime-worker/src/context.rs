@@ -48,6 +48,8 @@ pub struct WorkerContext {
     pub attempt: u32,
     /// Namespaced message metadata. Values remain redacted by its Debug implementation.
     pub metadata: MessageMetadata,
+    /// Transport observations, kept separate from admitted application metadata.
+    pub broker_metadata: MessageMetadata,
     /// Cooperative process shutdown signal.
     pub shutdown: ShutdownSignal,
     /// Cooperative cancellation scoped to this delivery attempt.
@@ -75,6 +77,7 @@ impl WorkerContext {
             causation_id,
             attempt,
             metadata,
+            broker_metadata: MessageMetadata::new(),
             shutdown,
             cancellation,
             progress,
@@ -97,6 +100,13 @@ impl WorkerContext {
             metadata,
             shutdown,
         )
+    }
+
+    /// Attach transport observations without overwriting application metadata.
+    #[must_use]
+    pub fn with_broker_metadata(mut self, metadata: MessageMetadata) -> Self {
+        self.broker_metadata = metadata;
+        self
     }
 
     /// Replaces the default task token with an adapter-owned shared token.
