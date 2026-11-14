@@ -32,11 +32,37 @@ class Campaign(unittest.TestCase):
             '--test transport --locked --no-report -- --ignored',
             '--test database --locked --no-report -- --ignored',
             '--test io --locked --no-report -- --ignored',
-            '--test interop_real --locked --no-report postgres_real_ -- --ignored',
+            '--test interop_real --locked --no-report -- postgres_real_ --ignored',
             'cargo llvm-cov report --summary-only --fail-under-lines 90',
         ]:
             self.assertIn(fragment, coverage)
         self.assertIn('--test transport --locked -- --ignored', ci_job(workflow, 'postgres-integration'))
+
+    def test_llvm_cov_test_filters_follow_the_separator(self):
+        # cargo llvm-cov parses a positional argument before `--` as one of its
+        # own subcommands: test name filters belong to libtest, after `--`.
+        options_with_value = {'-p', '--package', '--test', '--features', '--target',
+                              '--profile', '--output-path', '--fail-under-lines', '--lcov'}
+        seen = 0
+        for path in sorted((ROOT/'.github/workflows').glob('*.yml')):
+            for line in path.read_text(encoding='utf-8').splitlines():
+                if 'cargo llvm-cov' not in line:
+                    continue
+                words = line.split('cargo llvm-cov', 1)[1].split()
+                if words and words[0] in {'report', 'clean', 'show-env', 'nextest', 'run'}:
+                    continue
+                seen += 1
+                expects_value = False
+                for word in words:
+                    if word == '--' or word.startswith(('|', '&', ';', '>')):
+                        break
+                    if expects_value:
+                        expects_value = False
+                    elif word in options_with_value:
+                        expects_value = True
+                    elif not word.startswith('-') and word != '\\':
+                        self.fail(f'{path.name}: positional argument {word!r} before --')
+        self.assertGreater(seen, 0)
 
     def test_output_references_have_a_producer_in_the_same_job(self):
         workflow = (ROOT/'.github/workflows/ci.yml').read_text(encoding='utf-8')

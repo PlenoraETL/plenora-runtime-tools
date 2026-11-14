@@ -932,7 +932,7 @@ jobs:
         continue-on-error: true
         run: |
           PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_host}" \
-            python scripts/run_confirmation_tests.py --label campaign_interop -- cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test interop_real --locked --no-report postgres_real_ -- --ignored --nocapture --test-threads=1
+            python scripts/run_confirmation_tests.py --label campaign_interop -- cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test interop_real --locked --no-report -- postgres_real_ --ignored --nocapture --test-threads=1
 
       - name: Enforce line coverage threshold
         id: campaign_15
