@@ -516,3 +516,22 @@ non promuove i gate storici ne i consumer legacy. Audit/deny, fuzz prolungato,
 memoria e provider S3/S4 conservano i propri gate separati. Una cancellazione
 del workflow puo impedire l'upload: assenza dell'artefatto significa mancata
 conferma, mai successo.
+
+## Gate S3: database reale e superfici installate
+
+Regola: la disponibilita del codice non equivale alla qualifica. Ambito:
+adapter database 11.0.0 read@1/write@2. Stato: **aperto** fino agli esiti CI.
+Il crate reale, il profilo host/CLI/wheel e le prove sono implementati; le
+prove Rust locali usano IPC e settlement upstream con un provider double
+esplicito. Il test host `tests/database.rs` usa invece il provider PostgreSQL
+reale e lo store reale, controlla righe/null/stringhe vuote e rapporti dopo
+restart. E inserito nel job PostgreSQL esistente. Il test installato
+`test_database_real.py` confronta CLI, SDK sync e async sullo stesso provider.
+Rischio: comportamento infrastrutturale e parita non dimostrati dalla sola
+compilazione. Chiusura: eseguire questi job, suite e gate Linux/Windows, senza
+skip non giustificati. TLS/ACL di deployment restano qualifica distinta.
+
+Read@2 e lacuna upstream esplicita; il requisito corrente usa read@1 autorizzato.
+DATA e IO restano passi successivi, IO candidate non release. La ratifica dei
+contratti catene resta separata. Esiti locali e comandi sono in target/S3.md;
+CI, audit/deny e fuzz non eseguiti qui non sono dichiarati verdi.

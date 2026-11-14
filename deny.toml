@@ -38,6 +38,8 @@ external-default-features = "allow"
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+# ADR 0011: only the exact database revision declared by the product adapter.
+allow-git = ["https://github.com/PlenoraETL/plenora-database-tools.git"]
 allow-registry = [
     "https://github.com/rust-lang/crates.io-index",
     "sparse+https://index.crates.io/",

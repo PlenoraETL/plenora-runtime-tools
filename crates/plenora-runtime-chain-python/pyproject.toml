@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "plenora_runtime"
 version = "0.1.0"
 requires-python = ">=3.10"
-description = "Explicit scripted qualification facade for the native Rust chain coordinator"
+description = "Native Rust chain coordinator with scripted and real database profiles"
 
 [tool.maturin]
 features = ["extension-module"]

@@ -120,3 +120,13 @@ infrastruttura esterna.
 
 Proprietaria, source available: il codice è visibile pubblicamente solo a fini di revisione, e la
 visibilità non concede alcuna licenza. Vedere [`LICENSE`](LICENSE).
+
+### Profilo database reale S3
+
+Il crate [plenora-runtime-adapter-database](crates/plenora-runtime-adapter-database/README.md)
+usa database 11.0.0 pinnato per commit, read@1/write@2, con provider PostgreSQL
+in-process. Host Rust, CLI `--database-config` e wheel `profile="database"`
+condividono il dispatcher. Profilo iniziale tabellare e materializzato;
+Primary Geometry non qualificata viene rifiutata. Read@2 resta lacuna upstream.
+Le prove PostgreSQL e CLI/wheel installati sono nei job CI esistenti:
+implementazione e qualifica restano distinte in [qualification](docs/qualification.md).

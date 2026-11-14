@@ -10,3 +10,5 @@ Decisione di perimetro del prodotto: [ADR 0008](0008-chain-product-scope.md).
 Store operativo catene: [ADR 0009](0009-chain-postgres.md).
 
 Facciate scriptate sperimentali: [ADR 0010](0010-scripted-chain-facades.md).
+
+Adapter database reale: [ADR 0011](0011-database-chain-adapter.md).

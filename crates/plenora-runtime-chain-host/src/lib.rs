@@ -1,7 +1,9 @@
-//! Scripted qualification composition. This is not an attestation of real library adapters.
+//! Shared durable host composition with explicit scripted and real database profiles.
 //! Host and step calls use the durable dispatcher; remaining gates are in docs/qualification.md.
 #![forbid(unsafe_code)]
 mod control;
+mod database;
+pub use database::{DatabaseConfig, DatabaseConnectionConfig, DatabaseHost};
 mod ownership;
 mod remote;
 mod verification;
@@ -162,7 +164,7 @@ impl Adapter for ScriptedAdapter {
         Ok(bytes.clone())
     }
 }
-/// Qualification-only composition with durable PostgreSQL state and declared fake domain adapters.
+/// Durable host shared by explicit scripted and real database constructors.
 pub struct ScriptedHost<S: Store + plenora_runtime_boundary::DurableExecutionStore = PostgresStore>
 {
     runtime: plenora_runtime_boundary::DurableRuntime<S>,

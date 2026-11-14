@@ -476,9 +476,30 @@ fn all_dependency_versions_are_exactly_pinned_or_workspace_inherited() -> Result
             if !dependency_section {
                 continue;
             }
-            if ["git", "branch", "tag", "rev"]
-                .iter()
-                .any(|key| quoted_assignment_value(trimmed, key).is_some())
+            // ADR 0011: only these domain crates at the published immutable revision.
+            let approved_database_pin = matches!(
+                manifest_path
+                    .parent()
+                    .and_then(std::path::Path::file_name)
+                    .and_then(|n| n.to_str()),
+                Some("plenora-runtime-adapter-database" | "plenora-runtime-chain-host")
+            ) && matches!(
+                trimmed.split('=').next().map(str::trim),
+                Some("plenora-database-core" | "plenora-database-engine" | "plenora-db-postgres")
+            ) && quoted_assignment_value(trimmed, "git")
+                == Some("https://github.com/PlenoraETL/plenora-database-tools.git")
+                && quoted_assignment_value(trimmed, "rev")
+                    == Some("f4fdb9b5f09d8babe795f68e894949693aa9d0a1")
+                && quoted_assignment_value(trimmed, "version") == Some("=11.0.0")
+                && quoted_assignment_value(trimmed, "branch").is_none()
+                && quoted_assignment_value(trimmed, "tag").is_none()
+                && root
+                    .join("docs/adr/0011-database-chain-adapter.md")
+                    .is_file();
+            if !approved_database_pin
+                && ["git", "branch", "tag", "rev"]
+                    .iter()
+                    .any(|key| quoted_assignment_value(trimmed, key).is_some())
             {
                 violations.push(format!(
                     "{} contains a non-registry dependency source",

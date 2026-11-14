@@ -8,6 +8,8 @@ license-file.workspace = true
 publish = false
 
 [dependencies]
+# Real ETL composition stays in the product host; ADR 0011.
+plenora-runtime-adapter-database = { version = "=0.1.0", path = "../plenora-runtime-adapter-database" }
 plenora-runtime-chains = { version = "=0.1.0", path = "../plenora-runtime-chains" }
 plenora-runtime-chain-store = { version = "=0.1.0", path = "../plenora-runtime-chain-store" }
 plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
@@ -31,5 +33,10 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "sy
 workspace = true
 
 [dev-dependencies]
+# Provider and source data assertions in the real PostgreSQL S3 tests; ADR 0011.
+plenora-database-core = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }
+plenora-db-postgres = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }
+# Same exact driver as the operational store, only for real test setup and assertions.
+tokio-postgres = "=0.7.18"
 plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

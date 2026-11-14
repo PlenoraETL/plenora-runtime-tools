@@ -842,3 +842,50 @@ non promuove i gate storici ne i consumer legacy. Audit/deny, fuzz prolungato,
 memoria e provider S3/S4 conservano i propri gate separati. Una cancellazione
 del workflow puo impedire l'upload: assenza dell'artefatto significa mancata
 conferma, mai successo.
+
+## S3: adattatore database 11.0.0
+
+Regola: discovery della libreria compilata, nessun alias privato e nessuna
+qualifica derivata dal catalogo target. Pin pubblicato `py-v11.0.0`, commit
+`f4fdb9b5f09d8babe795f68e894949693aa9d0a1`: `database.read@1` (input/result v1)
+e `database.write@2` (input/result v2, contenuto WriteOutcome v3).
+Il titolare ha autorizzato queste versioni. **read@2 resta lacuna upstream**:
+chiusura solo con un pin che lo esponga realmente, non con un alias locale.
+
+Il nuovo crate adapter dipende dai crate core/engine/PostgreSQL pinnati, usa
+Provider/Engine, write_with_consent e settle. Non usa il binding runtime
+upstream: budget propri e perdita di read_loss sugli errori sink.finish lo
+rendono inadatto a questa integrazione. L'adapter raccoglie read_loss prima
+della pubblicazione e conserva il documento originale separato dal risultato
+catena, anche con effetto unknown. La query runtime resta summary JSON: non
+viene offerta come sostituto di read Arrow.
+
+Profilo ristretto esplicito: IPC non compresso materializzato, 1 MiB per
+artefatto/documento, 32 colonne, schema entro 16 KiB, memoria/spool riservati
+prima degli effetti. Nessun cast o normalizzazione; schema pubblicato,
+metadata, primary geometry e digest sono verificati. Riferimenti transitivi
+content-addressed e credenziali risolte dalla configurazione autenticata.
+Perdite in read rifiutate; rischi write richiedono fidelity reported e consenso
+coperto dall'intero piano. Report assente significa unavailable, mai complete.
+Rischio residuo: profili o documenti oltre questi limiti richiedono un altro
+adapter qualificato; nessun troncamento. Recovery senza evidenza di transazione
+resta requires_recovery e non reinvoca il provider.
+
+Correzione della bozza locale chains-v2: component.identity usa la grammatica
+del nome componente (per esempio plenora-database-tools), non quella degli
+identificatori di contratto con suffisso vN. Non cambia il pin upstream e non
+ratifica la bozza catene. Rischio: consumer di bozze precedenti; chiusura con
+ratifica e rigenerazione dei consumer. I contratti common restano al loro pin.
+
+DATA 4.1.5 `2ff92a250ec8921a78d6d842ea92954173b36e63`: run@3 esiste nella API
+Rust plenora_cli::artefatti; CLI/SDK run@3 e binding runtime restano lacune,
+senza alias run@2/run@3. IO `9c087aa7daf5d9ad10843ebf3027ae8858f66b94` resta
+**candidate 9.0.0 non pubblicata**. I loro adapter reali restano passi successivi.
+Le evidenze incrementali non promuovono le cinque superfici dell'inventario:
+PostgreSQL reale e parita installata sono gate CI, distinti dalle prove locali.
+
+Il profilo database iniziale e tabellare: campi geometry/geography, metadata
+plenora.primary_geometry (anche none) e porte primary_geometry=true sono
+rifiutati esplicitamente. Nessun claim Primary Geometry pubblicizzato:
+la conservazione semantica spaziale resta da qualificare, non si afferma che
+il database perda questi metadati. IO resta il passo successivo previsto.

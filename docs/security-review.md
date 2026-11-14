@@ -360,3 +360,30 @@ D o del deployment TLS/ACL. Chiusura: prove complete dei requisiti nel profilo
 operativo e degli engine S3/S4; deviazioni per regola in
 [qualification](qualification.md#conferma-integrata-p25). Il manifest mantiene
 ogni riga open e il gate rifiuta promozioni non supportate dal modello di prova.
+
+## S3: evidenza, risorse e trasporto database
+
+Regola: nessuna perdita silenziosa o successo presunto. Ambito: database
+11.0.0 f4fdb9b. Il binding runtime perde read_loss quando sink.finish fallisce;
+la CLI presenta casi analoghi su cleanup/pubblicazione. Nessuna modifica
+upstream: il nuovo adapter usa direttamente Provider/Engine, raccoglie il
+rapporto prima della pubblicazione e lo mantiene nel ledger come documento.
+Rischio upstream residuo per chi usa quei binding: chiusura con regressioni e
+fix upstream. Non estendere il rilievo al Python StreamState, che lo conserva.
+
+Riserva finita prima degli effetti; report write statici limitati e verifica
+upstream del peggior encoding execution_loss. Un provider non conforme o una
+pubblicazione primaria non confermata non autorizzano successo/replay: si
+richiede recovery. Chiusura della qualifica: prove reali di crash/risposta persa
+con deployment fissato. L'assenza di resolver transazioni resta esplicita.
+
+TLS e attivo per default. `allow_plaintext: true` e una decisione esplicita del
+resolver autenticato, usata solo dalla campagna CI su loopback effimero.
+Rischio: intercettazione se il deployment abilita plaintext su rete non fidata;
+chiusura operativa con TLS/CA/ACL qualificati e configurazione protetta. Non e
+un parametro del piano. Credenziali e payload non entrano in Display/Debug o
+messaggi di errore; i rapporti di dominio restano artefatti autorizzati.
+
+Clock catene iniettabile e cancel persistito letto anche tra host distinti;
+ResourceBudget upstream usa Instant internamente. Non si dichiara determinismo
+dei timeout fisici del provider. Chiusura con campagne temporali dedicate.
