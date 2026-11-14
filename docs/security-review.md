@@ -412,12 +412,12 @@ rimozione/aggiornamento upstream e audit CI aggiornato (inclusi yanked).
 
 ## CI25: pacchetto PostGIS del servizio effimero
 
-Il base image PostgreSQL resta fissato per digest. Il Dockerfile dei test installa
-postgresql-17-postgis-3 dal repository apt del base image: il pacchetto transitivo
-non e fissato per digest/versione, quindi il servizio di qualifica non e ermetico.
-Ambito solo CI effimera, nessuna dipendenza del prodotto. Rischio: aggiornamenti
-apt cambiano il servizio provato. Chiusura: immagine PostgreSQL+PostGIS pubblicata
-e verificata, fissata per digest, con aggiornamenti espliciti.
+Chiuso. Il Dockerfile dei test installava postgresql-17-postgis-3 via apt su un
+base image fissato per digest: il rischio dichiarato si e materializzato (PostGIS
+compilata per un'altra minor, simbolo mancante al CREATE EXTENSION). Ora server
+ed estensione vengono da un'unica immagine postgis/postgis:17-3.5 fissata per
+digest, lo stesso pin revisionato della matrice PostgreSQL di database-tools;
+nessun pacchetto apt. Aggiornamenti solo espliciti, cambiando il digest.
 
 
 ## S3 DATA candidate: confine dei budget e staging upstream

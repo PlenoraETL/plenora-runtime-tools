@@ -42,8 +42,8 @@ external-default-features = "allow"
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-# Product pins reviewed in docs/adr/0011-database-chain-adapter.md and docs/adr/0012-io-chain-adapter.md.
-allow-git = ["https://github.com/PlenoraETL/plenora-database-tools.git", "https://github.com/PlenoraETL/plenora-IO-tools.git"]
+# Product pins reviewed in docs/adr/0011-database-chain-adapter.md, docs/adr/0012-io-chain-adapter.md and docs/adr/0013-data-chain-adapter.md.
+allow-git = ["https://github.com/PlenoraETL/plenora-database-tools.git", "https://github.com/PlenoraETL/plenora-IO-tools.git", "https://github.com/PlenoraETL/plenora-data-tools.git"]
 allow-registry = [
     "https://github.com/rust-lang/crates.io-index",
     "sparse+https://index.crates.io/",

@@ -1,4 +1,5 @@
-# Preserve the durable-store PostgreSQL base; DB 11.0.0 probes require PostGIS
-# even for nonspatial columns. Package installation failure must fail setup.
-FROM postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
-RUN apt-get update && apt-get install --no-install-recommends -y postgresql-17-postgis-3 && rm -rf /var/lib/apt/lists/*
+# DB 11.0.0 probes require PostGIS even for nonspatial columns. Server and
+# extension come from one published image fixed by digest, the same reviewed
+# pin as the database-tools PostgreSQL matrix (scripts/check_postgres_matrix.py):
+# an apt install on a pinned base drifted to a PostGIS built for another minor.
+FROM postgis/postgis:17-3.5@sha256:624f5195b91d424dbebf018890148cc0e5a3e80db5467da8b53cc2ed2ce49216
