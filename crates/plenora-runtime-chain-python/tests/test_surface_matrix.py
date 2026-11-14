@@ -1,4 +1,5 @@
 """Installed facade matrix. Real primary/broker are required; domain providers are declared doubles."""
+import hashlib
 import asyncio
 import copy
 import json
@@ -123,6 +124,13 @@ class Matrix(unittest.IsolatedAsyncioTestCase):
                         print(f"Qualification {mode} {case['id']} {request['function']}: elapsed={time.monotonic()-started:.3f}s result={reply['error']}", file=sys.stderr)
                     self.check_response(case,index,reply,previous)
                     previous = reply
+                if case['id'].startswith('RT-') and os.environ.get('PLENORA_CONFIRMATION_DIR'):
+                    directory = Path(os.environ['PLENORA_CONFIRMATION_DIR'])
+                    directory.mkdir(parents=True, exist_ok=True)
+                    receipt = {k: os.environ[k] for k in ('GITHUB_SHA', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')}
+                    receipt.update(rule=case['id'], mode=mode, status='passed',
+                                   matrix_sha256=hashlib.sha256((ROOT/'crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json').read_text(encoding='utf-8').encode()).hexdigest())
+                    (directory/f"cell-{mode}-{case['id']}.json").write_text(json.dumps(receipt), encoding='utf-8')
                 visited.add(case['id'])
             surface = 'runtime' if mode.startswith('remote') else mode
             self.assertEqual(visited,{c['item'] for c in MATRIX['cells'] if c['surface']==surface})

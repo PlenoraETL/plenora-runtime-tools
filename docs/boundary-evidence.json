@@ -1,0 +1,185 @@
+{
+  "source_sha256": "efea477664d9eb33a469a21fed4bda323b9f3879724074483b19a1791f86f38b",
+  "rows": {
+    "RT-010": {
+      "status": "open",
+      "residual": "Finalizzazione completa e crash/ACK persi su ogni ingresso; engine reali non qualificati.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "rt010_020_crash_after_evidence_recovers_only_finalization_and_fences_races"
+        }
+      ]
+    },
+    "RT-011": {
+      "status": "open",
+      "residual": "Lookup scriptato; qualificare cataloghi e adapter reali S3.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-012": {
+      "status": "open",
+      "residual": "Probe facade e raw ingress separati; qualificare tutti gli ingressi di deployment.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-013": {
+      "status": "open",
+      "residual": "Rifiuto file: scriptato; autorizzazione tenant, revoca e resolver reali S3 aperti.",
+      "subsystem_proofs": [
+        {
+          "path": "crates/plenora-runtime-chain-host/tests/support/verification.rs",
+          "test": "every_resolved_reference_is_checked_before_its_effect"
+        }
+      ]
+    },
+    "RT-014": {
+      "status": "open",
+      "residual": "Probe discovery non prova fedelta Arrow; byte/digest e metadata per hop reale S4 aperti.",
+      "subsystem_proofs": [
+        {
+          "path": "crates/plenora-runtime-chain-host/tests/support/verification.rs",
+          "test": "arrow_full_schema_metadata_and_primary_are_checked_without_mutating_manifests"
+        }
+      ]
+    },
+    "RT-015": {
+      "status": "open",
+      "residual": "Probe discovery e gate architetturali separati; rivalidare grafo con adapter reali S3.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/architecture/tests/boundaries.rs",
+          "test": "runtime_capabilities_has_no_concrete_library_or_adapter_dependency"
+        }
+      ]
+    },
+    "RT-016": {
+      "status": "open",
+      "residual": "Rifiuti fixture; qualificare tutti i probe raw e zero aperture nei resolver reali.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-017": {
+      "status": "open",
+      "residual": "Cursore canonico fixture; corpus raw separato, nuove superfici da qualificare.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-018": {
+      "status": "open",
+      "residual": "Rifiuto fixture; prodotto cartesiano completo su ingressi reali da qualificare.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-019": {
+      "status": "open",
+      "residual": "Sentinella facade; riflessione selettiva completa su tutti gli ingressi da qualificare.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-020": {
+      "status": "open",
+      "residual": "Replay fixture e subsystem; identita/correlazione end-to-end di ogni terminale da qualificare.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-021": {
+      "status": "open",
+      "residual": "Deadline fixture; grafie UTC raw separate e deployment da qualificare.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-022": {
+      "status": "open",
+      "residual": "Conflitto fixture e race PostgreSQL; dedup remota dei componenti reali S3 aperta.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-023": {
+      "status": "open",
+      "residual": "Doppia deadline fixture; schemi reali dei cinque adapter S3 aperti.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/boundary_facades.rs",
+          "test": "every_p2_1_row_has_an_executed_raw_probe"
+        }
+      ]
+    },
+    "RT-024": {
+      "status": "open",
+      "residual": "Limite fixture e ledger subsystem; limiti dopo effetti dei componenti reali S3 aperti.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "rt024_component_dispatcher_sink_commit_cleanup_and_exact_journal_bound"
+        }
+      ]
+    },
+    "RT-025": {
+      "status": "open",
+      "residual": "Discovery fixture; ratifica dei contratti di prodotto e versioni reali S3 aperte.",
+      "subsystem_proofs": [
+        {
+          "path": "crates/plenora-runtime-capabilities/tests/negotiation.rs",
+          "test": "version_pairs_keep_wire_one_and_surface_effects_are_exact"
+        }
+      ]
+    },
+    "RT-026": {
+      "status": "open",
+      "residual": "Piano non autorizzato fixture e 21 sequenze subsystem; routing deployment da qualificare.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "enumerate_p2_3_all_21_sequences_through_product_gate"
+        }
+      ]
+    },
+    "RT-027": {
+      "status": "open",
+      "residual": "Replay fixture, store e broker subsystem; profilo TLS/ACL, retention operativa e forwarding deployment aperti.",
+      "subsystem_proofs": [
+        {
+          "path": "tests/integration/tests/chain_delivery.rs",
+          "test": "rt026_027_apalis_ack_loss_dlq_redrive_and_no_store_confirmation"
+        }
+      ]
+    }
+  }
+}
