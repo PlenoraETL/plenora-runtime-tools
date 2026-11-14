@@ -338,3 +338,14 @@ sullo stesso SHA con wheel/binario installati e container effimeri; adozione
 librerie reali resta successiva. Il cablaggio e compilato localmente, i test
 infrastrutturali restano ignorati dove mancano i servizi. I criteri 1-6 sono
 riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.
+
+
+## Retention delivery V3: disponibilita durante upgrade
+
+Ambito: backfill atomico dei metadati di selezione dei journal PostgreSQL. La
+manutenzione ordinaria limita i candidati e valida prima del purge; la migrazione
+iniziale deve ancora leggere tutti i documenti sotto il timeout SQL. Rischio
+residuo: rifiuto sicuro dell'upgrade per timeout su database grandi, senza commit
+parziale. Condizione di chiusura: qualifica del backfill alla dimensione operativa
+e campagne PostgreSQL/NATS verdi sul medesimo SHA. La responsabilita di questo
+costo nei fallimenti ci23c non e ancora provata; i gate restano aperti.

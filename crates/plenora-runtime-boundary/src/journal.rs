@@ -499,6 +499,16 @@ impl DeliveryJournal {
     pub const fn revision(&self) -> u64 {
         self.revision
     }
+    /// Immutable primary-clock origin for indexed retention selection.
+    #[must_use]
+    pub const fn created_ms(&self) -> u64 {
+        self.created
+    }
+    /// Whether report payloads have already been purged, independently of delivery expiry.
+    #[must_use]
+    pub const fn report_expired(&self) -> bool {
+        self.expired_report
+    }
     /// Current state, never inferred from missing payloads.
     #[must_use]
     pub const fn stage(&self) -> DeliveryStage {

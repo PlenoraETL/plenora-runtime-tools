@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use plenora_runtime_chains::{Error, Journal, Store};
 use tokio_postgres::{Row, Transaction};
 
-fn unavailable(_: impl std::fmt::Debug) -> Error {
+#[track_caller]
+fn unavailable<E: std::any::Any>(error: E) -> Error {
+    crate::diagnostics::report(&error);
     Error::Storage
 }
 async fn policy(tx: &Transaction<'_>) -> Result<(u64, u64, u64), Error> {

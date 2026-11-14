@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 pub(crate) enum Version {
     V1 = 1,
     V2 = 2,
+    V3 = 3,
 }
 
 pub(crate) const MIGRATIONS: &[(Version, &str, &str)] = &[
@@ -36,6 +37,11 @@ pub(crate) const MIGRATIONS: &[(Version, &str, &str)] = &[
         Version::V2,
         "resources-v1.sql",
         include_str!("resources-v1.sql"),
+    ),
+    (
+        Version::V3,
+        "delivery-retention-v3.sql",
+        include_str!("delivery-retention-v3.sql"),
     ),
 ];
 

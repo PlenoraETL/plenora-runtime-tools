@@ -28,28 +28,8 @@ impl Error for StoreError {}
 impl From<tokio_postgres::Error> for StoreError {
     #[track_caller]
     fn from(error: tokio_postgres::Error) -> Self {
-        // Qualification diagnostics contain only code/location, never driver messages or data.
-        #[cfg(test)]
-        diagnostics::report(&error);
-        let _ = error;
+        crate::diagnostics::report(&error);
         Self::Unavailable
-    }
-}
-
-#[cfg(test)]
-mod diagnostics {
-    #[track_caller]
-    pub(super) fn report(error: &tokio_postgres::Error) {
-        let caller = std::panic::Location::caller();
-        eprintln!(
-            "PostgreSQL failure at {}:{}; SQLSTATE={}; closed={}",
-            caller.file(),
-            caller.line(),
-            error
-                .code()
-                .map_or("none", tokio_postgres::error::SqlState::code),
-            error.is_closed(),
-        );
     }
 }
 

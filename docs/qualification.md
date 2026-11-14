@@ -427,3 +427,15 @@ La CI di e4979ef si e fermata prima delle altre prove reali: queste non sono
 qualificate da quella esecuzione. La chiusura richiede la nuova campagna intera
 sullo SHA corretto, inclusi i job reali e la soglia coverage. I gate locali non
 sostituiscono quella evidenza. Dettagli correnti in target/P1-4-5.md.
+
+
+## PR23 ci23c: gate infrastrutturali aperti
+
+Sul commit 674943d le migrazioni passano; cinque prove host PostgreSQL/NATS
+falliscono e la coverage e separatamente al 89.69%, sotto il 90% richiesto.
+La selezione retention V3 e la diagnostica del delta richiedono una nuova campagna
+reale aggregata. I test ignorati verificano anche backfill popolato, rifiuto di
+metadati incoerenti senza perdita e mancata decodifica di payload non scaduti.
+Rischio: attribuire ai gate locali una qualifica reale non eseguita. Chiusura:
+job Linux/Windows e campagne infrastrutturali verdi sul medesimo SHA; soglia 90%
+invariata. Backfill sotto timeout da qualificare anche alla dimensione operativa.

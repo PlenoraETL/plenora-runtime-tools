@@ -273,6 +273,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CARGO_BUILD_JOBS: 2
+      PLENORA_STORAGE_DIAGNOSTICS: 1
       POSTGRES_CONTAINER: plenora-chain-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Check out repository
@@ -416,6 +417,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CARGO_BUILD_JOBS: 2
+      PLENORA_STORAGE_DIAGNOSTICS: 1
       POSTGRES_CONTAINER: plenora-chain-coverage-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:

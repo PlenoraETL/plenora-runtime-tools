@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 
 mod delivery;
+mod diagnostics;
 mod resources;
 mod runs;
 mod settlement;
@@ -85,10 +86,13 @@ impl PostgresStore {
     }
 
     async fn commit(tx: Transaction<'_>) -> Result<(), StoreError> {
-        tx.commit().await.map_err(|_| StoreError::Unconfirmed)
+        tx.commit().await.map_err(|error| {
+            diagnostics::report(&error);
+            StoreError::Unconfirmed
+        })
     }
 
-    /// Upgrades schema v1 to v2 atomically and persists only reductions of retention.
+    /// Upgrades every supported schema atomically and persists only reductions of retention.
     /// Concurrent processes serialize through the same lock used by all operations.
     /// # Errors
     /// Refuses incompatible schemas, unconfirmed commits, or policy extensions.
@@ -144,7 +148,7 @@ impl PostgresStore {
         tx.execute("UPDATE plenora_chain_acceptance SET tombstone=true WHERE expires_at <= clock_timestamp() AND NOT tombstone", &[]).await?;
         tx.execute("UPDATE plenora_chain_outbox o SET expired=true, lease=NULL, lease_until=NULL FROM plenora_chain_acceptance a WHERE o.id=a.id AND a.tombstone AND NOT o.delivered", &[]).await?;
         // The product journal shares the report clock even when nobody reads the result.
-        tx.execute("UPDATE plenora_chain_delivery d SET journal=convert_to(jsonb_set(jsonb_set(convert_from(d.journal,'UTF8')::jsonb,'{history}','[]'::jsonb),'{expired_report}','true'::jsonb)::text,'UTF8') FROM plenora_chain_schema p WHERE p.singleton AND NOT (convert_from(d.journal,'UTF8')::jsonb->>'expired_report')::boolean AND (convert_from(d.journal,'UTF8')::jsonb->>'created')::numeric + p.report_seconds*1000 <= extract(epoch FROM clock_timestamp())*1000", &[]).await?;
+        Self::expire_delivery_reports(tx).await?;
         // Report expiry removes retained data, never the explicit outcome/delivery evidence.
         tx.execute("UPDATE plenora_chain_steps s SET report=NULL, report_expired=true FROM plenora_chain_schema p, plenora_chain_outbox o WHERE p.singleton AND o.id=s.id AND NOT s.report_expired AND s.finished_at + p.report_seconds * interval '1 second' <= clock_timestamp()", &[]).await?;
         tx.execute("UPDATE plenora_chain_outbox o SET payload=''::bytea, expired=(o.expired OR NOT o.delivered), lease=NULL, lease_until=NULL FROM plenora_chain_steps s WHERE s.id=o.id AND s.report_expired AND octet_length(o.payload)>0", &[]).await?;

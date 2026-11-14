@@ -5,6 +5,20 @@ use futures_util::StreamExt;
 use plenora_runtime_chains::{Error, Request, Response, Transport};
 use std::{sync::Arc, time::Duration};
 
+fn request_failure(kind: async_nats::RequestErrorKind) -> Error {
+    use async_nats::RequestErrorKind;
+    if std::env::var_os("PLENORA_STORAGE_DIAGNOSTICS").is_some_and(|v| v == "1") {
+        // Only the closed driver category, never its source, subject or payload.
+        eprintln!("Remote request failure; kind={kind:?}");
+    }
+    match kind {
+        RequestErrorKind::TimedOut => Error::Timeout,
+        RequestErrorKind::InvalidSubject => Error::Invalid,
+        RequestErrorKind::MaxPayloadExceeded => Error::ResourceLimit,
+        RequestErrorKind::NoResponders | RequestErrorKind::Other => Error::Storage,
+    }
+}
+
 /// Remote scripted client. Ten seconds is an observation timeout, never a run deadline.
 pub struct RemoteClient {
     client: async_nats::Client,
@@ -49,7 +63,7 @@ impl RemoteClient {
         )
         .await
         .map_err(|_| Error::Timeout)?
-        .map_err(|_| Error::Storage)?;
+        .map_err(|error| request_failure(error.kind()))?;
         if reply.payload.len() > 1024 * 1024 {
             return Err(Error::ResourceLimit);
         }
@@ -85,6 +99,11 @@ impl ScriptedHost {
         let listener_stop = stopped.clone();
         let worker = async {
             let result = self.work(stopped).await;
+            if let Err(error) = &result
+                && std::env::var_os("PLENORA_STORAGE_DIAGNOSTICS").is_some_and(|v| v == "1")
+            {
+                eprintln!("Host worker stopped; category={}", error.code());
+            }
             let _closed = stop.send(true);
             result
         };
@@ -120,6 +139,11 @@ impl ScriptedHost {
             result
         };
         let (result, worker_result) = tokio::join!(listener, worker);
+        if let Err(error) = &result
+            && std::env::var_os("PLENORA_STORAGE_DIAGNOSTICS").is_some_and(|v| v == "1")
+        {
+            eprintln!("Host listener stopped; category={}", error.code());
+        }
         let result = result.and(worker_result);
         // No new work is consumed after drive observes an error; all accepted tasks are drained.
         let unsubscribe = subscription.unsubscribe().await.map_err(|_| Error::Storage);
@@ -186,6 +210,21 @@ async fn drain(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn transport_categories_do_not_hide_timeout_as_storage() {
+        use async_nats::RequestErrorKind as K;
+        use plenora_runtime_chains::Error as E;
+        for (kind, expected) in [
+            (K::TimedOut, E::Timeout),
+            (K::InvalidSubject, E::Invalid),
+            (K::MaxPayloadExceeded, E::ResourceLimit),
+            (K::NoResponders, E::Storage),
+            (K::Other, E::Storage),
+        ] {
+            assert_eq!(super::request_failure(kind), expected);
+        }
+    }
+
     use super::*;
 
     #[tokio::test]

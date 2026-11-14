@@ -79,6 +79,74 @@ mod cases {
         assert!(!crate::supported_versions().contains(&(crate::current_version() + 1)));
     }
 
+    async fn seed_delivery(client: &Client, prefix: usize) -> Result<(String, bool), StoreError> {
+        let legacy_key = format!("migration:{}", MessageId::random());
+        let legacy = if MIGRATIONS[..prefix]
+            .iter()
+            .any(|(_, name, _)| *name == "delivery-v1.sql")
+        {
+            use plenora_runtime_boundary::{DeliveryJournal, DeliveryPlan};
+            let journal = DeliveryJournal::new(
+                &legacy_key,
+                [4; 32],
+                DeliveryPlan::new("migration-route", 1, 0, 4096, 1024)
+                    .map_err(|_| StoreError::Invalid)?,
+                1,
+                1,
+                2,
+            )
+            .map_err(|_| StoreError::Invalid)?;
+            let bytes = journal.to_json().map_err(|_| StoreError::Invalid)?;
+            client.execute("INSERT INTO plenora_chain_acceptance(id,requires,downgrade,expires_at) VALUES ($1,'plenora-runtime-binding-v2',false,clock_timestamp())", &[&journal.result_id()]).await?;
+            if MIGRATIONS[..prefix]
+                .iter()
+                .any(|(_, name, _)| *name == "delivery-retention-v3.sql")
+            {
+                client.execute("INSERT INTO plenora_chain_delivery(key,result_id,route,stage,journal,created_ms,expired_report) VALUES ($1,$2,'migration-route','ready',$3,1,false)", &[&legacy_key,&journal.result_id(),&bytes]).await?;
+            } else {
+                client.execute("INSERT INTO plenora_chain_delivery(key,result_id,route,stage,journal) VALUES ($1,$2,'migration-route','ready',$3)", &[&legacy_key,&journal.result_id(),&bytes]).await?;
+            }
+            true
+        } else {
+            false
+        };
+        Ok((legacy_key, legacy))
+    }
+
+    async fn verify_bounded_retention(store: &PostgresStore) -> Result<(), StoreError> {
+        use plenora_runtime_boundary::{DeliveryJournal, DeliveryPlan};
+        let mut client = store.connect().await?;
+        let tx = PostgresStore::transaction(&mut client).await?;
+        let mut keys = Vec::new();
+        for _ in 0..33 {
+            let key = format!("batch:{}", MessageId::random());
+            let journal = DeliveryJournal::new(
+                &key,
+                [5; 32],
+                DeliveryPlan::new("batch-route", 1, 0, 4096, 1024)
+                    .map_err(|_| StoreError::Invalid)?,
+                1,
+                1,
+                2,
+            )
+            .map_err(|_| StoreError::Invalid)?;
+            let bytes = journal.to_json().map_err(|_| StoreError::Invalid)?;
+            tx.execute("INSERT INTO plenora_chain_acceptance(id,requires,downgrade,expires_at) VALUES ($1,'plenora-runtime-binding-v2',false,clock_timestamp())", &[&journal.result_id()]).await?;
+            tx.execute("INSERT INTO plenora_chain_delivery(key,result_id,route,stage,journal,created_ms,expired_report) VALUES ($1,$2,'batch-route','ready',$3,1,false)", &[&key,&journal.result_id(),&bytes]).await?;
+            keys.push(key);
+        }
+        for expected in [32_i64, 33] {
+            PostgresStore::expire_delivery_reports(&tx).await?;
+            let actual: i64 = tx.query_one("SELECT count(*) FROM plenora_chain_delivery WHERE key=ANY($1) AND expired_report", &[&keys]).await?.try_get(0)?;
+            assert_eq!(
+                actual, expected,
+                "bounded maintenance must make monotone progress"
+            );
+        }
+        tx.rollback().await?;
+        Ok(())
+    }
+
     async fn verify_database(store: &PostgresStore, prefix: usize) -> Result<(), StoreError> {
         let client = store.connect().await?;
         let tables: i64 = client
@@ -106,8 +174,21 @@ mod cases {
                 )
                 .await?;
         }
+        let (legacy_key, legacy) = seed_delivery(&client, prefix).await?;
         drop(client);
         store.migrate(Retention::default()).await?;
+        if legacy {
+            let client = store.connect().await?;
+            let row = client.query_one("SELECT created_ms,expired_report,journal FROM plenora_chain_delivery WHERE key=$1", &[&legacy_key]).await?;
+            assert_eq!(row.try_get::<_, i64>(0)?, 1);
+            assert!(row.try_get::<_, bool>(1)?);
+            let j = plenora_runtime_boundary::DeliveryJournal::from_json(
+                &row.try_get::<_, Vec<u8>>(2)?,
+            )
+            .map_err(|_| StoreError::Invalid)?;
+            assert_eq!(j.created_ms(), 1);
+            assert!(j.report_expired());
+        }
         let id = MessageId::random();
         let context = NegotiationContext {
             requires: RuntimeBinding::V2,
@@ -147,6 +228,9 @@ mod cases {
                 eprintln!("Migration table catalogue mismatch");
                 return Err(StoreError::Invalid);
             }
+        }
+        if prefix == 0 {
+            verify_bounded_retention(store).await?;
         }
         verify_unsupported_versions(store).await
     }

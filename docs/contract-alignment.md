@@ -745,7 +745,7 @@ riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.
 
 Ambito P2.2/P1.4: schema.rs associa ogni SQL alla sua revisione e ne fissa
 l'ordine; migrate, vincolo SQL corrente, readiness e test usano quel catalogo.
-La revisione globale resta 2; la versione 1 delle evidenze e un asse distinto.
+La revisione globale corrente e 3; la versione 1 delle evidenze e un asse distinto.
 Il conteggio rigido 12 del test era incompatibile con le 13 tabelle complete:
 la qualifica ora confronta i nomi derivati dagli SQL, non un numero mantenuto
 separatamente. DB vuoto, ogni prefisso v1/v2, idempotenza, preservazione dati,
@@ -753,3 +753,20 @@ riduzione retention e rifiuto versioni sconosciute sono enumerati. Il rifiuto
 verifica anche rollback della creazione DDL, non soltanto della versione.
 Rischio residuo: prove reali del delta ancora da eseguire nella CI aggregata;
 nessuna estensione della qualifica a librerie o provider di dominio.
+
+
+## PR23: selezione retention e diagnostica del primario
+
+Il journal delivery conserva origine e flag di purge in colonne scalari indicizzate,
+aggiornate nella stessa transazione del documento. La manutenzione seleziona al
+massimo 32 candidati e verifica documento/metadati prima del purge; la lettura
+puntuale applica comunque la retention, anche se il batch non ha raggiunto la riga.
+La migrazione V3 recupera i metadati dai documenti esistenti atomicamente. Identita,
+fence e tombstone non vengono cancellati. Il backfill resta soggetto al timeout
+SQL: la qualifica su database popolati di dimensione operativa resta aperta.
+
+PLENORA_STORAGE_DIAGNOSTICS=1 abilita anche nei binari/wheel la posizione del
+fallimento, categoria chiusa, SQLSTATE e stato connessione; non vengono stampati
+SQL, messaggi del driver, DSN o valori. Il timeout interno NATS conserva Timeout.
+La scansione globale dei payload era un costo non limitato sotto il lock globale;
+la sua responsabilita nei cinque fallimenti ci23c resta da confermare in CI.

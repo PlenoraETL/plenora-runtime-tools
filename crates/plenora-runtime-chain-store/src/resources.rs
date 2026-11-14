@@ -2,7 +2,9 @@
 use crate::PostgresStore;
 use plenora_runtime_chains::{Error, Journal, ResourceLease, ResourceLedger, ResourceRequest};
 
-fn unavailable(_: impl std::fmt::Debug) -> Error {
+#[track_caller]
+fn unavailable<E: std::any::Any>(error: E) -> Error {
+    crate::diagnostics::report(&error);
     Error::Storage
 }
 fn encode(ledger: &ResourceLedger) -> Result<Vec<u8>, Error> {
