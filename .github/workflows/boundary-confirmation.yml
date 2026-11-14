@@ -605,6 +605,7 @@ jobs:
           docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" \
             psql -h 127.0.0.1 -U postgres -d chain_surfaces -v ON_ERROR_STOP=1 -c "CREATE TABLE s3_source (value text); CREATE TABLE s3_target (value text); INSERT INTO s3_source VALUES (NULL), (''), ('hello');"
           cargo run -p plenora-runtime-adapter-database --example database_fixture --locked > target/s3-database-fixture.json
+          cargo run -p plenora-runtime-adapter-io --example io_fixture --locked > target/s3-io-fixture.json
       - name: Verify installed cancel resume and event cursors on isolated PostgreSQL
         id: campaign_10
         if: always()
@@ -612,6 +613,7 @@ jobs:
         env:
           PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime
           PLENORA_DATABASE_FIXTURE: ${{ github.workspace }}/target/s3-database-fixture.json
+          PLENORA_IO_FIXTURE: ${{ github.workspace }}/target/s3-io-fixture.json
         shell: bash
         run: |
           PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_surfaces}" \
@@ -640,11 +642,12 @@ jobs:
         env:
           PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime
           PLENORA_DATABASE_FIXTURE: ${{ github.workspace }}/target/s3-database-fixture.json
+          PLENORA_IO_FIXTURE: ${{ github.workspace }}/target/s3-io-fixture.json
           PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}
         shell: bash
         run: |
           PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_surfaces}" \
-            python scripts/run_confirmation_tests.py --label campaign_12 -- cargo test --no-fail-fast -p plenora-runtime-chain-host --test remote --test worker --test controls --test database --locked -- --ignored --nocapture
+            python scripts/run_confirmation_tests.py --label campaign_12 -- cargo test --no-fail-fast -p plenora-runtime-chain-host --test remote --test worker --test controls --test database --test io --locked -- --ignored --nocapture
       - name: Verify installed journal report pages after real fault injection
         id: campaign_13
         if: always()
@@ -652,6 +655,7 @@ jobs:
         env:
           PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime
           PLENORA_DATABASE_FIXTURE: ${{ github.workspace }}/target/s3-database-fixture.json
+          PLENORA_IO_FIXTURE: ${{ github.workspace }}/target/s3-io-fixture.json
           PLENORA_JOURNAL_REPORT: ${{ github.workspace }}/target/p14c1-journal-real.json
         run: python -m unittest discover -s crates/plenora-runtime-chain-python/tests -p 'test_journal_report.py'
       - name: Run product PostgreSQL and NATS settlement tests

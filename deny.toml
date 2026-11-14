@@ -22,6 +22,10 @@ allow = [
 ]
 private = { ignore = true }
 exceptions = [
+    # Locked transitive licenses reviewed in docs/dependency-policy.md; no global allowlist expansion.
+    { allow = ["MIT-0"], crate = "borrow-or-share" },
+    { allow = ["CC0-1.0"], crate = "tiny-keccak" },
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" },
     # `libfuzzer-sys` incorpora libFuzzer di LLVM sotto NCSA, licenza
     # permissiva con obbligo di attribuzione. L'eccezione vale solo per il
     # crate del lock separato di `fuzz/`, invece di ampliare la allowlist.
@@ -38,8 +42,8 @@ external-default-features = "allow"
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-# ADR 0011: only the exact database revision declared by the product adapter.
-allow-git = ["https://github.com/PlenoraETL/plenora-database-tools.git"]
+# Product pins reviewed in docs/adr/0011-database-chain-adapter.md and docs/adr/0012-io-chain-adapter.md.
+allow-git = ["https://github.com/PlenoraETL/plenora-database-tools.git", "https://github.com/PlenoraETL/plenora-IO-tools.git"]
 allow-registry = [
     "https://github.com/rust-lang/crates.io-index",
     "sparse+https://index.crates.io/",

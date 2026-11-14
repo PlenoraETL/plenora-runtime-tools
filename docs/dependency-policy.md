@@ -20,3 +20,22 @@ La qualifica di rilascio si avvia con uno SHA di commit atteso esplicito. Tutti 
 dipendenze, NATS reale, coverage e fuzz smoke) dipendono da quel
 job di verifica e qualificano quindi la stessa revisione estratta, con la toolchain pinnata Rust
 1.98.1; la MSRV dichiarata è Rust 1.98 (ADR 0007).
+
+
+## Licenze transitive dei provider reali
+
+Eccezioni strette per crate in deny.toml, valutate sulle versioni del lock S3.
+Non ampliano la allowlist generale. Rivederle a ogni aggiornamento di questi
+pacchetti e rimuoverle quando la dipendenza esce dal grafo.
+
+| Crate/versione | Licenza dichiarata | Necessita e testo conservato |
+| --- | --- | --- |
+| borrow-or-share 0.2.4 | MIT-0 | referencing/jsonschema del driver GeoParquet IO; [testo](licenses/borrow-or-share-0.2.4.txt) |
+| tiny-keccak 2.0.2 | CC0-1.0 | const-random/ahash del grafo Arrow; [testo](licenses/tiny-keccak-2.0.2.txt) |
+| webpki-roots 1.0.10 | CDLA-Permissive-2.0 | root TLS del provider PostgreSQL gia adottato; [testo](licenses/webpki-roots-1.0.10.txt) |
+
+I testi provengono dai pacchetti esatti verificati nel Cargo.lock; il testo CDLA
+va reso disponibile insieme ai dati distribuiti. L'approvazione del grafo non
+sostituisce l'inclusione dei testi dovuti negli artefatti di distribuzione.
+Audit offline con database locale e yanked disabilitato e solo evidenza parziale:
+restano obbligatori audit/deny aggiornati della CI e del job settimanale.

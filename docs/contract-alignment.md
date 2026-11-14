@@ -880,7 +880,7 @@ ratifica e rigenerazione dei consumer. I contratti common restano al loro pin.
 DATA 4.1.5 `2ff92a250ec8921a78d6d842ea92954173b36e63`: run@3 esiste nella API
 Rust plenora_cli::artefatti; CLI/SDK run@3 e binding runtime restano lacune,
 senza alias run@2/run@3. IO `9c087aa7daf5d9ad10843ebf3027ae8858f66b94` resta
-**candidate 9.0.0 non pubblicata**. I loro adapter reali restano passi successivi.
+**candidate 9.0.0 non pubblicata**. DATA resta il passo successivo, sul binding runtime previsto con 5.0.0.
 Le evidenze incrementali non promuovono le cinque superfici dell'inventario:
 PostgreSQL reale e parita installata sono gate CI, distinti dalle prove locali.
 
@@ -889,3 +889,33 @@ plenora.primary_geometry (anche none) e porte primary_geometry=true sono
 rifiutati esplicitamente. Nessun claim Primary Geometry pubblicizzato:
 la conservazione semantica spaziale resta da qualificare, non si afferma che
 il database perda questi metadati. IO resta il passo successivo previsto.
+
+
+## S3 IO candidate 9.0.0
+
+Regola: contratti realmente esposti, nessun alias. Pin IO
+9c087aa7daf5d9ad10843ebf3027ae8858f66b94 candidate NON pubblicata:
+io.read@2 / io.write@2, input v1 e result v2. Discovery, content types e driver
+availability provengono dalla libreria collegata. Nessun claim dal catalogo target.
+
+Ambito: adapter Rust e profili host/CLI/wheel, Arrow stream bounded e pubblicazione
+bundle atomica dopo fidelity/loss. `reported` non concede perdite IO: chiusura
+solo con un contratto comune di consenso IO ratificato e prove relative.
+IPC file/compresso/senza EOS fuori profilo vengono rifiutati esplicitamente.
+
+Lacuna upstream verificata: primary_geometry=none multi-geometria e eliminato
+in IPC read/write con rapporto lossless. Rischio: perdita metadata silenziosa.
+Mitigazione: confronto esatto schema prima di esportare Arrow/pubblicare bundle;
+rapporto originale recuperabile, completezza non qualificata. Chiusura: nuovo
+pin corretto e regressioni su entrambe le direzioni/formati IPC.
+
+Altre lacune: errori nativi prima della serializzazione possono omettere i
+rapporti fidelity/loss e i contatori consumati; si dichiara unavailable, non
+rapporto vuoto. I contatori write includono le righe IPC gia verificate; sulle
+read fallite il consumo interno non e osservabile e il limite resta riservato.
+Richiesta IO non espone clock iniettabile e il binding runtime ha materializzazione
+con budget propri: percorso diretto scelto per fornire i tetti. Chiusura con API
+che preservino evidenza completa sugli errori e clock/budget governabili.
+
+Contratti catene restano bozza locale; prove locali IO non ratificano la bozza,
+non qualificano ogni driver opzionale e non attestano CI Linux/Windows.

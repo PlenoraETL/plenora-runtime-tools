@@ -3,7 +3,9 @@
 #![forbid(unsafe_code)]
 mod control;
 mod database;
+mod io;
 pub use database::{DatabaseConfig, DatabaseConnectionConfig, DatabaseHost};
+pub use io::{IoConfig, IoHost};
 mod ownership;
 mod remote;
 mod verification;

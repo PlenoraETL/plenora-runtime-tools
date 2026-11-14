@@ -476,7 +476,7 @@ fn all_dependency_versions_are_exactly_pinned_or_workspace_inherited() -> Result
             if !dependency_section {
                 continue;
             }
-            // ADR 0011: only these domain crates at the published immutable revision.
+            // docs/adr/0011-database-chain-adapter.md: only these domain crates at the published immutable revision.
             let approved_database_pin = matches!(
                 manifest_path
                     .parent()
@@ -496,7 +496,26 @@ fn all_dependency_versions_are_exactly_pinned_or_workspace_inherited() -> Result
                 && root
                     .join("docs/adr/0011-database-chain-adapter.md")
                     .is_file();
+            // docs/adr/0012-io-chain-adapter.md: IO candidate crates are allowed only in the product IO adapter.
+            let approved_io_pin = manifest_path
+                .parent()
+                .and_then(std::path::Path::file_name)
+                .and_then(|n| n.to_str())
+                == Some("plenora-runtime-adapter-io")
+                && matches!(
+                    trimmed.split('=').next().map(str::trim),
+                    Some("plenora-io-tools" | "plenora-io-core" | "plenora-io-model")
+                )
+                && quoted_assignment_value(trimmed, "git")
+                    == Some("https://github.com/PlenoraETL/plenora-IO-tools.git")
+                && quoted_assignment_value(trimmed, "rev")
+                    == Some("9c087aa7daf5d9ad10843ebf3027ae8858f66b94")
+                && quoted_assignment_value(trimmed, "version") == Some("=9.0.0")
+                && quoted_assignment_value(trimmed, "branch").is_none()
+                && quoted_assignment_value(trimmed, "tag").is_none()
+                && root.join("docs/adr/0012-io-chain-adapter.md").is_file();
             if !approved_database_pin
+                && !approved_io_pin
                 && ["git", "branch", "tag", "rev"]
                     .iter()
                     .any(|key| quoted_assignment_value(trimmed, key).is_some())

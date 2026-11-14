@@ -1,7 +1,9 @@
 //! Machine facade: bounded synchronous file IO stays outside the asynchronous host runtime.
 #![forbid(unsafe_code)]
 use plenora_runtime_chain_cli::{Endpoint, parse};
-use plenora_runtime_chain_host::{DatabaseConfig, RemoteClient, ScriptedConfig, ScriptedHost};
+use plenora_runtime_chain_host::{
+    DatabaseConfig, IoConfig, RemoteClient, ScriptedConfig, ScriptedHost,
+};
 use plenora_runtime_chains::{Error, EventCursor, Request, Response};
 use std::io::{Read, Write};
 
@@ -53,6 +55,7 @@ fn execute() -> Result<Option<Response>, Error> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     let (endpoint, request, json_lines) = match args.as_slice() {
         [mode, file] if mode == "scripted-call" => (Endpoint::Scripted(file.clone()), None, false),
+        [mode, file] if mode == "io-call" => (Endpoint::Io(file.clone()), None, false),
         [mode, file] if mode == "database-call" => (Endpoint::Database(file.clone()), None, false),
         [mode, server, subject] if mode == "remote-call" => (
             Endpoint::Remote {
@@ -76,6 +79,11 @@ fn execute() -> Result<Option<Response>, Error> {
             Some(Box::new(ScriptedHost::new(config)?))
         }
         Endpoint::Remote { .. } => None,
+        Endpoint::Io(file) => {
+            let config: IoConfig =
+                serde_json::from_str(&read_file(file)?).map_err(|_| Error::Invalid)?;
+            Some(Box::new(ScriptedHost::io(config)?))
+        }
         Endpoint::Database(file) => {
             let config: DatabaseConfig =
                 serde_json::from_str(&read_file(file)?).map_err(|_| Error::Invalid)?;

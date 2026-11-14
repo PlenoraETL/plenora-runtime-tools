@@ -387,3 +387,24 @@ messaggi di errore; i rapporti di dominio restano artefatti autorizzati.
 Clock catene iniettabile e cancel persistito letto anche tra host distinti;
 ResourceBudget upstream usa Instant internamente. Non si dichiara determinismo
 dei timeout fisici del provider. Chiusura con campagne temporali dedicate.
+
+
+## S3 IO candidate: staging e pubblicazione
+
+Ambito: adapter IO al commit 9c087aa7daf5d9ad10843ebf3027ae8858f66b94.
+Regola: nessuna pubblicazione presunta o conversione silenziosa. Le directory
+host di staging/destinazione devono essere riservate contro modifiche concorrenti
+esterne. Il resolver non accetta percorsi dal piano; snapshot rifiutano traversal,
+symlink e alias Windows. La pubblicazione usa il core no-clobber dopo i controlli.
+Rischio residuo: crash tra rename del bundle e conferma del journal, durabilita
+non confermata e cleanup fallito. Nessun resolver di evidenza esterna: stato
+requires_recovery, nessuna reinvocazione. Chiusura: resolver durevole qualificato
+con fault injection ai confini fsync/rename/journal, inclusi deployment reali.
+Il native worker viene drenato; fsync/rename non promettono cancel immediato.
+
+
+Audit locale S3 IO: il database advisory in cache segnala atomic-polyfill 1.0.3
+non mantenuto (RUSTSEC-2023-0089), dipendenza transitiva, senza vulnerabilita
+rilevate in quella cache. Nessuna soppressione di advisory aggiunta. Rischio:
+assenza manutenzione upstream e advisory cache non aggiornata; chiusura con
+rimozione/aggiornamento upstream e audit CI aggiornato (inclusi yanked).

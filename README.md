@@ -130,3 +130,9 @@ condividono il dispatcher. Profilo iniziale tabellare e materializzato;
 Primary Geometry non qualificata viene rifiutata. Read@2 resta lacuna upstream.
 Le prove PostgreSQL e CLI/wheel installati sono nei job CI esistenti:
 implementazione e qualifica restano distinte in [qualification](docs/qualification.md).
+
+
+Il profilo S3 IO usa la **candidate 9.0.0 non pubblicata**, pinnata al commit
+9c087aa7daf5d9ad10843ebf3027ae8858f66b94. Read/write reali, limiti, Primary Geometry,
+rapporti e uso di CLI/wheel sono descritti nel
+[README adapter IO](crates/plenora-runtime-adapter-io/README.md).

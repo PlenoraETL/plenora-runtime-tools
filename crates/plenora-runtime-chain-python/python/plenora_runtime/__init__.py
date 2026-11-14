@@ -1,4 +1,4 @@
-"""Native clients with explicit scripted or real database host profiles."""
+"""Native clients with explicit scripted, real database or IO candidate host profiles."""
 import asyncio
 import json
 from ._native import FUNCTIONS, NativeClient, NativeRemoteClient, NativeEventCursor, failure_json

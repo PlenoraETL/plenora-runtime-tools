@@ -535,3 +535,16 @@ Read@2 e lacuna upstream esplicita; il requisito corrente usa read@1 autorizzato
 DATA e IO restano passi successivi, IO candidate non release. La ratifica dei
 contratti catene resta separata. Esiti locali e comandi sono in target/S3.md;
 CI, audit/deny e fuzz non eseguiti qui non sono dichiarati verdi.
+
+
+## Gate S3 IO candidate
+
+Ambito: IO 9.0.0 candidate 9c087aa, non pubblicata. Test Rust con libreria/file
+reali e primario simulato sono distinti da PostgreSQL reale e wheel/CLI installate.
+I job PostgreSQL esistenti includono `chain-host/tests/io.rs` e
+`chain-python/tests/test_io_real.py`; un test ignored/skipped non e passato.
+Rischio aperto: parita su deployment, perdita evidenza crash dopo rename e
+candidate che normalizza metadata Primary Geometry. Chiusura: CI Linux/Windows
+verde, nuovo pin upstream corretto e campagne crash/durabilita. Nessuna promozione
+a qualifica completa delle cinque superfici sulla sola base del catalogo.
+DATA e rinviato al passo successivo, binding runtime 5.0.0.

@@ -10,7 +10,7 @@ publish = false
 [dependencies]
 plenora-runtime-chains = { version = "=0.1.0", path = "../plenora-runtime-chains" }
 plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
-# Real API/provider, all from the published py-v11.0.0 source. ADR 0011.
+# Real API/provider, all from the published py-v11.0.0 source. docs/adr/0011-database-chain-adapter.md.
 plenora-database-core = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }
 plenora-database-engine = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }
 plenora-db-postgres = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }
