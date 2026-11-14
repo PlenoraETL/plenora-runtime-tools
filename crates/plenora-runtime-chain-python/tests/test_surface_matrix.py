@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
+import sys
 import unittest
 import uuid
 
@@ -76,7 +78,7 @@ class Matrix(unittest.IsolatedAsyncioTestCase):
                 label = mode + '-' + case['id'] + '-'
                 if mode.startswith('remote'):
                     endpoint = endpoints[case['profile']]
-                    client = await AsyncClient.remote(endpoint['server'], endpoint['subject']) if mode == 'remote_async' else await asyncio.to_thread(Client.remote, endpoint['server'], endpoint['subject'])
+                    client = await AsyncClient.remote(endpoint['server'], endpoint['subject'], observation_timeout_ms=endpoint['observation_timeout_ms']) if mode == 'remote_async' else await asyncio.to_thread(Client.remote, endpoint['server'], endpoint['subject'], observation_timeout_ms=endpoint['observation_timeout_ms'])
                 elif mode == 'python_async':
                     client = await AsyncClient.create(config)
                     await client.migrate()
@@ -91,6 +93,7 @@ class Matrix(unittest.IsolatedAsyncioTestCase):
                 previous = None
                 for index, raw in enumerate(case['requests']):
                     request = scoped(raw, label)
+                    started = time.monotonic()
                     if mode in ['cli','remote_cli']:
                         def binary():
                             with tempfile.TemporaryDirectory(dir=ROOT/'target') as folder:
@@ -102,7 +105,7 @@ class Matrix(unittest.IsolatedAsyncioTestCase):
                                     plan.write_text(request['plan'],encoding='utf-8')
                                     options = request['options']
                                     command = [os.environ['PLENORA_CHAIN_BIN'],'chain','run','--plan',str(plan),'--run',options['run_id'],'--json']
-                                    command += ['--server',endpoint['server'],'--subject',endpoint['subject']] if mode == 'remote_cli' else ['--config',str(path)]
+                                    command += ['--server',endpoint['server'],'--subject',endpoint['subject'],'--observation-timeout-ms',str(endpoint['observation_timeout_ms'])] if mode == 'remote_cli' else ['--config',str(path)]
                                     if options['idempotency_key'] is not None: command += ['--idempotency-key',options['idempotency_key']]
                                     if options['deadline_ms'] is not None: command += ['--deadline-ms',str(options['deadline_ms'])]
                                 run = subprocess.run(command,input=json.dumps(request),capture_output=True,text=True,encoding='utf-8',check=False)
@@ -116,6 +119,8 @@ class Matrix(unittest.IsolatedAsyncioTestCase):
                         except ChainError as error: reply = {'value':error.result,'error':error.code,'failure':error.failure}
                     else:
                         reply = await asyncio.to_thread(response, lambda: client.call(**request))
+                    if mode.startswith("remote"):
+                        print(f"Qualification {mode} {case['id']} {request['function']}: elapsed={time.monotonic()-started:.3f}s result={reply['error']}", file=sys.stderr)
                     self.check_response(case,index,reply,previous)
                     previous = reply
                 visited.add(case['id'])

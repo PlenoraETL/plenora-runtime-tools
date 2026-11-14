@@ -41,6 +41,16 @@ CASES = {
 
 
 class Installed(unittest.IsolatedAsyncioTestCase):
+    @unittest.skipUnless(os.environ.get("PLENORA_CHAIN_BIN"), "requires installed CLI")
+    async def test_installed_cli_rejects_invalid_observation_before_connect(self):
+        for value in ["0", "86400001", "-1", "01", "1.5"]:
+            result = await asyncio.to_thread(subprocess.run,
+                [os.environ["PLENORA_CHAIN_BIN"], "capabilities", "--server", "invalid", "--subject", "request",
+                 "--observation-timeout-ms", value, "--json"], capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(json.loads(result.stdout)["error"], "invalid")
+            self.assertEqual(result.stderr, "")
+
     def test_catalog_is_enumerated_exactly(self):
         self.assertEqual(set(FUNCTIONS), set(CASES))
         client = Client(CONFIG)

@@ -2,6 +2,61 @@
 use plenora_runtime_chain_host::{RemoteClient, ScriptedConfig, ScriptedHost};
 use plenora_runtime_chains::{Request, Store, Transport};
 use std::{error::Error, sync::Arc, time::Duration};
+// The fixture permits 100s execution and 1s cleanup. Admission and terminal
+// settlement each get one primary statement budget (15s); this is observation,
+// not permission to extend the authorized run deadline or to replay on timeout.
+const OBSERVATION_MS: u64 = 100_000 + 1_000 + 2 * 15_000;
+
+struct Observed(RemoteClient);
+impl Observed {
+    async fn exchange(
+        &self,
+        request: Request,
+    ) -> Result<plenora_runtime_chains::Response, plenora_runtime_chains::Error> {
+        let encoded =
+            serde_json::to_value(&request).map_err(|_| plenora_runtime_chains::Error::Invalid)?;
+        let function = encoded["function"]
+            .as_str()
+            .ok_or(plenora_runtime_chains::Error::Invalid)?;
+        let start = std::time::Instant::now();
+        let response = self.0.exchange(request).await;
+        eprintln!(
+            "Qualification call {function}; elapsed_ms={}; result={}",
+            start.elapsed().as_millis(),
+            response.as_ref().map_or_else(
+                |error| error.code(),
+                |reply| reply.error.map_or("ok", |error| error.code())
+            )
+        );
+        response
+    }
+}
+
+#[test]
+fn observation_budget_covers_authorized_fixture_execution() -> Result<(), Box<dyn Error>> {
+    let matrix: serde_json::Value = serde_json::from_str(include_str!("fixtures/surfaces.json"))?;
+    for profile in matrix["profiles"].as_object().ok_or("profiles")?.values() {
+        for raw in profile["authorized_plans"]
+            .as_array()
+            .ok_or("authorized plans")?
+        {
+            let plan: serde_json::Value = serde_json::from_str(raw.as_str().ok_or("plan")?)?;
+            let execution = plan["budgets"]["elapsed_ms"]
+                .as_u64()
+                .ok_or("elapsed budget")?;
+            let cleanup = plan["execution"]["cleanup_ms"]
+                .as_u64()
+                .ok_or("cleanup budget")?;
+            assert!(
+                execution
+                    .checked_add(cleanup)
+                    .and_then(|n| n.checked_add(30_000))
+                    .is_some_and(|n| n <= OBSERVATION_MS)
+            );
+        }
+    }
+    Ok(())
+}
 
 #[tokio::test]
 #[ignore = "Requires ephemeral PostgreSQL and NATS; no fake backend replacement"]
@@ -29,7 +84,8 @@ async fn nats_real_scripted_calls_preserve_errors_and_discovery() -> Result<(), 
     let destination = subject.clone();
     let task = tokio::spawn(async move { serving.serve(&address, &destination, ready).await });
     tokio::time::timeout(Duration::from_secs(10), received).await??;
-    let client = RemoteClient::connect(&server, &subject).await?;
+    let client =
+        Observed(RemoteClient::connect_with_timeout(&server, &subject, OBSERVATION_MS).await?);
     for request in [
         Request::Capabilities,
         Request::Validate { plan: "{}".into() },
@@ -139,7 +195,9 @@ async fn corrupted_resources(server: &str) -> Result<(), Box<dyn Error>> {
     let rejected_task =
         tokio::spawn(async move { serving.serve(&address, &destination, ready).await });
     tokio::time::timeout(Duration::from_secs(10), received).await??;
-    let rejected_client = RemoteClient::connect(server, &rejected_subject).await?;
+    let rejected_client = Observed(
+        RemoteClient::connect_with_timeout(server, &rejected_subject, OBSERVATION_MS).await?,
+    );
     let denied = rejected_client
         .exchange(Request::Run {
             plan: include_str!("fixtures/plan-valid.json").into(),
@@ -171,7 +229,7 @@ async fn corrupted_resources(server: &str) -> Result<(), Box<dyn Error>> {
 /// Real primary retains only published evidence after all providers stop.
 async fn check_owned(
     config: &ScriptedConfig,
-    client: &RemoteClient,
+    client: &Observed,
     completed: &serde_json::Value,
 ) -> Result<(), Box<dyn Error>> {
     let run = completed["run_id"].as_str().ok_or("run")?;
@@ -221,7 +279,7 @@ async fn nats_real_installed_surface_matrix() -> Result<(), Box<dyn Error>> {
         let subject = format!("matrix.{}", uuid::Uuid::new_v4().simple());
         endpoints.insert(
             name.clone(),
-            serde_json::json!({"server":server,"subject":subject}),
+            serde_json::json!({"server":server,"subject":subject,"observation_timeout_ms":OBSERVATION_MS}),
         );
         let address = server.clone();
         let (ready, received) = tokio::sync::oneshot::channel();

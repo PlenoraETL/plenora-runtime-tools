@@ -366,6 +366,14 @@ jobs:
           $status = ./scripts/nats-docker.ps1 Start | ConvertFrom-Json
           "run_id=$($status.run_id)" >> $env:GITHUB_OUTPUT
           "client_url=$($status.client_url)" >> $env:GITHUB_OUTPUT
+      - name: Verify real observation timeout and late reply
+        id: campaign_transport
+        if: always()
+        continue-on-error: true
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: cargo test --no-fail-fast -p plenora-runtime-chain-host --test transport --locked -- --ignored --nocapture --test-threads=1
+
       - name: Run scripted facade over real NATS
         id: campaign_12
         if: always()
@@ -409,7 +417,7 @@ jobs:
         if: always()
         env:
           CAMPAIGN_STEPS: ${{ toJson(steps) }}
-        run: python scripts/ci_campaign.py campaign_01 campaign_02 campaign_03 campaign_04 campaign_05 campaign_06 campaign_07 campaign_08 campaign_09 campaign_10 product_nats campaign_12 campaign_13 campaign_14 campaign_15 campaign_16
+        run: python scripts/ci_campaign.py campaign_transport campaign_01 campaign_02 campaign_03 campaign_04 campaign_05 campaign_06 campaign_07 campaign_08 campaign_09 campaign_10 product_nats campaign_12 campaign_13 campaign_14 campaign_15 campaign_16
 
   coverage:
     name: Line coverage (minimum 90%)
@@ -554,6 +562,40 @@ jobs:
           PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
         run: cargo llvm-cov --no-fail-fast -p plenora-runtime-integration-tests --test chain_delivery --locked --no-report -- --ignored --test-threads=1
 
+      - name: Create host coverage database with default retention
+        id: campaign_host_db
+        if: always()
+        continue-on-error: true
+        run: docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE chain_host'
+
+      - name: Collect real scripted host request reply coverage
+        id: campaign_host
+        if: always()
+        continue-on-error: true
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: |
+          PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_host}" \
+            cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test remote --locked --no-report -- nats_real_scripted --ignored --nocapture --test-threads=1
+
+      - name: Collect real autonomous host worker coverage
+        id: campaign_host_worker
+        if: always()
+        continue-on-error: true
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: |
+          PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_host}" \
+            cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test worker --locked --no-report -- postgres_nats_real --ignored --nocapture --test-threads=1
+
+      - name: Collect real observation timeout and late reply coverage
+        id: campaign_host_transport
+        if: always()
+        continue-on-error: true
+        env:
+          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+        run: cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test transport --locked --no-report -- --ignored --nocapture --test-threads=1
+
       - name: Enforce line coverage threshold
         id: campaign_15
         if: always()
@@ -584,7 +626,7 @@ jobs:
         if: always()
         env:
           CAMPAIGN_STEPS: ${{ toJson(steps) }}
-        run: python scripts/ci_campaign.py campaign_clean campaign_01 campaign_02 campaign_03 campaign_04 nats campaign_06 campaign_07 campaign_08 campaign_09 campaign_10 campaign_11 campaign_12 campaign_13 campaign_14 campaign_15 campaign_17 campaign_18
+        run: python scripts/ci_campaign.py campaign_clean campaign_01 campaign_02 campaign_03 campaign_04 nats campaign_06 campaign_07 campaign_08 campaign_09 campaign_10 campaign_11 campaign_12 campaign_13 campaign_14 campaign_host_db campaign_host campaign_host_worker campaign_host_transport campaign_15 campaign_17 campaign_18
 
   fuzz-smoke:
     name: Fuzz smoke suite

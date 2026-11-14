@@ -1416,7 +1416,7 @@ crates/plenora-runtime-chain-cli/src/lib.rs |  | matches ! (first . as_str () , 
 crates/plenora-runtime-chain-cli/src/lib.rs |  | matches ! (name . as_str () , "--json" | "--json-lines")
 crates/plenora-runtime-chain-cli/src/lib.rs |  | matches ! (second . as_str () , "validate" | "submit" | "run" | "status" | "result" | "events" | "cancel" | "resume" | "report")
 crates/plenora-runtime-chain-cli/src/lib.rs |  | pub
-crates/plenora-runtime-chain-cli/src/lib.rs |  | pub enum Endpoint { Scripted (String) , Remote { # [doc = " Broker connection address, excluded from errors."] server : String , # [doc = " Exact host-authorized request subject."] subject : String , } , }
+crates/plenora-runtime-chain-cli/src/lib.rs |  | pub enum Endpoint { Scripted (String) , Remote { # [doc = " Broker connection address, excluded from errors."] server : String , # [doc = " Exact host-authorized request subject."] subject : String , # [doc = " Observation wait, independent of the run deadline."] observation_timeout_ms : u64 , } , }
 crates/plenora-runtime-chain-cli/src/lib.rs |  | pub struct Command { pub endpoint : Endpoint , pub request : Request , pub json_lines : bool , }
 crates/plenora-runtime-chain-cli/src/lib.rs |  | pub use plenora_runtime_chains :: { Request , Response } ;
 crates/plenora-runtime-chain-cli/src/main.rs |  | 
@@ -1906,13 +1906,15 @@ crates/plenora-runtime-chain-host/src/remote.rs |  | async fn drive < S , F , R 
 crates/plenora-runtime-chain-host/src/remote.rs |  | eprintln ! ("Remote request failure; kind={kind:?}")
 crates/plenora-runtime-chain-host/src/remote.rs |  | fn request_failure (kind : async_nats :: RequestErrorKind) -> Error
 crates/plenora-runtime-chain-host/src/remote.rs |  | fn task_error (result : Option < & Result < Result < () , Error > , tokio :: task :: JoinError > >) -> Option < Error >
-crates/plenora-runtime-chain-host/src/remote.rs |  | pub struct RemoteClient { client : async_nats :: Client , subject : String , }
+crates/plenora-runtime-chain-host/src/remote.rs |  | pub struct RemoteClient { client : async_nats :: Client , subject : String , observation_timeout : Duration , }
 crates/plenora-runtime-chain-host/src/remote.rs |  | tokio :: select ! { () = async { if let Some (receiver) = & mut stop { while !* receiver . borrow () { if receiver . changed () . await . is_err () { break ; } } } else { std :: future :: pending ::< () > () . await ; } } => break None , result = tasks . join_next () , if ! tasks . is_empty () => { if let Some (error) = task_error (result . as_ref ()) { break Some (error) ; } continue ; } message = stream . next () , if tasks . len () < 16 => { let Some (message) = message else { break None } ; message } }
 crates/plenora-runtime-chain-host/src/remote.rs | # [async_trait] impl Transport for RemoteClient { } | 
 crates/plenora-runtime-chain-host/src/remote.rs | # [async_trait] impl Transport for RemoteClient { } | async fn exchange (& self , request : Request) -> Result < Response , Error >
 crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | async fn call (& self , bytes : Vec < u8 >) -> Result < Response , Error >
 crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | async fn connect (server : & str , subject : & str) -> Result < Self , Error >
+crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | async fn connect_with_timeout (server : & str , subject : & str , observation_timeout_ms : u64 ,) -> Result < Self , Error >
 crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | matches ! (b , b'*' | b'>')
+crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | pub
 crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | pub
 crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | pub
 crates/plenora-runtime-chain-host/src/remote.rs | impl ScriptedHost { } | async fn serve (self : Arc < Self > , server : & str , subject : & str , ready : tokio :: sync :: oneshot :: Sender < () > ,) -> Result < () , Error >
@@ -1974,7 +1976,7 @@ crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeRemote
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeRemoteClient { } | 
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeRemoteClient { } | fn call (& self , py : Python < '_ > , request : & str) -> PyResult < String >
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeRemoteClient { } | fn migrate () -> PyResult < () >
-crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeRemoteClient { } | fn new (py : Python < '_ > , server : & str , subject : & str) -> PyResult < Self >
+crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeRemoteClient { } | fn new (py : Python < '_ > , server : & str , subject : & str , observation_timeout_json : & str ,) -> PyResult < Self >
 crates/plenora-runtime-chain-store/src/delivery.rs |  | 
 crates/plenora-runtime-chain-store/src/delivery.rs |  | 
 crates/plenora-runtime-chain-store/src/delivery.rs |  | 

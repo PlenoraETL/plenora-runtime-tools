@@ -44,10 +44,10 @@ class Client:
         return _native_call(self._native.migrate)
 
     @classmethod
-    def remote(cls, server, subject):
+    def remote(cls, server, subject, *, observation_timeout_ms=10_000):
         """Bind the explicit NATS qualification endpoint."""
         instance = cls.__new__(cls)
-        instance._native = _native_call(NativeRemoteClient, server, subject)
+        instance._native = _native_call(NativeRemoteClient, server, subject, _encode(observation_timeout_ms))
         return instance
 
     def call(self, function, **arguments):
@@ -97,10 +97,10 @@ class AsyncClient:
         return await asyncio.to_thread((await self._ready()).migrate)
 
     @classmethod
-    async def remote(cls, server, subject):
+    async def remote(cls, server, subject, *, observation_timeout_ms=10_000):
         """Connect without blocking the event loop."""
         instance = cls.__new__(cls)
-        instance._initialization = asyncio.create_task(asyncio.to_thread(Client.remote, server, subject))
+        instance._initialization = asyncio.create_task(asyncio.to_thread(Client.remote, server, subject, observation_timeout_ms=observation_timeout_ms))
         await asyncio.shield(instance._initialization)
         return instance
 

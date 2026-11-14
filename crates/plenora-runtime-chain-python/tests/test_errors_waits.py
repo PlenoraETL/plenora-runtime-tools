@@ -31,6 +31,15 @@ class ErrorsAndWaits(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ChainError) as caught: await client.events(run_id='bad',cursor=object(),limit=1)
         self.assertEqual(caught.exception.code,'invalid')
 
+    async def test_remote_observation_budget_errors_match_on_installed_surfaces(self):
+        for budget in [0, -1, 86_400_001, 2**65, True, "1000", 1.5]:
+            with self.assertRaises(ChainError) as sync:
+                await asyncio.to_thread(Client.remote, "invalid", "request", observation_timeout_ms=budget)
+            with self.assertRaises(ChainError) as asynchronous:
+                await AsyncClient.remote("invalid", "request", observation_timeout_ms=budget)
+            self.assertEqual(sync.exception.code, "invalid")
+            self.assertEqual(asynchronous.exception.failure, sync.exception.failure)
+
     def test_full_domain_context_is_separate_from_exception_display(self):
         result = {'run_id':'00000000-0000-0000-0000-000000000001','remote_effect':'partial',
                   'retry':{'kind':'never'},'error':{'category':'io','phase':'cleanup','code':'CHAIN_UPSTREAM','retry':{'kind':'never'}},

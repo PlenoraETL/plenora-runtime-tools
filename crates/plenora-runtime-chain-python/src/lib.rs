@@ -108,7 +108,15 @@ struct NativeRemoteClient {
 #[pymethods]
 impl NativeRemoteClient {
     #[new]
-    fn new(py: Python<'_>, server: &str, subject: &str) -> PyResult<Self> {
+    #[pyo3(signature = (server, subject, observation_timeout_json="10000"))]
+    fn new(
+        py: Python<'_>,
+        server: &str,
+        subject: &str,
+        observation_timeout_json: &str,
+    ) -> PyResult<Self> {
+        let observation_timeout_ms: u64 = serde_json::from_str(observation_timeout_json)
+            .map_err(|_| native_error(plenora_runtime_chains::Error::Invalid))?;
         py.detach(|| {
             let runtime = tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(2)
@@ -116,7 +124,11 @@ impl NativeRemoteClient {
                 .build()
                 .map_err(|_| PyRuntimeError::new_err("storage"))?;
             let client = runtime
-                .block_on(RemoteClient::connect(server, subject))
+                .block_on(RemoteClient::connect_with_timeout(
+                    server,
+                    subject,
+                    observation_timeout_ms,
+                ))
                 .map_err(native_error)?;
             Ok(Self { client, runtime })
         })

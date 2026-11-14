@@ -82,3 +82,12 @@ enumerata in [chain-crash-evidence](chain-crash-evidence.json), distinguendo
 prove locali e reali di sottosistema. I controlli installati positivi sono in
 test_controls_real.py, cablati nel job PostgreSQL/NATS; esito CI da verificare
 sullo SHA corrente, senza attestare librerie reali.
+
+
+Il budget di osservazione remoto e separato dalla deadline autorizzata del run:
+`--observation-timeout-ms N` nei comandi CLI con `--server`,
+`Client.remote(..., observation_timeout_ms=N)` e `AsyncClient.remote(...)`,
+`RemoteClient::connect_with_timeout(server, subject, N)` in Rust. Default 10000 ms;
+intervallo 1..86400000 ms. Un timeout non cancella, non ripete e non estende il run.
+Il client Rust e l'unica autorita del timeout; il timer implicito NATS e disabilitato.
+I comandi legacy remote-call conservano il default; la sintassi chain espone il parametro.

@@ -39,6 +39,8 @@ def generate():
     all_plan = copy.deepcopy(plan)
     all_plan.update(steps=[], outputs={}, components={'fixture-'+name:copy.deepcopy(plan['components']['io']) for name in sorted({key.split('.')[0] for key in operations()})})
     all_plan['budgets'] = {k: 100_000_000 for k in all_plan['budgets']}
+    # A one-operation catalogue probe keeps the fixture execution window; byte budgets do not set time.
+    all_plan['budgets']['elapsed_ms'] = plan['budgets']['elapsed_ms']
     all_result = copy.deepcopy(result)
     all_result.update(steps=[], outputs={}, remote_effect='none')
     registry = json.loads(config['registry'])

@@ -439,3 +439,19 @@ metadati incoerenti senza perdita e mancata decodifica di payload non scaduti.
 Rischio: attribuire ai gate locali una qualifica reale non eseguita. Chiusura:
 job Linux/Windows e campagne infrastrutturali verdi sul medesimo SHA; soglia 90%
 invariata. Backfill sotto timeout da qualificare anche alla dimensione operativa.
+
+
+## PR23 ci23d: osservazione e coverage host
+
+Due prove run via NATS scadono a 10 secondi senza errori SQL associati. La fixture
+consente 100 secondi piu cleanup: le prove dichiarano 131000 ms di osservazione
+(100000 esecuzione, 1000 cleanup, due statement SQL da 15000). Il default pubblico
+rimane 10000. Una nuova prova NATS reale distingue timeout, reply tardiva, assenza
+di servizio e risposta oltre il timer implicito del driver, senza replay.
+Il job coverage raccoglie anche host/worker PostgreSQL-NATS e queste prove di
+trasporto, senza esclusioni e senza ridurre la soglia. Database host separato
+per preservare i 7/90 giorni dopo i test store che riducono la policy.
+Resta aperta la conferma CI sul medesimo SHA; nessuna attestazione locale di
+PostgreSQL/NATS. I log delle chiamate indicano operazione, durata e categoria,
+senza valori del piano. Non si attribuisce a uno specifico costo SQL una causa
+non dimostrata dai log disponibili.

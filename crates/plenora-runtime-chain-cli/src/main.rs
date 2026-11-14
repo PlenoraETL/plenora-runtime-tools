@@ -57,6 +57,7 @@ fn execute() -> Result<Option<Response>, Error> {
             Endpoint::Remote {
                 server: server.clone(),
                 subject: subject.clone(),
+                observation_timeout_ms: 10_000,
             },
             None,
             false,
@@ -82,9 +83,18 @@ fn execute() -> Result<Option<Response>, Error> {
         .map_err(|_| Error::Storage)?;
     let session = match (endpoint, scripted) {
         (_, Some(host)) => Session::Scripted(host),
-        (Endpoint::Remote { server, subject }, None) => {
-            Session::Remote(runtime.block_on(RemoteClient::connect(&server, &subject))?)
-        }
+        (
+            Endpoint::Remote {
+                server,
+                subject,
+                observation_timeout_ms,
+            },
+            None,
+        ) => Session::Remote(runtime.block_on(RemoteClient::connect_with_timeout(
+            &server,
+            &subject,
+            observation_timeout_ms,
+        ))?),
         _ => return Err(Error::Invalid),
     };
     if json_lines {

@@ -770,3 +770,14 @@ fallimento, categoria chiusa, SQLSTATE e stato connessione; non vengono stampati
 SQL, messaggi del driver, DSN o valori. Il timeout interno NATS conserva Timeout.
 La scansione globale dei payload era un costo non limitato sotto il lock globale;
 la sua responsabilita nei cinque fallimenti ci23c resta da confermare in CI.
+
+
+## Budget di osservazione remoto
+
+Rust, CLI e SDK sync/async inoltrano lo stesso parametro di osservazione al client
+Rust: default 10s invariato, limite finito 1ms..1giorno, distinto dai budget e dal
+consenso del piano. Il timeout non implica fallimento dello step, cancellazione
+o retry. Il driver NATS non applica un secondo timer nascosto. Le prove di catena
+usano un budget dichiarato compatibile con la durata autorizzata dalla fixture;
+RT-010 continua ad attendere failed, effetto none, senza modificare il verdetto.
+Qualifica del delta: nuova campagna reale e coverage 90% sullo SHA finale.

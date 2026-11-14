@@ -23,12 +23,26 @@ fn request_failure(kind: async_nats::RequestErrorKind) -> Error {
 pub struct RemoteClient {
     client: async_nats::Client,
     subject: String,
+    observation_timeout: Duration,
 }
 impl RemoteClient {
     /// Bind a host-configured subject; wildcards and whitespace are refused.
     /// # Errors
     /// Returns data-free transport errors, without connection strings or credentials.
     pub async fn connect(server: &str, subject: &str) -> Result<Self, Error> {
+        Self::connect_with_timeout(server, subject, 10_000).await
+    }
+    /// Configure the observation wait in milliseconds, independently of run deadlines.
+    /// # Errors
+    /// Rejects zero or more than one day; expiry never cancels or retries accepted work.
+    pub async fn connect_with_timeout(
+        server: &str,
+        subject: &str,
+        observation_timeout_ms: u64,
+    ) -> Result<Self, Error> {
+        if !(1..=86_400_000).contains(&observation_timeout_ms) {
+            return Err(Error::Invalid);
+        }
         if subject.is_empty()
             || subject.len() > 256
             || subject
@@ -37,13 +51,19 @@ impl RemoteClient {
         {
             return Err(Error::Invalid);
         }
-        let client = tokio::time::timeout(Duration::from_secs(10), async_nats::connect(server))
-            .await
-            .map_err(|_| Error::Timeout)?
-            .map_err(|_| Error::Storage)?;
+        let client = tokio::time::timeout(
+            Duration::from_secs(10),
+            async_nats::ConnectOptions::new()
+                .request_timeout(None)
+                .connect(server),
+        )
+        .await
+        .map_err(|_| Error::Timeout)?
+        .map_err(|_| Error::Storage)?;
         Ok(Self {
             client,
             subject: subject.into(),
+            observation_timeout: Duration::from_millis(observation_timeout_ms),
         })
     }
     /// Send exact facade bytes; no domain algorithms or result rewriting live in this client.
@@ -58,7 +78,7 @@ impl RemoteClient {
         let bytes = serde_json::to_vec(&crate::control::Wire::capture(&message))
             .map_err(|_| Error::Invalid)?;
         let reply = tokio::time::timeout(
-            Duration::from_secs(10),
+            self.observation_timeout,
             self.client.request(self.subject.clone(), bytes.into()),
         )
         .await

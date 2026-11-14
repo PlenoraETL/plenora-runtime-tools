@@ -23,6 +23,18 @@ class Campaign(unittest.TestCase):
             del actual[name]
             self.assertEqual(failures(actual,expected),[name])
 
+    def test_real_host_coverage_is_collected_without_lowering_threshold(self):
+        workflow = (ROOT/'.github/workflows/ci.yml').read_text(encoding='utf-8')
+        coverage = ci_job(workflow, 'coverage')
+        for fragment in [
+            '--test remote --locked --no-report -- nats_real_scripted --ignored',
+            '--test worker --locked --no-report -- postgres_nats_real --ignored',
+            '--test transport --locked --no-report -- --ignored',
+            'cargo llvm-cov report --summary-only --fail-under-lines 90',
+        ]:
+            self.assertIn(fragment, coverage)
+        self.assertIn('--test transport --locked -- --ignored', ci_job(workflow, 'postgres-integration'))
+
     def test_all_campaign_steps_are_attempted_and_aggregated(self):
         workflow = (ROOT/'.github/workflows/ci.yml').read_text(encoding='utf-8')
         for job in ['nats-integration','postgres-integration','coverage']:

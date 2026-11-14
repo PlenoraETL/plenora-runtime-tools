@@ -14,6 +14,8 @@ pub enum Endpoint {
         server: String,
         /// Exact host-authorized request subject.
         subject: String,
+        /// Observation wait, independent of the run deadline.
+        observation_timeout_ms: u64,
     },
 }
 /// Parsed presentation and transport controls; no domain execution occurs during parsing.
@@ -87,6 +89,11 @@ pub fn parse(
         Endpoint::Remote {
             server: required(&mut options, "--server")?,
             subject: required(&mut options, "--subject")?,
+            observation_timeout_ms: options
+                .remove("--observation-timeout-ms")
+                .map(|s| number(&s))
+                .transpose()?
+                .unwrap_or(10_000),
         }
     };
     let json_lines = options.remove("--json-lines").is_some();
@@ -199,6 +206,33 @@ fn number(s: &str) -> Result<u64, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn observation_option_is_transport_only() -> Result<(), Error> {
+        let args = "chain run --plan p --run id --server local --subject request --observation-timeout-ms 131000 --deadline-ms 42 --json".split_whitespace().map(str::to_owned).collect::<Vec<_>>();
+        let command = parse(&args, |_| Ok("{}".into()))?;
+        assert!(matches!(
+            command.endpoint,
+            Endpoint::Remote {
+                observation_timeout_ms: 131_000,
+                ..
+            }
+        ));
+        assert!(matches!(
+            command.request,
+            Request::Run {
+                options: RunOptions {
+                    deadline_ms: Some(42),
+                    ..
+                },
+                ..
+            }
+        ));
+        for value in ["01", "+1", "-1", "18446744073709551616"] {
+            let args = format!("capabilities --server local --subject request --observation-timeout-ms {value} --json").split_whitespace().map(str::to_owned).collect::<Vec<_>>();
+            assert!(parse(&args, |_| Err(Error::Invalid)).is_err());
+        }
+        Ok(())
+    }
 
     #[test]
     fn all_control_commands_map_to_the_shared_request() -> Result<(), Error> {
