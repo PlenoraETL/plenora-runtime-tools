@@ -1668,7 +1668,7 @@
     },
     {
       "id": "database.read@1",
-      "name": "database.read@1",
+      "name": "database.read@1 (read@2: lacuna upstream, nessun alias)",
       "owner": "plenora-runtime-adapter-database",
       "source": "B.2",
       "surfaces": {
@@ -1730,8 +1730,19 @@
           "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
           "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
           "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "s3_database": {
+          "pin": "f4fdb9b5f09d8babe795f68e894949693aa9d0a1",
+          "rust": "crates/plenora-runtime-adapter-database/tests/database.rs",
+          "real_postgres_ci": "crates/plenora-runtime-chain-host/tests/database.rs",
+          "installed_ci": "crates/plenora-runtime-chain-python/tests/test_database_real.py",
+          "remaining": "PostgreSQL/installed CI execution, Linux/Windows qualification and chain contract ratification; no promotion from target catalog.",
+          "installed_local_scope": "DatabaseAdmission: native database configuration, identical invalid-call rejection through installed CLI/sync/async, read@2 rejected without alias; no live PostgreSQL claim."
         }
-      }
+      },
+      "upstream_gaps": [
+        "database.read@2 absent in database 11.0.0 discovery; read@1 explicitly authorized, no private alias."
+      ]
     },
     {
       "id": "database.query@1",
@@ -1864,6 +1875,14 @@
           "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
           "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
           "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "s3_database": {
+          "pin": "f4fdb9b5f09d8babe795f68e894949693aa9d0a1",
+          "rust": "crates/plenora-runtime-adapter-database/tests/database.rs",
+          "real_postgres_ci": "crates/plenora-runtime-chain-host/tests/database.rs",
+          "installed_ci": "crates/plenora-runtime-chain-python/tests/test_database_real.py",
+          "remaining": "PostgreSQL/installed CI execution, Linux/Windows qualification and chain contract ratification; no promotion from target catalog.",
+          "installed_local_scope": "DatabaseAdmission: native database configuration, identical invalid-call rejection through installed CLI/sync/async, read@2 rejected without alias; no live PostgreSQL claim."
         }
       }
     },
@@ -2132,6 +2151,14 @@
           "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
           "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
           "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "s3_io_candidate": {
+          "scope": "Real Rust IO candidate 9.0.0 at 9c087aa7daf5d9ad10843ebf3027ae8858f66b94; actual read@2/write@2 discovery; bounded Arrow stream and Primary Geometry, immutable reports, lossless-only bundle publication.",
+          "rust": "crates/plenora-runtime-adapter-io/tests/io.rs",
+          "host_real_ci": "crates/plenora-runtime-chain-host/tests/io.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_io_real.py",
+          "upstream_gaps": "Candidate, not released. IPC multi-geometry primary=none silently rewritten upstream: adapter rejects schema change in read/write. Native errors can omit loss/fidelity/counters. No injectable operation clock. No external publication recovery resolver.",
+          "remaining": "Full five-surface qualification remains open; PostgreSQL and installed real execution are CI gates, not local passes. IPC file/compressed/without EOS outside this profile. Optional native backends are not qualified."
         }
       }
     },
@@ -2199,6 +2226,14 @@
           "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
           "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
           "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "s3_io_candidate": {
+          "scope": "Real Rust IO candidate 9.0.0 at 9c087aa7daf5d9ad10843ebf3027ae8858f66b94; actual read@2/write@2 discovery; bounded Arrow stream and Primary Geometry, immutable reports, lossless-only bundle publication.",
+          "rust": "crates/plenora-runtime-adapter-io/tests/io.rs",
+          "host_real_ci": "crates/plenora-runtime-chain-host/tests/io.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_io_real.py",
+          "upstream_gaps": "Candidate, not released. IPC multi-geometry primary=none silently rewritten upstream: adapter rejects schema change in read/write. Native errors can omit loss/fidelity/counters. No injectable operation clock. No external publication recovery resolver.",
+          "remaining": "Full five-surface qualification remains open; PostgreSQL and installed real execution are CI gates, not local passes. IPC file/compressed/without EOS outside this profile. Optional native backends are not qualified."
         }
       }
     },

@@ -842,3 +842,128 @@ non promuove i gate storici ne i consumer legacy. Audit/deny, fuzz prolungato,
 memoria e provider S3/S4 conservano i propri gate separati. Una cancellazione
 del workflow puo impedire l'upload: assenza dell'artefatto significa mancata
 conferma, mai successo.
+
+## S3: adattatore database 11.0.0
+
+Regola: discovery della libreria compilata, nessun alias privato e nessuna
+qualifica derivata dal catalogo target. Pin pubblicato `py-v11.0.0`, commit
+`f4fdb9b5f09d8babe795f68e894949693aa9d0a1`: `database.read@1` (input/result v1)
+e `database.write@2` (input/result v2, contenuto WriteOutcome v3).
+Il titolare ha autorizzato queste versioni. **read@2 resta lacuna upstream**:
+chiusura solo con un pin che lo esponga realmente, non con un alias locale.
+
+Il nuovo crate adapter dipende dai crate core/engine/PostgreSQL pinnati, usa
+Provider/Engine, write_with_consent e settle. Non usa il binding runtime
+upstream: budget propri e perdita di read_loss sugli errori sink.finish lo
+rendono inadatto a questa integrazione. L'adapter raccoglie read_loss prima
+della pubblicazione e conserva il documento originale separato dal risultato
+catena, anche con effetto unknown. La query runtime resta summary JSON: non
+viene offerta come sostituto di read Arrow.
+
+Profilo ristretto esplicito: IPC non compresso materializzato, 1 MiB per
+artefatto/documento, 32 colonne, schema entro 16 KiB, memoria/spool riservati
+prima degli effetti. Nessun cast o normalizzazione; schema pubblicato,
+metadata, primary geometry e digest sono verificati. Riferimenti transitivi
+content-addressed e credenziali risolte dalla configurazione autenticata.
+Perdite in read rifiutate; rischi write richiedono fidelity reported e consenso
+coperto dall'intero piano. Report assente significa unavailable, mai complete.
+Rischio residuo: profili o documenti oltre questi limiti richiedono un altro
+adapter qualificato; nessun troncamento. Recovery senza evidenza di transazione
+resta requires_recovery e non reinvoca il provider.
+
+Correzione della bozza locale chains-v2: component.identity usa la grammatica
+del nome componente (per esempio plenora-database-tools), non quella degli
+identificatori di contratto con suffisso vN. Non cambia il pin upstream e non
+ratifica la bozza catene. Rischio: consumer di bozze precedenti; chiusura con
+ratifica e rigenerazione dei consumer. I contratti common restano al loro pin.
+
+DATA 4.1.5 `2ff92a250ec8921a78d6d842ea92954173b36e63`: run@3 esiste nella API
+Rust plenora_cli::artefatti; CLI/SDK run@3 e binding runtime restano lacune,
+senza alias run@2/run@3. IO `9c087aa7daf5d9ad10843ebf3027ae8858f66b94` resta
+**candidate 9.0.0 non pubblicata**. Questo era il limite del pin DATA 4.1.5; il binding 5.0.0 candidate adottato successivamente e descritto nella sezione S3 DATA sotto.
+Le evidenze incrementali non promuovono le cinque superfici dell'inventario:
+PostgreSQL reale e parita installata sono gate CI, distinti dalle prove locali.
+
+Il profilo database iniziale e tabellare: campi geometry/geography, metadata
+plenora.primary_geometry (anche none) e porte primary_geometry=true sono
+rifiutati esplicitamente. Nessun claim Primary Geometry pubblicizzato:
+la conservazione semantica spaziale resta da qualificare, non si afferma che
+il database perda questi metadati. IO resta il passo successivo previsto.
+
+
+## S3 IO candidate 9.0.0
+
+Regola: contratti realmente esposti, nessun alias. Pin IO
+9c087aa7daf5d9ad10843ebf3027ae8858f66b94 candidate NON pubblicata:
+io.read@2 / io.write@2, input v1 e result v2. Discovery, content types e driver
+availability provengono dalla libreria collegata. Nessun claim dal catalogo target.
+
+Ambito: adapter Rust e profili host/CLI/wheel, Arrow stream bounded e pubblicazione
+bundle atomica dopo fidelity/loss. `reported` non concede perdite IO: chiusura
+solo con un contratto comune di consenso IO ratificato e prove relative.
+IPC file/compresso/senza EOS fuori profilo vengono rifiutati esplicitamente.
+
+Lacuna upstream verificata: primary_geometry=none multi-geometria e eliminato
+in IPC read/write con rapporto lossless. Rischio: perdita metadata silenziosa.
+Mitigazione: confronto esatto schema prima di esportare Arrow/pubblicare bundle;
+rapporto originale recuperabile, completezza non qualificata. Chiusura: nuovo
+pin corretto e regressioni su entrambe le direzioni/formati IPC.
+
+Altre lacune: errori nativi prima della serializzazione possono omettere i
+rapporti fidelity/loss e i contatori consumati; si dichiara unavailable, non
+rapporto vuoto. I contatori write includono le righe IPC gia verificate; sulle
+read fallite il consumo interno non e osservabile e il limite resta riservato.
+Richiesta IO non espone clock iniettabile e il binding runtime ha materializzazione
+con budget propri: percorso diretto scelto per fornire i tetti. Chiusura con API
+che preservino evidenza completa sugli errori e clock/budget governabili.
+
+Contratti catene restano bozza locale; prove locali IO non ratificano la bozza,
+non qualificano ogni driver opzionale e non attestano CI Linux/Windows.
+
+
+## CI25: prerequisito PostgreSQL del provider database 11.0.0
+
+Regola: qualificare solo il profilo eseguito. Ambito: read@1/write@2 del pin
+f4fdb9b. Il probe interroga spatial_ref_sys e postgis_typmod_* anche per colonne
+non spaziali: PostgreSQL senza PostGIS fallisce not_found/probe. La CI installa
+PostGIS e attiva l'estensione nelle basi isolate delle superfici e della coverage.
+Rischio: il profilo PostgreSQL senza estensione non e qualificato; nessun bypass
+nel provider. Chiusura: correzione upstream e nuovo pin provato senza PostGIS.
+Il nuovo job reale e il recupero della soglia coverage 90% devono essere verificati
+in CI; la sola raccolta aggiunta non costituisce un gate passato.
+
+
+## S3 DATA 5.0.0 candidate (eba11205)
+
+Regola: usare le API e i contratti reali, senza alias di versione. Il prodotto
+collega plenora-cli/core/pipeline al commit completo
+`eba11205df585469a154de3ad76ab22a0cb9cad6`, candidate NON release. Il crate
+plenora-cli espone una libreria Rust: nessun subprocess CLI. Discovery runtime
+reale data.run@3, input/result v3, artifact_content_types source/sink per le
+porte Arrow. CLI e SDK upstream conservano run@2: la parita delle facciate
+runtime-tools non cambia le versioni upstream e non qualifica i 146 kernel.
+
+Ambito provato: Arrow stream esatto, porte nominate (1..8 ingressi/uscite),
+Primary Geometry e metadata verificati prima/dopo la libreria. Il manifesto
+chiuso e C-01 `plenora-data-localized-effects-v1` restano documenti distinti,
+con digest e risorse nel journal/rapporto catena. C-01 e associato ai passi
+native per numero, ordine, out/op; division_by_zero_rows e verificato dal
+manifesto separatamente. `reported` non concede perdite DATA: removed,
+metadata_invalidated o divisioni per zero non vengono pubblicati. Chiusura
+per profili con perdite: consenso comune ratificato e prove di grant scoped.
+
+Lacuna upstream riprodotta: multi-geometria con primary_geometry=none perde
+la chiave durante pubblicazione dello schema anche su piano senza passi;
+C-01 ha steps vuoto. Rischio: perdita metadata non riportata. Mitigazione:
+confronto conservativo dei metadata dello schema e delle identita dei campi
+sopravvissuti; rifiuto prima di pubblicare Arrow, manifesto/C-01 conservati in
+upstream_result/diagnostics, fidelity/loss_report unavailable. Chiusura:
+nuovo pin che copra anche la riscrittura finale dello schema, test raw metadata.
+La guardia puo rifiutare trasformazioni lecite con metadata riscritti: nessun
+claim universale di lossless o qualifica derivata dal catalogo.
+
+Errori native possono non restituire C-01; unavailable non significa rapporto
+vuoto. Errori pubblici preservano assi e usano messaggio fisso; dettagli native
+non vengono esposti. L'effetto native riguarda il resolver privato e resta nel
+documento; remote_effect catena resta none per il calcolo, pubblicazione
+artefatti solo con conferma del journal. Dopo conferma incerta non si reinvoca.

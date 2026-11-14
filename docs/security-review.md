@@ -360,3 +360,87 @@ D o del deployment TLS/ACL. Chiusura: prove complete dei requisiti nel profilo
 operativo e degli engine S3/S4; deviazioni per regola in
 [qualification](qualification.md#conferma-integrata-p25). Il manifest mantiene
 ogni riga open e il gate rifiuta promozioni non supportate dal modello di prova.
+
+## S3: evidenza, risorse e trasporto database
+
+Regola: nessuna perdita silenziosa o successo presunto. Ambito: database
+11.0.0 f4fdb9b. Il binding runtime perde read_loss quando sink.finish fallisce;
+la CLI presenta casi analoghi su cleanup/pubblicazione. Nessuna modifica
+upstream: il nuovo adapter usa direttamente Provider/Engine, raccoglie il
+rapporto prima della pubblicazione e lo mantiene nel ledger come documento.
+Rischio upstream residuo per chi usa quei binding: chiusura con regressioni e
+fix upstream. Non estendere il rilievo al Python StreamState, che lo conserva.
+
+Riserva finita prima degli effetti; report write statici limitati e verifica
+upstream del peggior encoding execution_loss. Un provider non conforme o una
+pubblicazione primaria non confermata non autorizzano successo/replay: si
+richiede recovery. Chiusura della qualifica: prove reali di crash/risposta persa
+con deployment fissato. L'assenza di resolver transazioni resta esplicita.
+
+TLS e attivo per default. `allow_plaintext: true` e una decisione esplicita del
+resolver autenticato, usata solo dalla campagna CI su loopback effimero.
+Rischio: intercettazione se il deployment abilita plaintext su rete non fidata;
+chiusura operativa con TLS/CA/ACL qualificati e configurazione protetta. Non e
+un parametro del piano. Credenziali e payload non entrano in Display/Debug o
+messaggi di errore; i rapporti di dominio restano artefatti autorizzati.
+
+Clock catene iniettabile e cancel persistito letto anche tra host distinti;
+ResourceBudget upstream usa Instant internamente. Non si dichiara determinismo
+dei timeout fisici del provider. Chiusura con campagne temporali dedicate.
+
+
+## S3 IO candidate: staging e pubblicazione
+
+Ambito: adapter IO al commit 9c087aa7daf5d9ad10843ebf3027ae8858f66b94.
+Regola: nessuna pubblicazione presunta o conversione silenziosa. Le directory
+host di staging/destinazione devono essere riservate contro modifiche concorrenti
+esterne. Il resolver non accetta percorsi dal piano; snapshot rifiutano traversal,
+symlink e alias Windows. La pubblicazione usa il core no-clobber dopo i controlli.
+Rischio residuo: crash tra rename del bundle e conferma del journal, durabilita
+non confermata e cleanup fallito. Nessun resolver di evidenza esterna: stato
+requires_recovery, nessuna reinvocazione. Chiusura: resolver durevole qualificato
+con fault injection ai confini fsync/rename/journal, inclusi deployment reali.
+Il native worker viene drenato; fsync/rename non promettono cancel immediato.
+
+
+Audit locale S3 IO: il database advisory in cache segnala atomic-polyfill 1.0.3
+non mantenuto (RUSTSEC-2023-0089), dipendenza transitiva, senza vulnerabilita
+rilevate in quella cache. Nessuna soppressione di advisory aggiunta. Rischio:
+assenza manutenzione upstream e advisory cache non aggiornata; chiusura con
+rimozione/aggiornamento upstream e audit CI aggiornato (inclusi yanked).
+
+
+## CI25: pacchetto PostGIS del servizio effimero
+
+Il base image PostgreSQL resta fissato per digest. Il Dockerfile dei test installa
+postgresql-17-postgis-3 dal repository apt del base image: il pacchetto transitivo
+non e fissato per digest/versione, quindi il servizio di qualifica non e ermetico.
+Ambito solo CI effimera, nessuna dipendenza del prodotto. Rischio: aggiornamenti
+apt cambiano il servizio provato. Chiusura: immagine PostgreSQL+PostGIS pubblicata
+e verificata, fissata per digest, con aggiornamenti espliciti.
+
+
+## S3 DATA candidate: confine dei budget e staging upstream
+
+Regola: nessuna quota dichiarata come limite OS se il provider non la applica.
+Adapter: massimo 1 MiB per input/output/documento, 8 porte per lato, IPC senza
+compressione/EOS obbligatorio, schema 16 KiB/32 campi, massimo 32 passi e
+max_governed_memory_bytes esplicito <=16 MiB nel piano nativo; limiti righe
+entro la reservation. Risorse host riservate conservativamente (128 MiB) e
+riconciliate senza pubblicare se il budget del journal non basta.
+
+Rischio residuo: DATA crea temporanei interni con tempfile::tempdir; API pubblica
+senza directory/quota spool iniettabile. max_governed_memory_bytes non e un
+limite RSS/allocator; alcuni limiti core sono dichiarati ma non applicati.
+La reservation governa il ledger e i byte attraverso il resolver, NON una quota
+OS dei temporanei interni o delle allocazioni native. Cleanup su errore puo
+passare dal Drop upstream senza conferma. Non si cambia TEMP globale in-process.
+Chiusura: API upstream con staging controllabile, quote applicate e cleanup
+confermato, poi test fault/quota. Non qualificato per una sandbox ostile con
+hard cap RSS/spool richiesto. La cancellazione e cooperativa fra kernel: il
+worker blocking viene sempre drenato, non si promette interruzione immediata.
+
+Il pin DATA impone crc32fast 1.5.2 e unicode-normalization 0.1.25: Cargo ha dovuto
+unificare queste due transitive (prima 1.5.3/0.1.26). Nessun aggiornamento globale
+del lockfile: necessari all'esatto pin candidate. Audit/deny restano gate CI;
+la compilazione offline non attesta l'assenza di advisory.

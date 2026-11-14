@@ -569,6 +569,361 @@ adapters/plenora-runtime-nats/src/replay.rs |  | const fn capabilities () -> Bro
 adapters/plenora-runtime-nats/src/replay.rs |  | fn delivery_policy (source : & ReplaySource) -> DeliverPolicy
 adapters/plenora-runtime-nats/src/replay.rs |  | pub
 adapters/plenora-runtime-nats/src/replay.rs |  | pub (crate)
+crates/plenora-runtime-adapter-data/src/ipc.rs |  | 
+crates/plenora-runtime-adapter-data/src/ipc.rs |  | fn check (bytes : & [u8] , port : & Port , i : & Invocation , row_limit : u64 ,) -> Result < (u64 , u64) , Error >
+crates/plenora-runtime-adapter-data/src/ipc.rs |  | fn framing (bytes : & [u8] , memory_limit : u64) -> Result < () , Error >
+crates/plenora-runtime-adapter-data/src/ipc.rs |  | fn schema (fields : & Schema , port : & Port) -> Result < () , Error >
+crates/plenora-runtime-adapter-data/src/ipc.rs |  | pub (crate)
+crates/plenora-runtime-adapter-data/src/ipc.rs |  | pub (crate)
+crates/plenora-runtime-adapter-data/src/ipc.rs | impl Write for Limited { } | 
+crates/plenora-runtime-adapter-data/src/ipc.rs | impl Write for Limited { } | 
+crates/plenora-runtime-adapter-data/src/ipc.rs | impl Write for Limited { } | fn flush (& mut self) -> std :: io :: Result < () >
+crates/plenora-runtime-adapter-data/src/ipc.rs | impl Write for Limited { } | fn write (& mut self , bytes : & [u8]) -> std :: io :: Result < usize >
+crates/plenora-runtime-adapter-data/src/lib.rs |  | 
+crates/plenora-runtime-adapter-data/src/lib.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Config { pub tenant : String , pub artifact_sha256 : String , pub ports : Ports , pub authorized_plans : Vec < String > , pub artifacts : BTreeMap < String , Vec < u8 > > , }
+crates/plenora-runtime-adapter-data/src/lib.rs |  | fn digest (bytes : & [u8]) -> String
+crates/plenora-runtime-adapter-data/src/lib.rs |  | fn encode (value : & impl Serialize) -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs |  | fn reference (i : & Invocation , label : & str) -> String
+crates/plenora-runtime-adapter-data/src/lib.rs |  | fn run (reference : & str) -> Option < & str >
+crates/plenora-runtime-adapter-data/src/lib.rs |  | format ! ("ref:data-{}-{}" , i . run_id , digest (format ! ("{}:{label}" , i . message_id) . as_bytes ()))
+crates/plenora-runtime-adapter-data/src/lib.rs |  | format ! ("{:x}" , Sha256 :: digest (bytes))
+crates/plenora-runtime-adapter-data/src/lib.rs |  | mod ipc ;
+crates/plenora-runtime-adapter-data/src/lib.rs |  | mod operation ;
+crates/plenora-runtime-adapter-data/src/lib.rs |  | mod receipt ;
+crates/plenora-runtime-adapter-data/src/lib.rs |  | mod registry ;
+crates/plenora-runtime-adapter-data/src/lib.rs |  | pub (crate)
+crates/plenora-runtime-adapter-data/src/lib.rs |  | pub (crate)
+crates/plenora-runtime-adapter-data/src/lib.rs |  | pub (crate)
+crates/plenora-runtime-adapter-data/src/lib.rs |  | pub struct DataAdapter < S > { config : Config , store : Arc < S > , clock : Arc < dyn Clock > , plans : BTreeMap < String , Plan > , running : Mutex < BTreeMap < String , CancellationToken > > , }
+crates/plenora-runtime-adapter-data/src/lib.rs |  | pub use registry :: { ArrowPort , Ports , catalog , discovery , registry } ;
+crates/plenora-runtime-adapter-data/src/lib.rs |  | type CancellationToken = Arc < AtomicBool > ;
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | async fn artifact (& self , tenant : & str , reference : & str , limit : usize ,) -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | async fn authorize (& self , tenant : & str , plan : & Plan) -> Result < () , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | async fn invoke (& self , i : & Invocation) -> Result < StepResult , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | async fn prepare (& self , i : & Invocation) -> Result < () , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | async fn recover (& self , i : & Invocation) -> Result < Option < StepResult > , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | async fn request_cancel (& self , i : & Invocation) -> Result < () , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | format ! ("output-{n}")
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | tokio :: pin ! (future)
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | tokio :: select ! { biased ; outcome = & mut future => break outcome , () = tokio :: time :: sleep (std :: time :: Duration :: from_millis (100)) => { let Ok (now) = self . now () else { ownership_lost = true ; token . store (true , Ordering :: Release) ; continue ; } ; tokio :: select ! { biased ; outcome = & mut future => break outcome , journal = tokio :: time :: timeout (std :: time :: Duration :: from_millis (100) , self . store . load (& i . tenant , & i . run_id)) => { match journal { Ok (Ok (journal)) if ! journal . cancellation_requested () => { } , _ => token . store (true , Ordering :: Release) , } } } if now >= i . reservation . deadline_ms { token . store (true , Ordering :: Release) ; } if ! ownership_lost && now . saturating_add (10_000) >= lease . until { tokio :: select ! { biased ; outcome = & mut future => break outcome , renewed = tokio :: time :: timeout (std :: time :: Duration :: from_millis (100) , self . store . renew_resources (& i . tenant , & i . run_id , & lease)) => { if let Ok (Ok (next)) = renewed { lease = next ; } else { ownership_lost = true ; token . store (true , Ordering :: Release) ; } } } } } }
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | vec ! [255 ; MAX_BLOB]
+crates/plenora-runtime-adapter-data/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DataAdapter < S > { } | vec ! []
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | async fn prepared (& self , i : & Invocation) -> Result < operation :: Prepared , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | fn allocation (& self , i : & Invocation) -> Result < ResourceRequest , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | fn new (config : Config , store : Arc < S > , clock : Arc < dyn Clock >) -> Result < Self , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | fn now (& self) -> Result < u64 , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | fn plan (& self , i : & Invocation) -> Result < & Plan , Error >
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | pub
+crates/plenora-runtime-adapter-data/src/lib.rs | impl < S : Store > DataAdapter < S > { } | vec ! [OwnedResource { reference : reference (i , "reservation") , bytes : vec ! [255 ; MAX_BLOB] , consumers : vec ! [] , temporary : true , }]
+crates/plenora-runtime-adapter-data/src/lib.rs | impl std :: fmt :: Debug for Config { } | 
+crates/plenora-runtime-adapter-data/src/lib.rs | impl std :: fmt :: Debug for Config { } | fn fmt (& self , f : & mut std :: fmt :: Formatter < '_ >) -> std :: fmt :: Result
+crates/plenora-runtime-adapter-data/src/operation.rs |  | 
+crates/plenora-runtime-adapter-data/src/operation.rs |  | 
+crates/plenora-runtime-adapter-data/src/operation.rs |  | 
+crates/plenora-runtime-adapter-data/src/operation.rs |  | 
+crates/plenora-runtime-adapter-data/src/operation.rs |  | async fn prepare < S : Store > (raw : & [u8] , i : & Invocation , artifacts : & BTreeMap < String , Vec < u8 > > , store : & Arc < S > ,) -> Result < Prepared , Error >
+crates/plenora-runtime-adapter-data/src/operation.rs |  | fn execute (p : Prepared , i : & Invocation , token : & Arc < AtomicBool >) -> Outcome
+crates/plenora-runtime-adapter-data/src/operation.rs |  | fn failure (category : & str , phase : & str) -> Failure
+crates/plenora-runtime-adapter-data/src/operation.rs |  | fn invalid < T > () -> Result < T , Error >
+crates/plenora-runtime-adapter-data/src/operation.rs |  | fn metadata_preserved (inputs : & [Arc < arrow_schema :: Schema >] , output : & arrow_schema :: Schema ,) -> Result < () , Error >
+crates/plenora-runtime-adapter-data/src/operation.rs |  | fn output_ancestors (plan : & Pipeline , output : & str ,) -> Result < std :: collections :: BTreeSet < String > , Error >
+crates/plenora-runtime-adapter-data/src/operation.rs |  | format ! ("ref:input-{name}")
+crates/plenora-runtime-adapter-data/src/operation.rs |  | format ! ("ref:output-{name}")
+crates/plenora-runtime-adapter-data/src/operation.rs |  | format ! ("ref:output-{name}")
+crates/plenora-runtime-adapter-data/src/operation.rs |  | json ! ("1")
+crates/plenora-runtime-adapter-data/src/operation.rs |  | json ! ("3")
+crates/plenora-runtime-adapter-data/src/operation.rs |  | json ! ("data.run")
+crates/plenora-runtime-adapter-data/src/operation.rs |  | json ! ("plenora.data-tools")
+crates/plenora-runtime-adapter-data/src/operation.rs |  | json ! (i . message_id)
+crates/plenora-runtime-adapter-data/src/operation.rs |  | json ! (i . run_id)
+crates/plenora-runtime-adapter-data/src/operation.rs |  | json ! (i . step . input_contract)
+crates/plenora-runtime-adapter-data/src/operation.rs |  | json ! ({ "category" : category , "phase" : phase , "remote_effect" : native ["remote_effect"] , "retry" : native ["retry"] , "message" : "DATA operation rejected or incomplete." })
+crates/plenora-runtime-adapter-data/src/operation.rs |  | json ! ({ "kind" : "never" })
+crates/plenora-runtime-adapter-data/src/operation.rs |  | pub (crate)
+crates/plenora-runtime-adapter-data/src/operation.rs |  | pub (crate)
+crates/plenora-runtime-adapter-data/src/operation.rs | impl RisolutoreArtefatti for Resolver { } | 
+crates/plenora-runtime-adapter-data/src/operation.rs | impl RisolutoreArtefatti for Resolver { } | 
+crates/plenora-runtime-adapter-data/src/operation.rs | impl RisolutoreArtefatti for Resolver { } | 
+crates/plenora-runtime-adapter-data/src/operation.rs | impl RisolutoreArtefatti for Resolver { } | fn leggi (& self , reference : & str , out : & mut dyn Write) -> std :: io :: Result < () >
+crates/plenora-runtime-adapter-data/src/operation.rs | impl RisolutoreArtefatti for Resolver { } | fn prepara (& self , destinations : & [Destinazione < '_ >]) -> Result < () , RifiutoDestinazioni >
+crates/plenora-runtime-adapter-data/src/operation.rs | impl RisolutoreArtefatti for Resolver { } | fn pubblica (& self , d : & Destinazione < '_ > , content : & mut dyn Read , size : u64 ,) -> Result < () , PubblicazioneFallita >
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | 
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | 
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | fn build (i : & Invocation , outcome : Outcome , request_bytes : u64 , elapsed_ms : u64 ,) -> Result < (StepResult , Vec < OwnedResource >) , Error >
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | fn error (f : & Failure , i : & Invocation , upstream : Option < Document > , reports : & [Report] ,) -> Result < ChainError , Error >
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | fn retry (value : & serde_json :: Value) -> Result < Retry , Error >
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | format ! ("output-{name}")
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | format ! ("ref:lease-{}" , i . message_id)
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | matches ! (kind , "never" | "requires_recovery")
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | pub (crate)
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | serde_json :: json ! ({ "kind" : "never" })
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | vec ! []
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | vec ! []
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | vec ! []
+crates/plenora-runtime-adapter-data/src/receipt.rs |  | vec ! []
+crates/plenora-runtime-adapter-data/src/registry.rs |  | # [derive (Clone , Debug , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct ArrowPort { pub schema_digest : Option < String > , pub primary_geometry : bool , }
+crates/plenora-runtime-adapter-data/src/registry.rs |  | # [derive (Clone , Debug , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Ports { pub inputs : BTreeMap < String , ArrowPort > , pub outputs : BTreeMap < String , ArrowPort > , }
+crates/plenora-runtime-adapter-data/src/registry.rs |  | fn catalog () -> serde_json :: Value
+crates/plenora-runtime-adapter-data/src/registry.rs |  | fn discovery () -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-data/src/registry.rs |  | fn registry (artifact_sha256 : & str , ports : & Ports) -> Result < Registry , Error >
+crates/plenora-runtime-adapter-data/src/registry.rs |  | pub
+crates/plenora-runtime-adapter-data/src/registry.rs |  | pub
+crates/plenora-runtime-adapter-data/src/registry.rs |  | pub
+crates/plenora-runtime-adapter-data/src/registry.rs |  | vec ! ["plenora-arrow-interchange-v1" . into () , "plenora-arrow-primary-geometry-v1" . into () ,]
+crates/plenora-runtime-adapter-data/src/registry.rs |  | vec ! [RegistryBoundariesItem { id : "data-run-run" . into () , source_operation : "data.run" . into () , source_version : 3 , target_operation : "data.run" . into () , target_version : 3 , source_contract : "plenora-arrow-interchange-v1" . into () , target_contract : "plenora-arrow-interchange-v1" . into () , content_type : "application/vnd.apache.arrow.stream" . into () , mode : "direct" . into () , adapter : None , status : "draft" . into () , }]
+crates/plenora-runtime-adapter-data/src/registry.rs |  | vec ! [RegistryOperationsItem { component : "data" . into () , operation : "data.run" . into () , version : 3 , input_contract : op ["input"] ["contract"] . as_str () . ok_or (Error :: Unsupported) ? . into () , output_contract : op ["output"] ["contract"] . as_str () . ok_or (Error :: Unsupported) ? . into () , inputs : ports . inputs . iter () . map (| (n , p) | (n . clone () , p . port ())) . collect () , outputs : ports . outputs . iter () . map (| (n , p) | (n . clone () , p . port ())) . collect () , }]
+crates/plenora-runtime-adapter-data/src/registry.rs |  | vec ! []
+crates/plenora-runtime-adapter-data/src/registry.rs | impl ArrowPort { } | fn port (& self) -> Port
+crates/plenora-runtime-adapter-data/src/registry.rs | impl ArrowPort { } | pub
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | 
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | 
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | async fn encode (stream : & mut dyn BatchStream , port : & Port , token : & CancellationToken , byte_limit : usize , row_limit : u64 , memory_limit : u64 , consumed : & mut u64 ,) -> Result < (Vec < u8 > , u64 , u64 , u64) , DatabaseError >
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | fn check (token : & CancellationToken) -> Result < () , DatabaseError >
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | fn decode (bytes : & [u8] , port : & Port , row_limit : u64 , memory_limit : u64 ,) -> Result < Input , Error >
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | fn framing (bytes : & [u8] , memory_limit : u64) -> Result < () , Error >
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | fn schema (schema : & Schema , port : & Port) -> Result < () , Error >
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | matches ! (token . reason () , Some (plenora_database_core :: cancellation :: CancellationReason :: Deadline))
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | pub (crate)
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | pub (crate)
+crates/plenora-runtime-adapter-database/src/arrow.rs |  | pub (crate)
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl BatchStream for Input { } | 
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl BatchStream for Input { } | 
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl BatchStream for Input { } | 
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl BatchStream for Input { } | fn declared_input_rows (& self) -> Option < u64 >
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl BatchStream for Input { } | fn next_batch < 'a > (& 'a mut self , cancellation : & 'a CancellationToken ,) -> ProviderFuture < 'a , Option < RecordBatch > >
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl BatchStream for Input { } | fn schema (& self) -> SchemaRef
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl Write for Limited { } | 
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl Write for Limited { } | 
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl Write for Limited { } | fn flush (& mut self) -> std :: io :: Result < () >
+crates/plenora-runtime-adapter-database/src/arrow.rs | impl Write for Limited { } | fn write (& mut self , bytes : & [u8]) -> std :: io :: Result < usize >
+crates/plenora-runtime-adapter-database/src/lib.rs |  | 
+crates/plenora-runtime-adapter-database/src/lib.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Config { pub tenant : String , pub artifact_sha256 : String , pub ports : Ports , pub authorized_plans : Vec < String > , pub artifacts : BTreeMap < String , Vec < u8 > > , }
+crates/plenora-runtime-adapter-database/src/lib.rs |  | fn digest (bytes : & [u8]) -> String
+crates/plenora-runtime-adapter-database/src/lib.rs |  | fn encode (value : & impl Serialize) -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs |  | fn postgres (destination : String , secret : SecretString) -> Connection
+crates/plenora-runtime-adapter-database/src/lib.rs |  | fn postgres_plaintext (destination : String , secret : SecretString) -> Connection
+crates/plenora-runtime-adapter-database/src/lib.rs |  | fn reference (i : & Invocation , label : & str) -> String
+crates/plenora-runtime-adapter-database/src/lib.rs |  | fn run (reference : & str) -> Option < & str >
+crates/plenora-runtime-adapter-database/src/lib.rs |  | format ! ("ref:db-{}-{}" , i . run_id , digest (format ! ("{}:{label}" , i . message_id) . as_bytes ()))
+crates/plenora-runtime-adapter-database/src/lib.rs |  | format ! ("{:x}" , Sha256 :: digest (bytes))
+crates/plenora-runtime-adapter-database/src/lib.rs |  | include_bytes ! ("../catalog.json")
+crates/plenora-runtime-adapter-database/src/lib.rs |  | mod arrow ;
+crates/plenora-runtime-adapter-database/src/lib.rs |  | mod operation ;
+crates/plenora-runtime-adapter-database/src/lib.rs |  | mod receipt ;
+crates/plenora-runtime-adapter-database/src/lib.rs |  | mod registry ;
+crates/plenora-runtime-adapter-database/src/lib.rs |  | pub
+crates/plenora-runtime-adapter-database/src/lib.rs |  | pub
+crates/plenora-runtime-adapter-database/src/lib.rs |  | pub (crate)
+crates/plenora-runtime-adapter-database/src/lib.rs |  | pub (crate)
+crates/plenora-runtime-adapter-database/src/lib.rs |  | pub (crate)
+crates/plenora-runtime-adapter-database/src/lib.rs |  | pub struct Connection { pub destination : String , pub provider : Arc < dyn Provider > , pub secret : SecretString , }
+crates/plenora-runtime-adapter-database/src/lib.rs |  | pub struct DatabaseAdapter < S > { config : Config , store : Arc < S > , clock : Arc < dyn Clock > , plans : BTreeMap < String , Plan > , connections : BTreeMap < String , Connection > , running : Mutex < BTreeMap < String , CancellationToken > > , }
+crates/plenora-runtime-adapter-database/src/lib.rs |  | pub use plenora_database_core :: provider :: SecretString ;
+crates/plenora-runtime-adapter-database/src/lib.rs |  | pub use registry :: { Ports , discovery , registry } ;
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | async fn artifact (& self , tenant : & str , reference : & str , limit : usize ,) -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | async fn authorize (& self , tenant : & str , plan : & Plan) -> Result < () , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | async fn invoke (& self , i : & Invocation) -> Result < StepResult , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | async fn prepare (& self , i : & Invocation) -> Result < () , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | async fn recover (& self , i : & Invocation) -> Result < Option < StepResult > , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | async fn request_cancel (& self , i : & Invocation) -> Result < () , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | tokio :: pin ! (future)
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | tokio :: select ! { biased ; outcome = & mut future => break outcome , () = tokio :: time :: sleep (std :: time :: Duration :: from_millis (100)) => { let Ok (now) = self . now () else { ownership_lost = true ; token . cancel () ; continue ; } ; tokio :: select ! { biased ; outcome = & mut future => break outcome , journal = tokio :: time :: timeout (std :: time :: Duration :: from_millis (100) , self . store . load (& i . tenant , & i . run_id)) => { match journal { Ok (Ok (journal)) if ! journal . cancellation_requested () => { } , _ => token . cancel () , } } } if now >= i . reservation . deadline_ms { token . cancel_due_to_deadline () ; } if ! ownership_lost && now . saturating_add (10_000) >= lease . until { tokio :: select ! { biased ; outcome = & mut future => break outcome , renewed = tokio :: time :: timeout (std :: time :: Duration :: from_millis (100) , self . store . renew_resources (& i . tenant , & i . run_id , & lease)) => { if let Ok (Ok (next)) = renewed { lease = next ; } else { ownership_lost = true ; token . cancel () ; } } } } } }
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | vec ! [255 ; MAX_BLOB]
+crates/plenora-runtime-adapter-database/src/lib.rs | # [async_trait] impl < S : Store > Adapter for DatabaseAdapter < S > { } | vec ! []
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | async fn prepared (& self , i : & Invocation) -> Result < Prepared , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | fn allocation (& self , i : & Invocation) -> Result < ResourceRequest , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | fn document < T : serde :: de :: DeserializeOwned > (& self , reference : & str) -> Result < T , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | fn new (config : Config , connections : BTreeMap < String , Connection > , store : Arc < S > , clock : Arc < dyn Clock > ,) -> Result < Self , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | fn now (& self) -> Result < u64 , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | fn plan (& self , i : & Invocation) -> Result < & Plan , Error >
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | pub
+crates/plenora-runtime-adapter-database/src/lib.rs | impl < S : Store > DatabaseAdapter < S > { } | vec ! [OwnedResource { reference : reference (i , "reservation") , bytes : vec ! [255 ; MAX_BLOB] , consumers : vec ! [] , temporary : true , }]
+crates/plenora-runtime-adapter-database/src/lib.rs | impl std :: fmt :: Debug for Config { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | impl std :: fmt :: Debug for Config { } | fn fmt (& self , f : & mut std :: fmt :: Formatter < '_ >) -> std :: fmt :: Result
+crates/plenora-runtime-adapter-database/src/lib.rs | impl std :: fmt :: Debug for Connection { } | 
+crates/plenora-runtime-adapter-database/src/lib.rs | impl std :: fmt :: Debug for Connection { } | fn fmt (& self , f : & mut std :: fmt :: Formatter < '_ >) -> std :: fmt :: Result
+crates/plenora-runtime-adapter-database/src/operation.rs |  | 
+crates/plenora-runtime-adapter-database/src/operation.rs |  | async fn execute (provider : Arc < dyn Provider > , secret : SecretString , operation : Operation , i : & Invocation , token : & CancellationToken ,) -> Result < Outcome , Error >
+crates/plenora-runtime-adapter-database/src/operation.rs |  | fn budget (i : & Invocation) -> Result < ResourceBudget , Error >
+crates/plenora-runtime-adapter-database/src/operation.rs |  | fn value < T : serde :: Serialize > (value : & T) -> Result < Value , Error >
+crates/plenora-runtime-adapter-database/src/operation.rs |  | pub (crate)
+crates/plenora-runtime-adapter-database/src/operation.rs |  | pub (crate)
+crates/plenora-runtime-adapter-database/src/operation.rs |  | pub (crate) enum Operation { Read (ReadOperation , ParameterBag , Port) , Write (WriteOperation , arrow :: Input , bool , bool) , }
+crates/plenora-runtime-adapter-database/src/operation.rs |  | serde_json :: json ! ({ "path" : crate :: reference (i , "output") , "batches" : batches , "rows" : rows , "byte_count" : bytes . len () , "checksum_algorithm" : "sha256" , "checksum" : crate :: digest (& bytes) , "read_loss" : loss })
+crates/plenora-runtime-adapter-database/src/operation.rs | impl Outcome { } | fn failed (mut error : DatabaseError) -> Result < Self , Error >
+crates/plenora-runtime-adapter-database/src/operation.rs | impl Outcome { } | pub
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | 
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | 
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | fn axis (value : & impl serde :: Serialize) -> Result < String , Error >
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | fn build (i : & Invocation , mut outcome : Outcome , request_bytes : u64 , elapsed_ms : u64 ,) -> Result < (StepResult , Vec < OwnedResource >) , Error >
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | fn retry (value : RetryDisposition) -> Result < Retry , Error >
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | format ! ("ref:lease-{}" , i . message_id)
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | pub (crate)
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | vec ! [OwnedResource { reference : upstream . artifact_ref . clone () , bytes : upstream_bytes , consumers : vec ! [] , temporary : false , }]
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | vec ! [Report { kind : "loss_report" . into () , availability : if outcome . loss . is_some () { "available" } else { "unavailable" } . into () , document : outcome . loss . as_ref () . map (| _ | upstream . clone ()) , }]
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | vec ! []
+crates/plenora-runtime-adapter-database/src/receipt.rs |  | vec ! []
+crates/plenora-runtime-adapter-database/src/registry.rs |  | 
+crates/plenora-runtime-adapter-database/src/registry.rs |  | # [derive (Clone , Debug , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Ports { pub read_schema : Option < String > , pub write_schema : Option < String > , pub primary_geometry : bool , }
+crates/plenora-runtime-adapter-database/src/registry.rs |  | fn discovery () -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-database/src/registry.rs |  | fn port (schema_digest : Option < String > , primary_geometry : bool) -> Port
+crates/plenora-runtime-adapter-database/src/registry.rs |  | fn registry (artifact_sha256 : & str , ports : & Ports) -> Result < Registry , Error >
+crates/plenora-runtime-adapter-database/src/registry.rs |  | pub
+crates/plenora-runtime-adapter-database/src/registry.rs |  | pub
+crates/plenora-runtime-adapter-database/src/registry.rs |  | vec ! ["plenora-arrow-interchange-v1" . into ()]
+crates/plenora-runtime-adapter-database/src/registry.rs |  | vec ! [RegistryBoundariesItem { id : "database-read-write" . into () , source_operation : "database.read" . into () , source_version : 1 , target_operation : "database.write" . into () , target_version : 2 , source_contract : "plenora-arrow-interchange-v1" . into () , target_contract : "plenora-arrow-interchange-v1" . into () , content_type : "application/vnd.apache.arrow.stream" . into () , mode : "direct" . into () , adapter : None , status : "draft" . into () , }]
+crates/plenora-runtime-adapter-database/src/registry.rs |  | vec ! []
+crates/plenora-runtime-adapter-database/src/registry.rs | impl Ports { } | fn read (& self) -> Port
+crates/plenora-runtime-adapter-database/src/registry.rs | impl Ports { } | fn write (& self) -> Port
+crates/plenora-runtime-adapter-database/src/registry.rs | impl Ports { } | pub (crate)
+crates/plenora-runtime-adapter-database/src/registry.rs | impl Ports { } | pub (crate)
+crates/plenora-runtime-adapter-io/src/ipc.rs |  | 
+crates/plenora-runtime-adapter-io/src/ipc.rs |  | fn check (bytes : & [u8] , port : & Port , i : & Invocation) -> Result < (u64 , u64) , Error >
+crates/plenora-runtime-adapter-io/src/ipc.rs |  | fn framing (bytes : & [u8] , memory_limit : u64) -> Result < () , Error >
+crates/plenora-runtime-adapter-io/src/ipc.rs |  | fn schema (fields : & Schema , port : & Port) -> Result < () , Error >
+crates/plenora-runtime-adapter-io/src/ipc.rs |  | fn stream_schema (bytes : & [u8] , i : & Invocation) -> Result < Arc < Schema > , Error >
+crates/plenora-runtime-adapter-io/src/ipc.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/ipc.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/ipc.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/ipc.rs | impl Write for Limited { } | 
+crates/plenora-runtime-adapter-io/src/ipc.rs | impl Write for Limited { } | 
+crates/plenora-runtime-adapter-io/src/ipc.rs | impl Write for Limited { } | fn flush (& mut self) -> std :: io :: Result < () >
+crates/plenora-runtime-adapter-io/src/ipc.rs | impl Write for Limited { } | fn write (& mut self , bytes : & [u8]) -> std :: io :: Result < usize >
+crates/plenora-runtime-adapter-io/src/lib.rs |  | 
+crates/plenora-runtime-adapter-io/src/lib.rs |  | # [derive (Clone , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Destination { pub directory : String , pub entry : String , }
+crates/plenora-runtime-adapter-io/src/lib.rs |  | # [derive (Clone , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Source { pub entry : String , pub files : BTreeMap < String , Vec < u8 > > , }
+crates/plenora-runtime-adapter-io/src/lib.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Config { pub tenant : String , pub artifact_sha256 : String , pub ports : Ports , pub authorized_plans : Vec < String > , pub artifacts : BTreeMap < String , Vec < u8 > > , pub sources : BTreeMap < String , Source > , pub destinations : BTreeMap < String , Destination > , pub staging_directory : String , }
+crates/plenora-runtime-adapter-io/src/lib.rs |  | fn digest (bytes : & [u8]) -> String
+crates/plenora-runtime-adapter-io/src/lib.rs |  | fn encode (value : & impl Serialize) -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs |  | fn reference (i : & Invocation , label : & str) -> String
+crates/plenora-runtime-adapter-io/src/lib.rs |  | fn run (reference : & str) -> Option < & str >
+crates/plenora-runtime-adapter-io/src/lib.rs |  | format ! ("ref:io-{}-{}" , i . run_id , digest (format ! ("{}:{label}" , i . message_id) . as_bytes ()))
+crates/plenora-runtime-adapter-io/src/lib.rs |  | format ! ("{:x}" , Sha256 :: digest (bytes))
+crates/plenora-runtime-adapter-io/src/lib.rs |  | mod ipc ;
+crates/plenora-runtime-adapter-io/src/lib.rs |  | mod operation ;
+crates/plenora-runtime-adapter-io/src/lib.rs |  | mod receipt ;
+crates/plenora-runtime-adapter-io/src/lib.rs |  | mod registry ;
+crates/plenora-runtime-adapter-io/src/lib.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/lib.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/lib.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/lib.rs |  | pub struct IoAdapter < S > { config : Config , store : Arc < S > , clock : Arc < dyn Clock > , plans : BTreeMap < String , Plan > , running : Mutex < BTreeMap < String , CancellationToken > > , }
+crates/plenora-runtime-adapter-io/src/lib.rs |  | pub use registry :: { Ports , catalog , discovery , registry } ;
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | async fn artifact (& self , tenant : & str , reference : & str , limit : usize ,) -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | async fn authorize (& self , tenant : & str , plan : & Plan) -> Result < () , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | async fn invoke (& self , i : & Invocation) -> Result < StepResult , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | async fn prepare (& self , i : & Invocation) -> Result < () , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | async fn recover (& self , i : & Invocation) -> Result < Option < StepResult > , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | async fn request_cancel (& self , i : & Invocation) -> Result < () , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | tokio :: pin ! (future)
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | tokio :: select ! { biased ; outcome = & mut future => break outcome , () = tokio :: time :: sleep (std :: time :: Duration :: from_millis (100)) => { let Ok (now) = self . now () else { ownership_lost = true ; token . cancel () ; continue ; } ; tokio :: select ! { biased ; outcome = & mut future => break outcome , journal = tokio :: time :: timeout (std :: time :: Duration :: from_millis (100) , self . store . load (& i . tenant , & i . run_id)) => { match journal { Ok (Ok (journal)) if ! journal . cancellation_requested () => { } , _ => token . cancel () , } } } if now >= i . reservation . deadline_ms { token . cancel () ; } if ! ownership_lost && now . saturating_add (10_000) >= lease . until { tokio :: select ! { biased ; outcome = & mut future => break outcome , renewed = tokio :: time :: timeout (std :: time :: Duration :: from_millis (100) , self . store . renew_resources (& i . tenant , & i . run_id , & lease)) => { if let Ok (Ok (next)) = renewed { lease = next ; } else { ownership_lost = true ; token . cancel () ; } } } } } }
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | vec ! [255 ; MAX_BLOB]
+crates/plenora-runtime-adapter-io/src/lib.rs | # [async_trait] impl < S : Store > Adapter for IoAdapter < S > { } | vec ! []
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | async fn prepared (& self , i : & Invocation) -> Result < operation :: Prepared , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | fn allocation (& self , i : & Invocation) -> Result < ResourceRequest , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | fn new (config : Config , store : Arc < S > , clock : Arc < dyn Clock >) -> Result < Self , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | fn now (& self) -> Result < u64 , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | fn plan (& self , i : & Invocation) -> Result < & Plan , Error >
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | pub
+crates/plenora-runtime-adapter-io/src/lib.rs | impl < S : Store > IoAdapter < S > { } | vec ! [OwnedResource { reference : reference (i , "reservation") , bytes : vec ! [255 ; MAX_BLOB] , consumers : vec ! [] , temporary : true , }]
+crates/plenora-runtime-adapter-io/src/lib.rs | impl std :: fmt :: Debug for Config { } | 
+crates/plenora-runtime-adapter-io/src/lib.rs | impl std :: fmt :: Debug for Config { } | fn fmt (& self , f : & mut std :: fmt :: Formatter < '_ >) -> std :: fmt :: Result
+crates/plenora-runtime-adapter-io/src/operation.rs |  | 
+crates/plenora-runtime-adapter-io/src/operation.rs |  | 
+crates/plenora-runtime-adapter-io/src/operation.rs |  | 
+crates/plenora-runtime-adapter-io/src/operation.rs |  | 
+crates/plenora-runtime-adapter-io/src/operation.rs |  | 
+crates/plenora-runtime-adapter-io/src/operation.rs |  | 
+crates/plenora-runtime-adapter-io/src/operation.rs |  | 
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn bounded_file (path : & Path) -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn bundle_size (root : & Path , token : & CancellationToken) -> Result < u64 , Error >
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn cap (requested : Option < u64 > , bound : u64) -> Result < u64 , Error >
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn category (error : Error) -> & 'static str
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn clean (temp : tempfile :: TempDir , outcome : & mut Outcome)
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn evidence (outcome : & mut Outcome , read : bool)
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn execute (prepared : Prepared , i : & Invocation , token : & CancellationToken ,) -> Result < Outcome , Error >
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn limits (i : & Invocation , p : & Parameters) -> Result < PipelineLimits , Error >
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn relative (path : & str) -> bool
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn snapshot (source : & Source , directory : & Path) -> Result < PathBuf , Error >
+crates/plenora-runtime-adapter-io/src/operation.rs |  | fn validate_source (source : & Source) -> Result < () , Error >
+crates/plenora-runtime-adapter-io/src/operation.rs |  | matches ! (stem . as_bytes () [3] , b'1' ..= b'9')
+crates/plenora-runtime-adapter-io/src/operation.rs |  | matches ! (stem . as_str () , "CON" | "PRN" | "AUX" | "NUL")
+crates/plenora-runtime-adapter-io/src/operation.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/operation.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/operation.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/operation.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/operation.rs |  | vec ! [("fidelity" , "loss")]
+crates/plenora-runtime-adapter-io/src/operation.rs |  | vec ! [("input_fidelity" , "input_loss") , ("write_fidelity" , "write_loss") ,]
+crates/plenora-runtime-adapter-io/src/operation.rs |  | vec ! [root . to_path_buf ()]
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Outcome { } | 
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Outcome { } | fn fail (& mut self , category : & str , phase : & str , code : & str , effect : & str)
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Outcome { } | fn from_upstream (result : operazioni :: Esito) -> Self
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Outcome { } | json ! ("IO operation failed.")
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Outcome { } | json ! ({ "kind" : "never" })
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Outcome { } | json ! ({ "kind" : if effect == "unknown" { "requires_recovery" } else { "never" } })
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Outcome { } | pub
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Outcome { } | vec ! []
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Outcome { } | vec ! []
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Parameters { } | fn validate (& self , i : & Invocation) -> Result < () , Error >
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Parameters { } | matches ! (i . step . operation . as_str () , "io.read" | "io.write")
+crates/plenora-runtime-adapter-io/src/operation.rs | impl Parameters { } | pub
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | 
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | 
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | fn build (i : & Invocation , outcome : Outcome , request_bytes : u64 , elapsed_ms : u64 ,) -> Result < (StepResult , Vec < OwnedResource >) , Error >
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | fn error (f : & Failure , i : & Invocation , upstream : Option < Document > , reports : & [Report] ,) -> Result < ChainError , Error >
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | fn retry (value : & serde_json :: Value) -> Result < Retry , Error >
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | format ! ("ref:lease-{}" , i . message_id)
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | matches ! (kind , "never" | "requires_recovery")
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | pub (crate)
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | serde_json :: json ! ({ "kind" : "never" })
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | vec ! []
+crates/plenora-runtime-adapter-io/src/receipt.rs |  | vec ! []
+crates/plenora-runtime-adapter-io/src/registry.rs |  | 
+crates/plenora-runtime-adapter-io/src/registry.rs |  | # [derive (Clone , Debug , Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct Ports { pub read_schema : Option < String > , pub write_schema : Option < String > , pub primary_geometry : bool , }
+crates/plenora-runtime-adapter-io/src/registry.rs |  | fn catalog () -> serde_json :: Value
+crates/plenora-runtime-adapter-io/src/registry.rs |  | fn discovery () -> Result < Vec < u8 > , Error >
+crates/plenora-runtime-adapter-io/src/registry.rs |  | fn port (schema_digest : Option < String > , primary_geometry : bool) -> Port
+crates/plenora-runtime-adapter-io/src/registry.rs |  | fn registry (artifact_sha256 : & str , ports : & Ports) -> Result < Registry , Error >
+crates/plenora-runtime-adapter-io/src/registry.rs |  | pub
+crates/plenora-runtime-adapter-io/src/registry.rs |  | pub
+crates/plenora-runtime-adapter-io/src/registry.rs |  | pub
+crates/plenora-runtime-adapter-io/src/registry.rs |  | vec ! ["plenora-arrow-interchange-v1" . into () , "plenora-arrow-primary-geometry-v1" . into () ,]
+crates/plenora-runtime-adapter-io/src/registry.rs |  | vec ! [RegistryBoundariesItem { id : "io-read-write" . into () , source_operation : "io.read" . into () , source_version : 2 , target_operation : "io.write" . into () , target_version : 2 , source_contract : "plenora-arrow-interchange-v1" . into () , target_contract : "plenora-arrow-interchange-v1" . into () , content_type : "application/vnd.apache.arrow.stream" . into () , mode : "direct" . into () , adapter : None , status : "draft" . into () , }]
+crates/plenora-runtime-adapter-io/src/registry.rs |  | vec ! []
+crates/plenora-runtime-adapter-io/src/registry.rs | impl Ports { } | fn read (& self) -> Port
+crates/plenora-runtime-adapter-io/src/registry.rs | impl Ports { } | fn write (& self) -> Port
+crates/plenora-runtime-adapter-io/src/registry.rs | impl Ports { } | pub (crate)
+crates/plenora-runtime-adapter-io/src/registry.rs | impl Ports { } | pub (crate)
 crates/plenora-runtime-boundary/src/codec.rs |  | 
 crates/plenora-runtime-boundary/src/codec.rs |  | fn decode (message : & SerializedMessage ,) -> Result < CapabilityRequest , CapabilityMessageCodecError >
 crates/plenora-runtime-boundary/src/codec.rs |  | fn required_text < 'a > (message : & 'a SerializedMessage , key : & 'static str ,) -> Result < & 'a str , CapabilityMessageCodecError >
@@ -1416,7 +1771,7 @@ crates/plenora-runtime-chain-cli/src/lib.rs |  | matches ! (first . as_str () , 
 crates/plenora-runtime-chain-cli/src/lib.rs |  | matches ! (name . as_str () , "--json" | "--json-lines")
 crates/plenora-runtime-chain-cli/src/lib.rs |  | matches ! (second . as_str () , "validate" | "submit" | "run" | "status" | "result" | "events" | "cancel" | "resume" | "report")
 crates/plenora-runtime-chain-cli/src/lib.rs |  | pub
-crates/plenora-runtime-chain-cli/src/lib.rs |  | pub enum Endpoint { Scripted (String) , Remote { # [doc = " Broker connection address, excluded from errors."] server : String , # [doc = " Exact host-authorized request subject."] subject : String , # [doc = " Observation wait, independent of the run deadline."] observation_timeout_ms : u64 , } , }
+crates/plenora-runtime-chain-cli/src/lib.rs |  | pub enum Endpoint { Scripted (String) , Database (String) , Io (String) , Data (String) , Remote { # [doc = " Broker connection address, excluded from errors."] server : String , # [doc = " Exact host-authorized request subject."] subject : String , # [doc = " Observation wait, independent of the run deadline."] observation_timeout_ms : u64 , } , }
 crates/plenora-runtime-chain-cli/src/lib.rs |  | pub struct Command { pub endpoint : Endpoint , pub request : Request , pub json_lines : bool , }
 crates/plenora-runtime-chain-cli/src/lib.rs |  | pub use plenora_runtime_chains :: { Request , Response } ;
 crates/plenora-runtime-chain-cli/src/main.rs |  | 
@@ -1838,15 +2193,40 @@ crates/plenora-runtime-chain-host/src/control.rs | impl Wire { } | fn capture (m
 crates/plenora-runtime-chain-host/src/control.rs | impl Wire { } | fn restore (self) -> SerializedMessage
 crates/plenora-runtime-chain-host/src/control.rs | impl Wire { } | pub (crate)
 crates/plenora-runtime-chain-host/src/control.rs | impl Wire { } | pub (crate)
+crates/plenora-runtime-chain-host/src/data.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct DataConfig { pub database : String , pub adapter : Config , }
+crates/plenora-runtime-chain-host/src/data.rs |  | # [doc = " Shared durable host with the DATA candidate profile."] pub type DataHost < S = PostgresStore > = ScriptedHost < S > ;
+crates/plenora-runtime-chain-host/src/data.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | fn with_data (config : Config , store : Arc < S > , clock : Arc < dyn Clock >) -> Result < Self , Error >
+crates/plenora-runtime-chain-host/src/data.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | pub
+crates/plenora-runtime-chain-host/src/data.rs | impl ScriptedHost { } | fn data (config : DataConfig) -> Result < Self , Error >
+crates/plenora-runtime-chain-host/src/data.rs | impl ScriptedHost { } | pub
+crates/plenora-runtime-chain-host/src/database.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct DatabaseConfig { pub database : String , pub adapter : Config , pub connections : BTreeMap < String , DatabaseConnectionConfig > , }
+crates/plenora-runtime-chain-host/src/database.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct DatabaseConnectionConfig { pub destination : String , pub secret : String , # [serde (default)] pub allow_plaintext : bool , }
+crates/plenora-runtime-chain-host/src/database.rs |  | # [doc = " Shared host with a real adapter, constructed with `database` or `with_database`."] pub type DatabaseHost < S = PostgresStore > = ScriptedHost < S > ;
+crates/plenora-runtime-chain-host/src/database.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | fn with_database (config : Config , connections : BTreeMap < String , Connection > , store : Arc < S > , clock : Arc < dyn Clock > ,) -> Result < Self , Error >
+crates/plenora-runtime-chain-host/src/database.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | pub
+crates/plenora-runtime-chain-host/src/database.rs | impl ScriptedHost { } | fn database (config : DatabaseConfig) -> Result < Self , Error >
+crates/plenora-runtime-chain-host/src/database.rs | impl ScriptedHost { } | pub
+crates/plenora-runtime-chain-host/src/io.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct IoConfig { pub database : String , pub adapter : Config , }
+crates/plenora-runtime-chain-host/src/io.rs |  | # [doc = " Shared durable host with the IO candidate profile."] pub type IoHost < S = PostgresStore > = ScriptedHost < S > ;
+crates/plenora-runtime-chain-host/src/io.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | fn with_io (config : Config , store : Arc < S > , clock : Arc < dyn Clock >) -> Result < Self , Error >
+crates/plenora-runtime-chain-host/src/io.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ScriptedHost < S > { } | pub
+crates/plenora-runtime-chain-host/src/io.rs | impl ScriptedHost { } | fn io (config : IoConfig) -> Result < Self , Error >
+crates/plenora-runtime-chain-host/src/io.rs | impl ScriptedHost { } | pub
 crates/plenora-runtime-chain-host/src/lib.rs |  | 
 crates/plenora-runtime-chain-host/src/lib.rs |  | # [derive (Serialize , Deserialize)] # [serde (deny_unknown_fields)] pub struct ScriptedConfig { pub database : String , # [serde (default = "journal_budget")] pub journal_bytes : usize , pub tenant : String , pub registry : String , # [serde (default)] pub authorized_plans : Vec < String > , pub outcomes : String , pub recovery : Option < String > , # [serde (default)] pub attempts : Vec < String > , pub artifacts : BTreeMap < String , Vec < u8 > > , }
 crates/plenora-runtime-chain-host/src/lib.rs |  | fn journal_budget () -> usize
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod control ;
+crates/plenora-runtime-chain-host/src/lib.rs |  | mod data ;
+crates/plenora-runtime-chain-host/src/lib.rs |  | mod database ;
+crates/plenora-runtime-chain-host/src/lib.rs |  | mod io ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod ownership ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod remote ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod verification ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | mod work ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | pub struct ScriptedHost < S : Store + plenora_runtime_boundary :: DurableExecutionStore = PostgresStore > { runtime : plenora_runtime_boundary :: DurableRuntime < S > , store : Arc < S > , worker : work :: Worker < S > , }
+crates/plenora-runtime-chain-host/src/lib.rs |  | pub use data :: { DataConfig , DataHost } ;
+crates/plenora-runtime-chain-host/src/lib.rs |  | pub use database :: { DatabaseConfig , DatabaseConnectionConfig , DatabaseHost } ;
+crates/plenora-runtime-chain-host/src/lib.rs |  | pub use io :: { IoConfig , IoHost } ;
 crates/plenora-runtime-chain-host/src/lib.rs |  | pub use remote :: RemoteClient ;
 crates/plenora-runtime-chain-host/src/lib.rs | # [async_trait] impl Adapter for ScriptedAdapter { } | 
 crates/plenora-runtime-chain-host/src/lib.rs | # [async_trait] impl Adapter for ScriptedAdapter { } | 
@@ -1964,7 +2344,7 @@ crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | 
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | fn call (& self , py : Python < '_ > , request : & str) -> PyResult < String >
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | fn migrate (& self , py : Python < '_ >) -> PyResult < () >
-crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | fn new (py : Python < '_ > , config : & str) -> PyResult < Self >
+crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeClient { } | fn new (py : Python < '_ > , config : & str , profile : & str) -> PyResult < Self >
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeEventCursor { } | 
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeEventCursor { } | 
 crates/plenora-runtime-chain-python/src/lib.rs | # [pymethods] impl NativeEventCursor { } | 
@@ -2426,6 +2806,7 @@ crates/plenora-runtime-chains/src/journal.rs | impl Change { } | pub
 crates/plenora-runtime-chains/src/journal.rs | impl Change { } | pub
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | 
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | 
+crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | const fn cancellation_requested (& self) -> bool
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | const fn created_ms (& self) -> u64
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | const fn revision (& self) -> u64
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | fn event (& mut self , kind : & str , state : & str , now : u64 , step : Option < & str > ,) -> Result < () , Error >
@@ -2446,6 +2827,7 @@ crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | format ! ("ref
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | matches ! ((encode (self) , encode (& comparable)) , (Ok (a) , Ok (b)) if a == b)
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | matches ! (new . state . as_str () , "skipped" | "blocked")
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | matches ! (old . state . as_str () , "skipped" | "blocked")
+crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | pub
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | pub
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | pub
 crates/plenora-runtime-chains/src/journal.rs | impl Journal { } | pub
@@ -2534,6 +2916,7 @@ crates/plenora-runtime-chains/src/resources.rs | impl OwnedResource { } | fn val
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | 
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | 
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | 
+crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | 
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn acquire (& mut self , request : & ResourceRequest , now : u64 , retain_until : u64 ,) -> Result < ResourceLease , Error >
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn active (& self) -> usize
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn apply (& mut self , request : & ResourceRequest , now : u64 , retain_until : u64 , recovery : bool ,) -> Result < ResourceLease , Error >
@@ -2544,6 +2927,7 @@ crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn fr
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn live_bytes (& self) -> usize
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn new (limits : & Budget) -> Self
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn observe (& mut self , journal : & crate :: Journal) -> Result < () , Error >
+crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn observe_documents (& mut self , step : & crate :: contracts :: StepResult , owned : & [String] ,) -> Result < () , Error >
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn reconcile (& mut self , request : & ResourceRequest , now : u64 , retain_until : u64 ,) -> Result < ResourceLease , Error >
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn reduce_retention (& mut self , until : u64)
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn renew (& mut self , lease : & ResourceLease , now : u64) -> Result < ResourceLease , Error >
@@ -2551,6 +2935,7 @@ crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn st
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn to_json (& self) -> Result < Vec < u8 > , Error >
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | format ! ("{:x}" , Sha256 :: digest (& resource . bytes))
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | format ! ("{:x}" , Sha256 :: digest (b))
+crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | format ! ("{:x}" , Sha256 :: digest (bytes))
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | format ! ("{:x}" , Sha256 :: digest (bytes))
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | matches ! (c , Consumer :: Pending)
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | matches ! (s . state . as_str () , "succeeded" | "failed" | "cancelled")

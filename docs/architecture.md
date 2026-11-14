@@ -177,3 +177,19 @@ RuntimeBoundary come decoder e handler, con discovery, AdmissionPolicy, clock e
 sink espliciti. Il dispatch grezzo è privato. WorkerContext.metadata contiene
 solo metadati del messaggio; le osservazioni del broker sono in broker_metadata.
 Vedere [allineamento del profilo](contract-alignment.md#p21b-confine-delle-facciate-esistenti).
+
+## Integrazione database S3
+
+`plenora-runtime-adapter-database` e il confine ETL del prodotto catene:
+core/engine/provider PostgreSQL database 11.0.0 sono dipendenze git allo stesso
+commit pubblicato (ADR 0011). I crate generici e il coordinatore dipendono solo
+dai trait; il nuovo adapter implementa quei trait e risolve artefatti tramite
+il ledger primario. `DatabaseHost` compone questo adapter nello stesso host
+usato dai profili scriptati. Il nome storico `ScriptedHost` resta per
+compatibilita; i costruttori database sono espliciti e non usano outcome finti.
+
+
+Il crate prodotto `plenora-runtime-adapter-data` collega esclusivamente le API
+Rust della candidate DATA 5.0.0 (ADR0013). Le porte nominate derivano dal profilo
+Arrow e dai tipi artefatto della discovery runtime. Il journal mantiene separati
+manifesto data.run@3 e C-01. Nessuna dipendenza DATA nei crate generici.

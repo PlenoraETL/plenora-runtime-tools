@@ -549,7 +549,10 @@
       "additionalProperties": false,
       "properties": {
         "identity": {
-          "$ref": "common.schema.json#/$defs/contract"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^plenora-[a-z0-9]+(?:-[a-z0-9]+)*(?![\\s\\S])"
         },
         "package_version": {
           "type": "string",

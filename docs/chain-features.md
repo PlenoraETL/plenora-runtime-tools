@@ -39,7 +39,7 @@ Ogni cella richiede quattro prove: positiva (P), rifiuto (R), limite (L), effett
 | database.list_schemas@1 — database.list_schemas@1 / `plenora-runtime-adapter-database` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | database.list_objects@1 — database.list_objects@1 / `plenora-runtime-adapter-database` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | database.describe_object@1 — database.describe_object@1 / `plenora-runtime-adapter-database` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
-| database.read@1 — database.read@1 / `plenora-runtime-adapter-database` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| database.read@1 — database.read@1 (read@2: lacuna upstream, nessun alias) / `plenora-runtime-adapter-database` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | database.query@1 — database.query@1 / `plenora-runtime-adapter-database` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | database.write@2 — database.write@2 / `plenora-runtime-adapter-database` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | io.catalog@2 — io.catalog@2 / `plenora-runtime-adapter-io` / B.2 | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
@@ -312,7 +312,7 @@ database.describe_object@1
 
 ### database.read@1
 
-database.read@1
+database.read@1 (read@2: lacuna upstream, nessun alias)
 
 - **positive**: piano a uno step database.read@1 su libreria reale: query restituisce summary JSON, read Arrow; write@2 conserva WriteOutcome v3 e consenso
 - **rejection**: database.read@1: selettore, contratto, parametri o provider incompatibili prima di invoke

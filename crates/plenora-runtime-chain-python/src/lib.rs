@@ -1,6 +1,8 @@
 //! Native binding; orchestration remains in plenora-runtime-chains.
 #![forbid(unsafe_code)]
-use plenora_runtime_chain_host::{RemoteClient, ScriptedConfig, ScriptedHost};
+use plenora_runtime_chain_host::{
+    DataConfig, DatabaseConfig, IoConfig, RemoteClient, ScriptedConfig, ScriptedHost,
+};
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use std::sync::Arc;
 
@@ -12,11 +14,33 @@ struct NativeClient {
 #[pymethods]
 impl NativeClient {
     #[new]
-    fn new(py: Python<'_>, config: &str) -> PyResult<Self> {
+    #[pyo3(signature = (config, profile="scripted"))]
+    fn new(py: Python<'_>, config: &str, profile: &str) -> PyResult<Self> {
         py.detach(|| {
-            let config: ScriptedConfig =
-                serde_json::from_str(config).map_err(|_| PyRuntimeError::new_err("invalid"))?;
-            let host = ScriptedHost::new(config).map_err(native_error)?;
+            let host = match profile {
+                "scripted" => {
+                    let config: ScriptedConfig = serde_json::from_str(config)
+                        .map_err(|_| PyRuntimeError::new_err("invalid"))?;
+                    ScriptedHost::new(config)
+                }
+                "data" => {
+                    let config: DataConfig = serde_json::from_str(config)
+                        .map_err(|_| PyRuntimeError::new_err("invalid"))?;
+                    ScriptedHost::data(config)
+                }
+                "io" => {
+                    let config: IoConfig = serde_json::from_str(config)
+                        .map_err(|_| PyRuntimeError::new_err("invalid"))?;
+                    ScriptedHost::io(config)
+                }
+                "database" => {
+                    let config: DatabaseConfig = serde_json::from_str(config)
+                        .map_err(|_| PyRuntimeError::new_err("invalid"))?;
+                    ScriptedHost::database(config)
+                }
+                _ => return Err(PyRuntimeError::new_err("invalid")),
+            }
+            .map_err(native_error)?;
             let runtime = tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(2)
                 .enable_all()

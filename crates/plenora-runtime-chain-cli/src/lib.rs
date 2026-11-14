@@ -8,6 +8,12 @@ use std::collections::BTreeMap;
 pub enum Endpoint {
     /// Read the declared scripted configuration from this file.
     Scripted(String),
+    /// Read an explicit real database host configuration from this file.
+    Database(String),
+    /// Read the real IO candidate host configuration.
+    Io(String),
+    /// Read the real DATA candidate host configuration.
+    Data(String),
     /// Connect to the exact host endpoint and subject.
     Remote {
         /// Broker connection address, excluded from errors.
@@ -85,6 +91,12 @@ pub fn parse(
     }
     let endpoint = if let Some(file) = options.remove("--config") {
         Endpoint::Scripted(file)
+    } else if let Some(file) = options.remove("--database-config") {
+        Endpoint::Database(file)
+    } else if let Some(file) = options.remove("--data-config") {
+        Endpoint::Data(file)
+    } else if let Some(file) = options.remove("--io-config") {
+        Endpoint::Io(file)
     } else {
         Endpoint::Remote {
             server: required(&mut options, "--server")?,
