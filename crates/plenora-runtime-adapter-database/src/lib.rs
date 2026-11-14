@@ -12,7 +12,9 @@ use plenora_database_core::{CancellationToken, provider::Provider, strict_json};
 use plenora_database_engine::public_ops::{OperationRequest, WriteRequest};
 use plenora_runtime_chains::{
     Adapter, Error, Invocation, OwnedResource, ResourceLedger, ResourceRequest, Store,
-    contracts::{Plan, StepResult, parse_plan, plan_digest, validate_plan},
+    contracts::{
+        Plan, Registry, StepResult, parse_plan, parse_registry, plan_digest, validate_plan,
+    },
 };
 use plenora_runtime_core::Clock;
 pub use registry::{Ports, discovery, registry};
@@ -133,6 +135,31 @@ impl<S: Store> DatabaseAdapter<S> {
         clock: Arc<dyn Clock>,
     ) -> Result<Self, Error> {
         let registry = registry(&config.artifact_sha256, &config.ports)?;
+        Self::with_registry(config, connections, store, clock, &registry)
+    }
+    /// Validate full authorized plans against composed real discovery without projecting subplans.
+    /// # Errors
+    /// Rejects a malformed registry or changed/extra descriptors for the database component.
+    pub fn with_registry(
+        config: Config,
+        connections: BTreeMap<String, Connection>,
+        store: Arc<S>,
+        clock: Arc<dyn Clock>,
+        registry: &Registry,
+    ) -> Result<Self, Error> {
+        parse_registry(&encode(registry)?)?;
+        let own = registry::registry(&config.artifact_sha256, &config.ports)?;
+        if registry.components.get("database") != own.components.get("database")
+            || registry
+                .operations
+                .iter()
+                .filter(|op| op.component == "database")
+                .collect::<Vec<_>>()
+                != own.operations.iter().collect::<Vec<_>>()
+        {
+            return Err(Error::Invalid);
+        }
+
         if config.tenant.is_empty()
             || config
                 .artifacts
@@ -146,7 +173,7 @@ impl<S: Store> DatabaseAdapter<S> {
             .iter()
             .map(|raw| {
                 let plan = parse_plan(raw.as_bytes())?;
-                validate_plan(&plan, &registry)?;
+                validate_plan(&plan, registry)?;
                 Ok((plan_digest(&plan)?, plan))
             })
             .collect::<Result<_, Error>>()?;
@@ -174,7 +201,7 @@ impl<S: Store> DatabaseAdapter<S> {
             return Err(Error::Invalid);
         }
         let plan = self.plans.get(&i.plan_digest).ok_or(Error::Invalid)?;
-        if !plan.steps.contains(&i.step) {
+        if i.step.component != "database" || !plan.steps.contains(&i.step) {
             return Err(Error::Invalid);
         }
         Ok(plan)
@@ -239,9 +266,13 @@ impl<S: Store> DatabaseAdapter<S> {
                     return Err(Error::Invalid);
                 }
                 let input = i.inputs.get("data").ok_or(Error::Invalid)?;
-                let bytes = self
-                    .artifact(&i.tenant, &input.artifact_ref, MAX_BLOB)
-                    .await?;
+                let bytes = if let Some(bytes) = self.config.artifacts.get(&input.artifact_ref) {
+                    bytes.clone()
+                } else {
+                    self.store
+                        .read_resource(&i.tenant, &i.run_id, &input.artifact_ref, MAX_BLOB)
+                        .await?
+                };
                 if input.bytes != bytes.len() as u64 || digest(&bytes) != input.sha256 {
                     return Err(Error::Invalid);
                 }

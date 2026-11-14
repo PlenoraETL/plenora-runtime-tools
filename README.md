@@ -144,3 +144,12 @@ SDK `Client(config, profile="data")` / `AsyncClient.create(config, profile="data
 La configurazione contiene `database` del journal e `adapter` con piani confermati,
 porte nominate e artefatti immutabili. `cargo run -p plenora-runtime-adapter-data --example data_fixture --locked` genera una fixture reale autonoma per le prove.
 Ambito, limiti e lacune: docs/contract-alignment.md e docs/qualification.md.
+
+Il profilo sperimentale S4 `interop` compone IO -> DATA -> IO e opzionalmente
+PG read@1 -> DATA -> IO sullo stesso piano.
+`cargo run -p plenora-runtime-chain-host --example interop_fixture --locked -- ABSOLUTE_STAGING_DIR`
+genera una fixture IPC reale e il relativo piano. Aggiungere `database` del journal
+all'oggetto configurazione con `adapter`, poi usare `interop-call CONFIG`,
+`chain run --interop-config CONFIG ...` o `Client(config, profile="interop")`.
+I formati CSV/XLSX/Parquet/GeoParquet presentano ancora i blocchi documentati in
+[contract-alignment](docs/contract-alignment.md): non e dichiarata chiusura S4.

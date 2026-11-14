@@ -576,3 +576,26 @@ estendere l'esito locale ai 146 kernel, a tutti i profili Arrow/file/Parquet o
 ai hard cap nativi (security-review). La catena PG -> data -> IO S4 resta successiva:
 serve composizione multi-adapter con autorizzazione del piano intero e resolver
 cross-component; tre test isolati non costituiscono quella prova.
+
+## S4 - gate della prima catena reale
+
+Regola: catene reali su cinque superfici, oracoli indipendenti e infrastruttura
+reale. Ambito locale: IPC -> DATA sort -> IPC, con controlli metadati/righe,
+rapporti recuperabili, piano modificato rifiutato, cancel al confine di settlement,
+crash con resume di ricevuta confermata e pubblicazione senza evidenza mai
+reinvocata. I cut locali usano una primary dichiaratamente doppia, gli adapter
+sono reali. CI: interop_real esegue PostgreSQL restart/cancel e la matrice su Rust,
+NATS runtime, CLI e wheel sync/async con lo stesso piano; coverage aggiunta al
+job esistente. Soglia invariata. Esistenza del test non significa gate passato.
+
+Gate aperti: CI Linux/Windows, campagna PostgreSQL/PostGIS/NATS installata,
+coverage completa, crash fisici/soak/RSS con engine reali e deployment target.
+I quattro formati richiesti hanno i rifiuti riprodotti in contract-alignment:
+S4 e il primo percorso ETL NON sono dichiarati chiusi. Condizione di chiusura:
+nuovi pin per i blocchi upstream e prove positive sui formati scelti, oltre ai
+gate reali. Il delta successivo prova anche IPC geometrico canonico -> DATA ->
+GeoParquet con oracolo indipendente, e rifiuti CSV/XLSX prima dell'effetto su
+quattro assi. PG read@1 -> DATA -> IO e implementata e inclusa nei job reali,
+ma non eseguita localmente: nessuna qualifica PG derivata dalla sola ammissione.
+Il consenso IO non e un gate S4 da simulare: resta una revisione comune futura
+con U4, esplicitamente separata dal rifiuto attuale delle perdite.

@@ -967,3 +967,38 @@ vuoto. Errori pubblici preservano assi e usano messaggio fisso; dettagli native
 non vengono esposti. L'effetto native riguarda il resolver privato e resta nel
 documento; remote_effect catena resta none per il calcolo, pubblicazione
 artefatti solo con conferma del journal. Dopo conferma incerta non si reinvoca.
+
+## S4 - composizione reale IO/DATA e limiti dei formati
+
+Regola: un piano completo, confermato una sola volta, resta identico nelle cinque
+superfici. InteropHost combina i registry della discovery pinnata, senza subpiani
+ne alias. I costruttori dei componenti verificano le proprie descrizioni reali;
+IO/DATA leggono gli artefatti del run corrente con digest e barriere sui due lati.
+Le destinazioni e i parametri sono legati al piano autorizzato. Il contratto
+CHAIN-PLAN-2.0 permette loss_consent solo a database.write@2: nessun consenso IO
+privato; reported continua a non concedere perdite.
+
+Ambito: IPC -> DATA table.sort -> IPC provato con NULL/vuoto, schema e rapporti.
+Ai pin IO 9c087aa e DATA eba11205: CSV/XLSX tabellari richiedono geometria/CRS
+upstream; il writer GeoParquet non e un writer Parquet tabellare. Un vero Parquet
+senza geometria generato dal writer Arrow viene rifiutato dalla read IO.
+CSV/XLSX geometrici con CRS dichiarato sono rifiutati dal gate loss/fidelity;
+GeoParquet geometrico legge correttamente ma DATA fallisce la barriera schema,
+anche con piano native identity e C-01 steps vuoto. Il sort segnala inoltre
+invalidazioni di metadata derivati. Nessuna pubblicazione finale in questi casi.
+Rischio: non e qualificabile il primo percorso ETL sui quattro formati richiesti.
+Chiusura: correzioni upstream con pin provati per tabellare/interchange geometrico,
+e revisione esplicita comune se si vogliono autorizzare perdite IO. Questi rifiuti
+non sono una qualifica positiva dei formati.
+
+Aggiornamento S4: IPC con geometria canonica e primaria implicita -> DATA sort ->
+IO IPC/GeoParquet passa localmente, con oracolo Arrow/Parquet indipendente per
+valori, NULL, WKB, CRS, identificatori e bbox fisico. Il blocco GeoParquet sopra
+riguarda l'ingresso nativo, non ogni uscita GeoParquet. Lo stesso input verso
+CSV/XLSX viene rifiutato prima della pubblicazione: data_mapping / validate /
+none / retry never. Nessun conteggio zero sostituisce fidelity lossless.
+Per decisione del titolare, il consenso IO resta un passo successivo con U4:
+revisione comune per step/destinazione coerente con la futura API IO, senza
+simulare le API proposte. PG read@1 -> DATA run@3 -> IO e ora composto sul piano
+intero e predisposto nei job PostgreSQL/PostGIS e cinque superfici; esecuzione
+reale ancora da verificare in CI. read@2 resta assente, senza alias.

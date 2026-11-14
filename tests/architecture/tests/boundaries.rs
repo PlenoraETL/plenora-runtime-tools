@@ -458,6 +458,10 @@ fn runtime_http_has_no_auth_business_pfm_or_provider_scope() -> Result<(), Box<d
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "Keep exact documented git exceptions beside the policy check"
+)]
 fn all_dependency_versions_are_exactly_pinned_or_workspace_inherited() -> Result<(), Box<dyn Error>>
 {
     let root = workspace_root()?;
@@ -466,9 +470,11 @@ fn all_dependency_versions_are_exactly_pinned_or_workspace_inherited() -> Result
     for manifest_path in workspace_manifests(&root)? {
         let manifest = strip_toml_comments(&fs::read_to_string(&manifest_path)?);
         let mut dependency_section = false;
+        let mut dev_dependencies = false;
         for line in manifest.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with('[') {
+                dev_dependencies = toml_section_name(trimmed) == Some("dev-dependencies");
                 dependency_section = toml_section_name(trimmed)
                     .is_some_and(|section| section.contains("dependencies"));
                 continue;
@@ -532,7 +538,32 @@ fn all_dependency_versions_are_exactly_pinned_or_workspace_inherited() -> Result
                 && quoted_assignment_value(trimmed, "branch").is_none()
                 && quoted_assignment_value(trimmed, "tag").is_none()
                 && root.join("docs/adr/0013-data-chain-adapter.md").is_file();
+            // ADR0014: exact existing IO sources used only for host real-format fixture oracles.
+            let approved_interop_fixture_pin = dev_dependencies
+                && manifest_path
+                    .parent()
+                    .and_then(std::path::Path::file_name)
+                    .and_then(|n| n.to_str())
+                    == Some("plenora-runtime-chain-host")
+                && ((matches!(
+                    trimmed.split('=').next().map(str::trim),
+                    Some("plenora-io-tools" | "plenora-io-model")
+                ) && quoted_assignment_value(trimmed, "version") == Some("=9.0.0"))
+                    || (trimmed.split('=').next().map(str::trim) == Some("s4-parquet")
+                        && quoted_assignment_value(trimmed, "package")
+                            == Some("plenora-fork-parquet")
+                        && quoted_assignment_value(trimmed, "version") == Some("=60.0.0")))
+                && quoted_assignment_value(trimmed, "git")
+                    == Some("https://github.com/PlenoraETL/plenora-IO-tools.git")
+                && quoted_assignment_value(trimmed, "rev")
+                    == Some("9c087aa7daf5d9ad10843ebf3027ae8858f66b94")
+                && quoted_assignment_value(trimmed, "branch").is_none()
+                && quoted_assignment_value(trimmed, "tag").is_none()
+                && root
+                    .join("docs/adr/0014-real-chain-composition.md")
+                    .is_file();
             if !approved_data_pin
+                && !approved_interop_fixture_pin
                 && !approved_database_pin
                 && !approved_io_pin
                 && ["git", "branch", "tag", "rev"]

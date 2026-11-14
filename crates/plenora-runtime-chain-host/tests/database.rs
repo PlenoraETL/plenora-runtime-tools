@@ -2,6 +2,8 @@
 #![allow(clippy::too_many_lines)]
 #[path = "../../plenora-runtime-adapter-database/tests/support/fixture.rs"]
 mod fixture;
+#[path = "support/postgres_fixture.rs"]
+mod postgres_fixture;
 use plenora_runtime_adapter_database::{Connection, SecretString};
 use plenora_runtime_chain_host::DatabaseHost;
 use plenora_runtime_chain_store::{PostgresStore, Retention};
@@ -31,7 +33,10 @@ async fn postgres_real_database_read_write_and_restart_reports()
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let source = format!("s3_source_{suffix}");
     let target = format!("s3_target_{suffix}");
-    client.batch_execute(&format!("CREATE TABLE {source} (value text); CREATE TABLE {target} (value text); INSERT INTO {source} VALUES (NULL), (''), ('hello');")).await?;
+    postgres_fixture::source(&connection, &source).await?;
+    client
+        .batch_execute(&format!("CREATE TABLE {target} (value text);"))
+        .await?;
     let expected: Vec<Option<String>> = client
         .query(
             &format!("SELECT value FROM {source} ORDER BY value NULLS FIRST"),

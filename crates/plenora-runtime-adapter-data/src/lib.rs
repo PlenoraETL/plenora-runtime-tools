@@ -9,7 +9,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 type CancellationToken = Arc<AtomicBool>;
 use plenora_runtime_chains::{
     Adapter, Error, Invocation, OwnedResource, ResourceLedger, ResourceRequest, Store,
-    contracts::{Plan, StepResult, parse_plan, plan_digest, validate_plan},
+    contracts::{
+        Plan, Registry, StepResult, parse_plan, parse_registry, plan_digest, validate_plan,
+    },
 };
 use plenora_runtime_core::Clock;
 pub use registry::{ArrowPort, Ports, catalog, discovery, registry};
@@ -84,6 +86,31 @@ impl<S: Store> DataAdapter<S> {
     /// Rejects invalid plans, paths, snapshots, ports and deployment identity.
     pub fn new(config: Config, store: Arc<S>, clock: Arc<dyn Clock>) -> Result<Self, Error> {
         let registry = registry(&config.artifact_sha256, &config.ports)?;
+        Self::with_registry(config, store, clock, &registry)
+    }
+    /// Compose against a complete host registry, preserving the full authorized plan.
+    /// The linked component descriptors must remain exactly those of real discovery.
+    /// # Errors
+    /// Rejects malformed registries or altered/extra descriptors for this component.
+    pub fn with_registry(
+        config: Config,
+        store: Arc<S>,
+        clock: Arc<dyn Clock>,
+        registry: &Registry,
+    ) -> Result<Self, Error> {
+        parse_registry(&encode(registry)?)?;
+        let own = registry::registry(&config.artifact_sha256, &config.ports)?;
+        if registry.components.get("data") != own.components.get("data")
+            || registry
+                .operations
+                .iter()
+                .filter(|op| op.component == "data")
+                .collect::<Vec<_>>()
+                != own.operations.iter().collect::<Vec<_>>()
+        {
+            return Err(Error::Invalid);
+        }
+
         if config.tenant.is_empty()
             || config
                 .artifacts
@@ -97,7 +124,7 @@ impl<S: Store> DataAdapter<S> {
             .iter()
             .map(|raw| {
                 let plan = parse_plan(raw.as_bytes())?;
-                validate_plan(&plan, &registry)?;
+                validate_plan(&plan, registry)?;
                 Ok((plan_digest(&plan)?, plan))
             })
             .collect::<Result<_, Error>>()?;
@@ -124,7 +151,7 @@ impl<S: Store> DataAdapter<S> {
             return Err(Error::Invalid);
         }
         let plan = self.plans.get(&i.plan_digest).ok_or(Error::Invalid)?;
-        if !plan.steps.contains(&i.step) {
+        if i.step.component != "data" || !plan.steps.contains(&i.step) {
             return Err(Error::Invalid);
         }
         Ok(plan)

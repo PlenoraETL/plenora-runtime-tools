@@ -36,6 +36,13 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "sy
 workspace = true
 
 [dev-dependencies]
+# Independent real file fixtures/readback for S4; same IO candidate as production, ADR0014.
+plenora-io-tools = { version = "=9.0.0", git = "https://github.com/PlenoraETL/plenora-IO-tools.git", rev = "9c087aa7daf5d9ad10843ebf3027ae8858f66b94" }
+plenora-io-model = { version = "=9.0.0", git = "https://github.com/PlenoraETL/plenora-IO-tools.git", rev = "9c087aa7daf5d9ad10843ebf3027ae8858f66b94" }
+# Generate a genuine geometry-free Parquet oracle, independent of IO's geometric writer; ADR0014.
+s4-parquet = { package = "plenora-fork-parquet", version = "=60.0.0", git = "https://github.com/PlenoraETL/plenora-IO-tools.git", rev = "9c087aa7daf5d9ad10843ebf3027ae8858f66b94", default-features = false, features = ["arrow"] }
+# Scoped generated fixture directories, explicit test cleanup; same exact helper as IO.
+tempfile = "=3.27.0"
 # Real DATA parity fixtures use the same exact Arrow ABI as all three pinned libraries (ADR0013).
 arrow-array = "=60.1.0"
 arrow-schema = { version = "=60.1.0", features = ["serde"] }

@@ -4,9 +4,14 @@
 mod control;
 mod data;
 mod database;
+mod interop;
 mod io;
 pub use data::{DataConfig, DataHost};
 pub use database::{DatabaseConfig, DatabaseConnectionConfig, DatabaseHost};
+pub use interop::{
+    InteropConfig, InteropDatabase, InteropHost, InteropIo, InteropProfile, interop_engine,
+    interop_registry,
+};
 pub use io::{IoConfig, IoHost};
 mod ownership;
 mod remote;

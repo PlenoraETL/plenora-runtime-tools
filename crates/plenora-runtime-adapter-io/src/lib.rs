@@ -8,7 +8,9 @@ use async_trait::async_trait;
 use plenora_io_model::{CancellationToken, json::from_slice as strict_json};
 use plenora_runtime_chains::{
     Adapter, Error, Invocation, OwnedResource, ResourceLedger, ResourceRequest, Store,
-    contracts::{Plan, StepResult, parse_plan, plan_digest, validate_plan},
+    contracts::{
+        Plan, Registry, StepResult, parse_plan, parse_registry, plan_digest, validate_plan,
+    },
 };
 use plenora_runtime_core::Clock;
 pub use registry::{Ports, catalog, discovery, registry};
@@ -107,6 +109,31 @@ impl<S: Store> IoAdapter<S> {
     /// Rejects invalid plans, paths, snapshots, ports and deployment identity.
     pub fn new(config: Config, store: Arc<S>, clock: Arc<dyn Clock>) -> Result<Self, Error> {
         let registry = registry(&config.artifact_sha256, &config.ports)?;
+        Self::with_registry(config, store, clock, &registry)
+    }
+    /// Compose against a complete host registry, preserving the full authorized plan.
+    /// The linked component descriptors must remain exactly those of real discovery.
+    /// # Errors
+    /// Rejects malformed registries or altered/extra descriptors for this component.
+    pub fn with_registry(
+        config: Config,
+        store: Arc<S>,
+        clock: Arc<dyn Clock>,
+        registry: &Registry,
+    ) -> Result<Self, Error> {
+        parse_registry(&encode(registry)?)?;
+        let own = registry::registry(&config.artifact_sha256, &config.ports)?;
+        if registry.components.get("io") != own.components.get("io")
+            || registry
+                .operations
+                .iter()
+                .filter(|op| op.component == "io")
+                .collect::<Vec<_>>()
+                != own.operations.iter().collect::<Vec<_>>()
+        {
+            return Err(Error::Invalid);
+        }
+
         if config.tenant.is_empty()
             || !std::path::Path::new(&config.staging_directory).is_absolute()
             || config
@@ -136,7 +163,7 @@ impl<S: Store> IoAdapter<S> {
             .iter()
             .map(|raw| {
                 let plan = parse_plan(raw.as_bytes())?;
-                validate_plan(&plan, &registry)?;
+                validate_plan(&plan, registry)?;
                 Ok((plan_digest(&plan)?, plan))
             })
             .collect::<Result<_, Error>>()?;
@@ -163,7 +190,7 @@ impl<S: Store> IoAdapter<S> {
             return Err(Error::Invalid);
         }
         let plan = self.plans.get(&i.plan_digest).ok_or(Error::Invalid)?;
-        if !plan.steps.contains(&i.step) {
+        if i.step.component != "io" || !plan.steps.contains(&i.step) {
             return Err(Error::Invalid);
         }
         Ok(plan)
@@ -214,9 +241,14 @@ impl<S: Store> IoAdapter<S> {
                 return Err(Error::Invalid);
             }
             let manifest = i.inputs.get("data").ok_or(Error::Invalid)?;
-            let bytes = self
-                .artifact(&i.tenant, &manifest.artifact_ref, MAX_BLOB)
-                .await?;
+            // Inter-component outputs are scoped to THIS run, never a run parsed from a ref.
+            let bytes = if let Some(bytes) = self.config.artifacts.get(&manifest.artifact_ref) {
+                bytes.clone()
+            } else {
+                self.store
+                    .read_resource(&i.tenant, &i.run_id, &manifest.artifact_ref, MAX_BLOB)
+                    .await?
+            };
             if bytes.len() as u64 != manifest.bytes || digest(&bytes) != manifest.sha256 {
                 return Err(Error::Invalid);
             }

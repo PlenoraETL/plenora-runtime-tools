@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 use plenora_runtime_chain_cli::{Endpoint, parse};
 use plenora_runtime_chain_host::{
-    DataConfig, DatabaseConfig, IoConfig, RemoteClient, ScriptedConfig, ScriptedHost,
+    DataConfig, DatabaseConfig, InteropConfig, IoConfig, RemoteClient, ScriptedConfig, ScriptedHost,
 };
 use plenora_runtime_chains::{Error, EventCursor, Request, Response};
 use std::io::{Read, Write};
@@ -51,10 +51,15 @@ impl Session {
         }
     }
 }
+#[allow(
+    clippy::too_many_lines,
+    reason = "Keep bounded synchronous configuration separate from runtime entry in one facade"
+)]
 fn execute() -> Result<Option<Response>, Error> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     let (endpoint, request, json_lines) = match args.as_slice() {
         [mode, file] if mode == "scripted-call" => (Endpoint::Scripted(file.clone()), None, false),
+        [mode, file] if mode == "interop-call" => (Endpoint::Interop(file.clone()), None, false),
         [mode, file] if mode == "data-call" => (Endpoint::Data(file.clone()), None, false),
         [mode, file] if mode == "io-call" => (Endpoint::Io(file.clone()), None, false),
         [mode, file] if mode == "database-call" => (Endpoint::Database(file.clone()), None, false),
@@ -80,6 +85,11 @@ fn execute() -> Result<Option<Response>, Error> {
             Some(Box::new(ScriptedHost::new(config)?))
         }
         Endpoint::Remote { .. } => None,
+        Endpoint::Interop(file) => {
+            let config: InteropConfig =
+                serde_json::from_str(&read_file(file)?).map_err(|_| Error::Invalid)?;
+            Some(Box::new(ScriptedHost::interop(config)?))
+        }
         Endpoint::Data(file) => {
             let config: DataConfig =
                 serde_json::from_str(&read_file(file)?).map_err(|_| Error::Invalid)?;

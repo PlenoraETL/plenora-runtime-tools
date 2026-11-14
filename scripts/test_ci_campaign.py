@@ -32,6 +32,7 @@ class Campaign(unittest.TestCase):
             '--test transport --locked --no-report -- --ignored',
             '--test database --locked --no-report -- --ignored',
             '--test io --locked --no-report -- --ignored',
+            '--test interop_real --locked --no-report postgres_real_ -- --ignored',
             'cargo llvm-cov report --summary-only --fail-under-lines 90',
         ]:
             self.assertIn(fragment, coverage)
@@ -82,6 +83,9 @@ class Campaign(unittest.TestCase):
                 self.assertIn('scripts/postgres-adapter-ci.Dockerfile', text)
                 self.assertIn('CREATE EXTENSION postgis', text)
                 self.assertRegex(text, r'--example io_fixture --locked -- "\$RUNNER_TEMP/[^"]+"')
+            installed = ci_job(workflow, 'postgres-integration')
+            self.assertIn('--example postgres_source_fixture --locked', installed)
+            self.assertNotIn('CREATE TABLE s3_source', installed)
             coverage = ci_job(workflow, 'coverage')
             for adapter in ('database', 'io', 'data'):
                 self.assertIn(f'--test {adapter} --locked --no-report -- --ignored', coverage)

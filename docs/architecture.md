@@ -193,3 +193,11 @@ Il crate prodotto `plenora-runtime-adapter-data` collega esclusivamente le API
 Rust della candidate DATA 5.0.0 (ADR0013). Le porte nominate derivano dal profilo
 Arrow e dai tipi artefatto della discovery runtime. Il journal mantiene separati
 manifesto data.run@3 e C-01. Nessuna dipendenza DATA nei crate generici.
+
+S4 aggiunge InteropHost nel solo prodotto chain-host: IO, DATA e il database
+opzionale condividono
+registry, piano confermato, risorse e coordinatore. InteropProfile contiene un
+solo allowlist dei piani completi; interop_engine espone lo stesso coordinatore
+ai chiamanti Rust che guidano advance/resume. Nessuna dipendenza ETL aggiunta
+ai generici. La CLI --interop-config e la wheel profile="interop" usano il
+medesimo dispatcher; le lacune di formato restano in contract-alignment.

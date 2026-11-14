@@ -444,3 +444,20 @@ Il pin DATA impone crc32fast 1.5.2 e unicode-normalization 0.1.25: Cargo ha dovu
 unificare queste due transitive (prima 1.5.3/0.1.26). Nessun aggiornamento globale
 del lockfile: necessari all'esatto pin candidate. Audit/deny restano gate CI;
 la compilazione offline non attesta l'assenza di advisory.
+
+## S4 - composizione di adapter reali
+
+Regola: stesso tenant, piano completo, store e clock; nessun fallback di resolver
+tra namespace. Il profilo unico rifiuta artefatti configurati nei namespace
+riservati ref:io-/ref:data-/ref:db- e ref:database-catalog, verifica la discovery locale di ogni componente e
+risolve gli ingressi dal run corrente. L'autorizzazione non e una UI di consenso:
+il chiamante fidato deve fornire soltanto piani realmente confermati dal titolare.
+Una modifica di step, parametri o destinazione richiede una nuova conferma.
+
+Rischio residuo: il publish del bundle IO e il journal PostgreSQL non sono una
+transazione distribuita. La perdita della conferma dopo publish richiede recovery;
+nessun nuovo invoke e nessuna deduzione di successo dalla sola esistenza del file.
+I test verificano il contatore di invoke, non soltanto il contenuto invariato.
+Chiusura: evidenza upstream autenticata per riconciliare la pubblicazione, poi
+prove reali ai cut fisici. Restano i limiti RSS/tempfile/cooperazione dei pin S3;
+la composizione non li rafforza e non costituisce qualifica soak/memoria.
