@@ -1907,7 +1907,7 @@ crates/plenora-runtime-chain-host/src/remote.rs |  | eprintln ! ("Remote request
 crates/plenora-runtime-chain-host/src/remote.rs |  | fn request_failure (kind : async_nats :: RequestErrorKind) -> Error
 crates/plenora-runtime-chain-host/src/remote.rs |  | fn task_error (result : Option < & Result < Result < () , Error > , tokio :: task :: JoinError > >) -> Option < Error >
 crates/plenora-runtime-chain-host/src/remote.rs |  | pub struct RemoteClient { client : async_nats :: Client , subject : String , observation_timeout : Duration , }
-crates/plenora-runtime-chain-host/src/remote.rs |  | tokio :: select ! { () = async { if let Some (receiver) = & mut stop { while !* receiver . borrow () { if receiver . changed () . await . is_err () { break ; } } } else { std :: future :: pending ::< () > () . await ; } } => break None , result = tasks . join_next () , if ! tasks . is_empty () => { if let Some (error) = task_error (result . as_ref ()) { break Some (error) ; } continue ; } message = stream . next () , if tasks . len () < 16 => { let Some (message) = message else { break None } ; message } }
+crates/plenora-runtime-chain-host/src/remote.rs |  | tokio :: select ! { stopped = async { if let Some (receiver) = & mut stop { while !* receiver . borrow () { receiver . changed () . await . map_err (| _ | Error :: Storage) ?; } } else { std :: future :: pending ::< () > () . await ; } Ok ::< () , Error > (()) } => break stopped . err () , result = tasks . join_next () , if ! tasks . is_empty () => { if let Some (error) = task_error (result . as_ref ()) { break Some (error) ; } continue ; } message = stream . next () , if tasks . len () < 16 => { let Some (message) = message else { break Some (Error :: Storage) } ; message } }
 crates/plenora-runtime-chain-host/src/remote.rs | # [async_trait] impl Transport for RemoteClient { } | 
 crates/plenora-runtime-chain-host/src/remote.rs | # [async_trait] impl Transport for RemoteClient { } | async fn exchange (& self , request : Request) -> Result < Response , Error >
 crates/plenora-runtime-chain-host/src/remote.rs | impl RemoteClient { } | async fn call (& self , bytes : Vec < u8 >) -> Result < Response , Error >
@@ -2224,6 +2224,8 @@ crates/plenora-runtime-chains/src/engine.rs |  |
 crates/plenora-runtime-chains/src/engine.rs |  | 
 crates/plenora-runtime-chains/src/engine.rs |  | 
 crates/plenora-runtime-chains/src/engine.rs |  | 
+crates/plenora-runtime-chains/src/engine.rs |  | 
+crates/plenora-runtime-chains/src/engine.rs |  | fn finalized_evidence (mut evidence : StepResult , invocation : & Invocation , intent : & Intent , now : u64 ,) -> Result < StepResult , Error >
 crates/plenora-runtime-chains/src/engine.rs |  | fn initial (plan : & Plan , validation : & ValidationReport , id : & str , now : u64 ,) -> Result < ChainResult , Error >
 crates/plenora-runtime-chains/src/engine.rs |  | fn problem (error : Error , effect : & str , step : Option < & str >) -> ChainError
 crates/plenora-runtime-chains/src/engine.rs |  | fn resolve_invocation (tenant : & str , run_id : & str , plan : & Plan , view : & ChainResult , intent : & Intent ,) -> Result < Invocation , Error >
@@ -2264,7 +2266,7 @@ crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn artifact (& self , reference : & str) -> Result < Vec < u8 > , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn cancel (& self , run_id : & str , expected : u64) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn cleanup_resources (& self) -> Result < () , Error >
-crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn complete (& self , started : & Journal , invocation : & Invocation , mut evidence : StepResult ,) -> Result < RunHandle , Error >
+crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn complete (& self , started : & Journal , invocation : & Invocation , evidence : StepResult ,) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn events (& self , run_id : & str , cursor : u64 , limit : usize ,) -> Result < Vec < Event > , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn finish (& self , started : & Journal , invocation : & Invocation , evidence : StepResult ,) -> Result < RunHandle , Error >
 crates/plenora-runtime-chains/src/engine.rs | impl < S : Store + plenora_runtime_boundary :: DurableExecutionStore > ChainEngine < S > { } | async fn load (& self , id : & str) -> Result < Journal , Error >

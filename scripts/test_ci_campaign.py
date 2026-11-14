@@ -35,6 +35,17 @@ class Campaign(unittest.TestCase):
             self.assertIn(fragment, coverage)
         self.assertIn('--test transport --locked -- --ignored', ci_job(workflow, 'postgres-integration'))
 
+    def test_output_references_have_a_producer_in_the_same_job(self):
+        workflow = (ROOT/'.github/workflows/ci.yml').read_text(encoding='utf-8')
+        for job in ['nats-integration', 'postgres-integration', 'coverage']:
+            available = set()
+            for part in re.split(r'^      - name: ', ci_job(workflow, job), flags=re.M)[1:]:
+                for producer in re.findall(r'steps\.(\w+)\.outputs\.', part):
+                    self.assertIn(producer, available, (job, producer))
+                name = re.search(r'^        id: (\w+)', part, re.M)
+                if name:
+                    available.add(name[1])
+
     def test_all_campaign_steps_are_attempted_and_aggregated(self):
         workflow = (ROOT/'.github/workflows/ci.yml').read_text(encoding='utf-8')
         for job in ['nats-integration','postgres-integration','coverage']:

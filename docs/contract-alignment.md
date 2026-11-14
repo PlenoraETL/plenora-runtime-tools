@@ -781,3 +781,19 @@ o retry. Il driver NATS non applica un secondo timer nascosto. Le prove di caten
 usano un budget dichiarato compatibile con la durata autorizzata dalla fixture;
 RT-010 continua ad attendere failed, effetto none, senza modificare il verdetto.
 Qualifica del delta: nuova campagna reale e coverage 90% sullo SHA finale.
+
+
+## PR23 ci23e: cancellazione e finalizzazione oltre deadline
+
+La cancellazione prima del primo intento mantiene lo stato cancelled e zero
+invocazioni anche quando la finalizzazione supera il budget: elapsed conserva il
+valore effettivo e un timeout di finalizzazione esplicito soddisfa il contratto.
+La classificazione di evidenza e contatori usa un solo istante dopo la lettura
+primaria, anche nei retry CAS. Un commit noto rimane documentato nel report grezzo;
+un'attesa oltre deadline non produce da sola recovery o replay.
+Lo stop esplicito del listener drena il lavoro accettato senza inventare Storage;
+EOF, perdita del controllo e fallimento di pubblicazione restano errori.
+Il test NATS nel job PostgreSQL usa product_nats; un gate verifica che ogni output
+provenga da uno step precedente dello stesso job. Prove con ManualClock e probe
+PostgreSQL di restart/worker inclusi; qualifica infrastrutturale del delta da
+confermare nella CI sullo SHA finale, senza attestazione di provider di dominio.

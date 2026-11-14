@@ -301,9 +301,18 @@ async fn nats_real_installed_surface_matrix() -> Result<(), Box<dyn Error>> {
             .output()
     })
     .await;
+    let mut host_failure = None;
     for task in tasks {
         task.abort();
-        let _cancelled = task.await;
+        match task.await {
+            Err(error) if error.is_cancelled() => {}
+            Ok(Err(error)) => {
+                host_failure.get_or_insert(error);
+            }
+            _ => {
+                host_failure.get_or_insert(plenora_runtime_chains::Error::Storage);
+            }
+        }
     }
     let output = process??;
     assert!(
@@ -311,5 +320,8 @@ async fn nats_real_installed_surface_matrix() -> Result<(), Box<dyn Error>> {
         "installed matrix: {}",
         String::from_utf8_lossy(&output.stderr)
     );
+    if let Some(error) = host_failure {
+        return Err(error.into());
+    }
     Ok(())
 }

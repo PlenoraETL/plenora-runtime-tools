@@ -944,3 +944,79 @@ async fn crash_before_intention_confirmation_never_invokes_and_restart_is_safe()
     assert_eq!(adapter.calls.load(Ordering::SeqCst), 3);
     Ok(())
 }
+
+#[tokio::test]
+async fn cancellation_before_intent_preserves_elapsed_after_deadline()
+-> Result<(), Box<dyn StdError>> {
+    for elapsed in [99_999, 100_000, 100_001] {
+        let adapter = adapter(false, false)?;
+        let clock = clock();
+        let engine = ChainEngine::new(
+            Arc::new(ScriptStore::default()),
+            adapter.clone(),
+            registry()?,
+            clock.clone(),
+            "tenant-a",
+        )?;
+        let h = engine.submit(&plan()?, options()).await?;
+        let receipt = engine.cancel(&h.run_id, h.revision).await?;
+        clock.advance(Duration::from_millis(elapsed))?;
+        assert_eq!(
+            engine.resume(&h.run_id, receipt.revision).await?.state,
+            "cancelled"
+        );
+        let result = engine.result(&h.run_id).await?;
+        assert_eq!(result.state, "cancelled");
+        assert_eq!(result.remote_effect, "none");
+        assert_eq!(result.counters.max_attempts, 0);
+        assert_eq!(result.counters.elapsed_ms, elapsed);
+        assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
+        validate_result(&result, &plan()?, &registry()?)?;
+        if elapsed > plan()?.budgets.elapsed_ms {
+            assert!(result.other_errors.iter().any(|e| e.category == "timeout"));
+        }
+        let before = engine.events(&h.run_id, 0, 256).await?;
+        let terminal = engine.status(&h.run_id).await?;
+        assert_eq!(engine.resume(&h.run_id, terminal.revision).await?, terminal);
+        assert_eq!(engine.events(&h.run_id, 0, 256).await?, before);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn finalization_read_crossing_deadline_preserves_known_commit_without_recovery()
+-> Result<(), Box<dyn StdError>> {
+    let store = Arc::new(ScriptStore::default());
+    let clock = clock();
+    let adapter = adapter(false, false)?;
+    let engine = ChainEngine::new(
+        store.clone(),
+        adapter.clone(),
+        registry()?,
+        clock.clone(),
+        "tenant-a",
+    )?;
+    let run = engine.submit(&plan()?, options()).await?;
+    engine.advance(&run.run_id).await?;
+    engine.advance(&run.run_id).await?;
+    *store.16.lock().map_err(|_| "latency fault")? = Some(clock);
+    engine.advance(&run.run_id).await?;
+    let result = engine.result(&run.run_id).await?;
+    assert_ne!(result.state, "requires_recovery");
+    assert_eq!(result.steps[2].state, "failed");
+    assert_eq!(result.steps[2].remote_effect, "committed");
+    assert_eq!(
+        result.steps[2].error.as_ref().ok_or("timeout")?.category,
+        "timeout"
+    );
+    assert_eq!(result.counters.elapsed_ms, 100_001);
+    assert_eq!(adapter.calls.load(Ordering::SeqCst), 3);
+    let reports = engine.report(&run.run_id).await?;
+    assert_eq!(reports.len(), 3);
+    assert_eq!(
+        parse_step_result(reports.last().ok_or("raw evidence")?)?.state,
+        "succeeded"
+    );
+    validate_result(&result, &plan()?, &registry()?)?;
+    Ok(())
+}

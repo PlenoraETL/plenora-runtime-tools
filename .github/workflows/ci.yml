@@ -371,7 +371,7 @@ jobs:
         if: always()
         continue-on-error: true
         env:
-          PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
+          PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}
         run: cargo test --no-fail-fast -p plenora-runtime-chain-host --test transport --locked -- --ignored --nocapture --test-threads=1
 
       - name: Run scripted facade over real NATS

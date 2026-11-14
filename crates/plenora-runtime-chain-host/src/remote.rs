@@ -184,13 +184,14 @@ where
     let mut tasks = tokio::task::JoinSet::new();
     let failure = loop {
         let message = tokio::select! {
-            () = async {
+            stopped = async {
                 if let Some(receiver) = &mut stop {
                     while !*receiver.borrow() {
-                        if receiver.changed().await.is_err() { break; }
+                        receiver.changed().await.map_err(|_| Error::Storage)?;
                     }
                 } else { std::future::pending::<()>().await; }
-            } => break None,
+                Ok::<(), Error>(())
+            } => break stopped.err(),
             result = tasks.join_next(), if !tasks.is_empty() => {
                 if let Some(error) = task_error(result.as_ref()) {
                     break Some(error);
@@ -198,7 +199,7 @@ where
                 continue;
             }
             message = stream.next(), if tasks.len() < 16 => {
-                let Some(message) = message else { break None };
+                let Some(message) = message else { break Some(Error::Storage) };
                 message
             }
         };
@@ -225,7 +226,7 @@ async fn drain(
             failure.get_or_insert(error);
         }
     }
-    Err(failure.unwrap_or(Error::Storage))
+    failure.map_or(Ok(()), Err)
 }
 
 #[cfg(test)]
@@ -290,5 +291,61 @@ mod tests {
         gate.notify_one();
         assert_eq!(task.await.ok(), Some(Err(Error::Storage)));
         assert!(done.load(std::sync::atomic::Ordering::SeqCst));
+    }
+    #[tokio::test]
+    async fn explicit_stop_drains_without_manufacturing_storage_failure() -> Result<(), Error> {
+        let (stop, stopped) = tokio::sync::watch::channel(false);
+        let entered = Arc::new(tokio::sync::Notify::new());
+        let release = Arc::new(tokio::sync::Notify::new());
+        let handler_entered = entered.clone();
+        let handler_release = release.clone();
+        let task = tokio::spawn(async move {
+            let mut stream =
+                futures_util::stream::iter([()]).chain(futures_util::stream::pending());
+            drive(
+                &mut stream,
+                |()| {
+                    let entered = handler_entered.clone();
+                    let release = handler_release.clone();
+                    async move {
+                        entered.notify_one();
+                        release.notified().await;
+                        Ok(())
+                    }
+                },
+                Some(stopped),
+            )
+            .await
+        });
+        entered.notified().await;
+        stop.send(true).map_err(|_| Error::Storage)?;
+        tokio::task::yield_now().await;
+        assert!(!task.is_finished());
+        release.notify_one();
+        assert_eq!(task.await.map_err(|_| Error::Storage)?, Ok(()));
+        Ok(())
+    }
+    #[tokio::test]
+    async fn lost_subscription_or_stop_authority_remains_storage_failure() {
+        assert_eq!(
+            drive(
+                &mut futures_util::stream::empty::<()>(),
+                |()| async { Ok(()) },
+                None
+            )
+            .await,
+            Err(Error::Storage)
+        );
+        let (stop, stopped) = tokio::sync::watch::channel(false);
+        drop(stop);
+        assert_eq!(
+            drive(
+                &mut futures_util::stream::pending::<()>(),
+                |()| async { Ok(()) },
+                Some(stopped)
+            )
+            .await,
+            Err(Error::Storage)
+        );
     }
 }

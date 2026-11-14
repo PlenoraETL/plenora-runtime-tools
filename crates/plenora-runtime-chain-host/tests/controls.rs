@@ -87,7 +87,7 @@ async fn nats_real_installed_cancel_resume_events() -> Result<(), Box<dyn Error>
     })
     .await;
     serving.abort();
-    assert!(serving.await.is_err_and(|e| e.is_cancelled()));
+    let serving_result = serving.await;
     let output = output??;
     for guard in guards {
         if !output.status.success() {
@@ -103,5 +103,10 @@ async fn nats_real_installed_cancel_resume_events() -> Result<(), Box<dyn Error>
         "installed controls: {}",
         String::from_utf8_lossy(&output.stderr)
     );
+    match serving_result {
+        Err(error) if error.is_cancelled() => {}
+        Ok(Err(error)) => return Err(error.into()),
+        _ => return Err("host stopped before harness cancellation".into()),
+    }
     Ok(())
 }

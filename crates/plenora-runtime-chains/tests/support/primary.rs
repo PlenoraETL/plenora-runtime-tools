@@ -39,6 +39,7 @@ pub struct ScriptStore(
     pub std::sync::atomic::AtomicU64,
     pub Mutex<Option<Pause>>,
     pub AtomicBool,
+    pub Mutex<Option<std::sync::Arc<plenora_runtime_testkit::ManualClock>>>,
 );
 #[async_trait]
 impl Store for ScriptStore {
@@ -327,12 +328,35 @@ impl Store for ScriptStore {
         Ok(candidate)
     }
     async fn load(&self, tenant: &str, id: &str) -> Result<Journal, Error> {
-        self.0
+        let journal = self
+            .0
             .lock()
             .map_err(|_| Error::Storage)?
             .get(&(tenant.into(), id.into()))
             .cloned()
-            .ok_or(Error::NotFound)
+            .ok_or(Error::NotFound)?;
+        let mut delay = self.16.lock().map_err(|_| Error::Storage)?;
+        if delay.is_some() {
+            // Declared latency fault after raw evidence is durable, before outcome classification.
+            let value: serde_json::Value =
+                serde_json::from_slice(&journal.to_json()?).map_err(|_| Error::Invalid)?;
+            let raw: Vec<u8> = serde_json::from_value(
+                value["events"]
+                    .as_array()
+                    .and_then(|v| v.last())
+                    .ok_or(Error::Invalid)?
+                    .clone(),
+            )
+            .map_err(|_| Error::Invalid)?;
+            if plenora_runtime_chains::contracts::parse_event(&raw)?.state == "finalizing"
+                && let Some(clock) = delay.take()
+            {
+                clock
+                    .advance(std::time::Duration::from_millis(100_001))
+                    .map_err(|_| Error::Invalid)?;
+            }
+        }
+        Ok(journal)
     }
     async fn compare_exchange(
         &self,

@@ -656,7 +656,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         &self,
         started: &Journal,
         invocation: &Invocation,
-        mut evidence: StepResult,
+        evidence: StepResult,
     ) -> Result<RunHandle, Error> {
         let plan = parse_plan(&started.plan)?;
         let intent = started.active.as_ref().ok_or(Error::Invalid)?;
@@ -666,45 +666,6 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         if raw_size > invocation.reservation.limits.result_bytes {
             return Err(Error::Recovery);
         }
-        let now = self.now()?;
-        if now >= invocation.reservation.deadline_ms {
-            evidence.counters.elapsed_ms = now
-                .checked_sub(invocation.started_ms)
-                .ok_or(Error::Invalid)?;
-            let mut timeout = problem(
-                Error::Timeout,
-                &evidence.remote_effect,
-                Some(&evidence.step_id),
-            );
-            timeout.phase = "finalize".into();
-            if evidence.error.is_some() {
-                evidence.other_errors.push(timeout);
-            } else {
-                evidence.error = Some(timeout);
-            }
-            if evidence.state == "succeeded" {
-                evidence.state = "failed".into();
-                evidence.reason = "upstream_error".into();
-            }
-        }
-        let mut accounted = evidence.counters.clone();
-        // Exact wall-clock overruns remain in evidence and require a timeout outcome.
-        accounted.elapsed_ms = 0;
-        if evidence.step_id != invocation.step.id
-            || evidence.attempt != invocation.attempt
-            || evidence.input_manifests != invocation.inputs
-            || !budget::within(&accounted, &invocation.reservation.limits)
-            || evidence.counters.max_attempts != 1
-        {
-            return Err(Error::Recovery);
-        }
-        let prior = parse_result(&intent.prior)?;
-        evidence = crate::retry::cumulative(
-            prior.steps.get(intent.index).ok_or(Error::Invalid)?,
-            &evidence,
-            now.checked_sub(intent.first_started.unwrap_or(intent.started))
-                .ok_or(Error::Invalid)?,
-        )?;
         // Re-read after invocation: cancellation may have committed while the provider was running.
         // A revision conflict retries persistence only, never the domain call.
         for _ in 0..16 {
@@ -715,9 +676,13 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             {
                 return Err(Error::Conflict);
             }
+            // Use one fresh instant after the awaited primary read for classification,
+            // cumulative accounting and aggregation. CAS retries start from raw evidence.
+            let now = self.now()?;
+            let evidence = finalized_evidence(evidence.clone(), invocation, intent, now)?;
             let mut view = parse_result(&j.view)?;
             *view.steps.get_mut(intent.index).ok_or(Error::Invalid)? = evidence.clone();
-            summarize(&mut view, &plan, self.now()?, j.revision + 1)?;
+            summarize(&mut view, &plan, now, j.revision + 1)?;
             validate_result(&view, &plan, &self.registry).map_err(|_| Error::Recovery)?;
             j.view = encode(&view)?;
             if let Some(allocation) = &mut j.allocation {
@@ -906,6 +871,52 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
     }
 }
 
+fn finalized_evidence(
+    mut evidence: StepResult,
+    invocation: &Invocation,
+    intent: &Intent,
+    now: u64,
+) -> Result<StepResult, Error> {
+    if now >= invocation.reservation.deadline_ms {
+        evidence.counters.elapsed_ms = now
+            .checked_sub(invocation.started_ms)
+            .ok_or(Error::Invalid)?;
+        let mut timeout = problem(
+            Error::Timeout,
+            &evidence.remote_effect,
+            Some(&evidence.step_id),
+        );
+        timeout.phase = "finalize".into();
+        if evidence.error.is_some() {
+            evidence.other_errors.push(timeout);
+        } else {
+            evidence.error = Some(timeout);
+        }
+        if evidence.state == "succeeded" {
+            evidence.state = "failed".into();
+            evidence.reason = "upstream_error".into();
+        }
+    }
+    let mut accounted = evidence.counters.clone();
+    // Exact wall-clock overruns remain in evidence and require a timeout outcome.
+    accounted.elapsed_ms = 0;
+    if evidence.step_id != invocation.step.id
+        || evidence.attempt != invocation.attempt
+        || evidence.input_manifests != invocation.inputs
+        || !budget::within(&accounted, &invocation.reservation.limits)
+        || evidence.counters.max_attempts != 1
+    {
+        return Err(Error::Recovery);
+    }
+    let prior = parse_result(&intent.prior)?;
+    crate::retry::cumulative(
+        prior.steps.get(intent.index).ok_or(Error::Invalid)?,
+        &evidence,
+        now.checked_sub(intent.first_started.unwrap_or(intent.started))
+            .ok_or(Error::Invalid)?,
+    )
+}
+
 fn retry(kind: &str) -> Retry {
     Retry::Variant0(Retry0 { kind: kind.into() })
 }
@@ -1072,6 +1083,26 @@ fn summarize(view: &mut ChainResult, plan: &Plan, now: u64, revision: u64) -> Re
         .iter()
         .try_fold(budget::zero(), |a, s| budget::add(&a, &s.counters))?;
     view.counters.elapsed_ms = now.checked_sub(view_time(view)?).ok_or(Error::Invalid)?;
+    // Finalization may occur after the execution budget even with no started step.
+    // Preserve both the terminal outcome and measured time; the contract requires
+    // explicit timeout evidence rather than clamping or rejecting the journal.
+    if view.counters.elapsed_ms > plan.budgets.elapsed_ms
+        && view.state != "succeeded"
+        && !view
+            .error
+            .iter()
+            .chain(&view.other_errors)
+            .chain(
+                view.steps
+                    .iter()
+                    .flat_map(|s| s.error.iter().chain(&s.other_errors)),
+            )
+            .any(|e| e.category == "timeout")
+    {
+        let mut timeout = problem(Error::Timeout, &view.remote_effect, None);
+        timeout.phase = "finalize".into();
+        view.other_errors.push(timeout);
+    }
     view.outputs.clear();
     for (name, output) in &plan.outputs {
         if let Source::Variant1(source) = &output.source

@@ -410,4 +410,59 @@ mod tests {
         assert_eq!(a.submit(&different, options()).await, Err(Error::Conflict));
         Ok(())
     }
+    #[tokio::test]
+    #[ignore = "requires real PostgreSQL; included in postgres_real CI and coverage"]
+    async fn postgres_real_cancel_before_intent_after_deadline_survives_restart()
+    -> Result<(), Box<dyn StdError>> {
+        let store = Arc::new(PostgresStore::new(&std::env::var("PLENORA_POSTGRES_URL")?)?);
+        store.migrate(crate::Retention::default()).await?;
+        let mut connection = store.connect().await?;
+        let tx = PostgresStore::transaction(&mut connection).await?;
+        let (now, _, _) = policy(&tx).await?;
+        PostgresStore::commit(tx).await?;
+        let clock = Arc::new(ManualClock::new(UNIX_EPOCH + Duration::from_millis(now)));
+        let registry = parse_registry(include_bytes!(
+            "../../../contracts/chains-v2/fixtures/context.json"
+        ))?;
+        let plan = parse_plan(include_bytes!(
+            "../../../contracts/chains-v2/fixtures/plan-valid.json"
+        ))?;
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let engine = ChainEngine::new(
+            store.clone(),
+            Arc::new(NoInvocation),
+            registry.clone(),
+            clock.clone(),
+            &tenant,
+        )?;
+        let receipt = engine
+            .submit(
+                &plan,
+                RunOptions {
+                    run_id: uuid::Uuid::new_v4().to_string(),
+                    idempotency_key: None,
+                    deadline_ms: None,
+                },
+            )
+            .await?;
+        engine.cancel(&receipt.run_id, receipt.revision).await?;
+        clock.advance(Duration::from_millis(plan.budgets.elapsed_ms + 1))?;
+        let owner = uuid::Uuid::new_v4().to_string();
+        assert!(engine.work_once(&owner, 30_000).await?);
+        let reopened = ChainEngine::new(
+            Arc::new(PostgresStore::new(&std::env::var("PLENORA_POSTGRES_URL")?)?),
+            Arc::new(NoInvocation),
+            registry,
+            clock,
+            &tenant,
+        )?;
+        let result = reopened.result(&receipt.run_id).await?;
+        assert_eq!(result.state, "cancelled");
+        assert_eq!(result.remote_effect, "none");
+        assert_eq!(result.counters.max_attempts, 0);
+        assert_eq!(result.counters.elapsed_ms, plan.budgets.elapsed_ms + 1);
+        assert!(result.other_errors.iter().any(|e| e.category == "timeout"));
+        assert!(!reopened.work_once(&owner, 30_000).await?);
+        Ok(())
+    }
 }

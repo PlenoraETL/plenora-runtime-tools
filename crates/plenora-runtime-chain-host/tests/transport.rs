@@ -19,6 +19,9 @@ async fn invalid_observation_budget_is_rejected_before_connecting() {
 async fn nats_real_observation_timeout_late_reply_and_no_implicit_retry()
 -> Result<(), Box<dyn StdError>> {
     let server = std::env::var("PLENORA_NATS_URL")?;
+    if server.is_empty() {
+        return Err("NATS endpoint missing from CI service output".into());
+    }
     let broker = async_nats::connect(&server).await?;
     let subject = format!("observation.{}", uuid::Uuid::new_v4().simple());
     let mut requests = broker.subscribe(subject.clone()).await?;

@@ -667,3 +667,24 @@ async fn coordination_error_preserves_prior_committed_effect_and_active_uncertai
     assert_eq!(reply.value["observed_result"]["state"], "succeeded");
     Ok(())
 }
+
+#[tokio::test]
+async fn worker_finalizes_cancelled_unstarted_run_after_deadline_and_keeps_polling() -> Test {
+    let (store, script) = setup(0, "none")?;
+    let e = engine(&store, &script)?;
+    let h = e.submit(&plan()?, options()).await?;
+    e.cancel(&h.run_id, h.revision).await?;
+    let elapsed = plan()?.budgets.elapsed_ms + 1;
+    store.3.advance(Duration::from_millis(elapsed))?;
+    let owner = uuid::Uuid::new_v4().to_string();
+    assert!(e.work_once(&owner, 30_000).await?);
+    let result = e.result(&h.run_id).await?;
+    assert_eq!(result.state, "cancelled");
+    assert_eq!(result.remote_effect, "none");
+    assert_eq!(result.counters.max_attempts, 0);
+    assert_eq!(result.counters.elapsed_ms, elapsed);
+    assert!(result.other_errors.iter().any(|e| e.category == "timeout"));
+    assert!(script.calls.lock().map_err(|_| "calls")?.is_empty());
+    assert!(!e.work_once(&owner, 30_000).await?);
+    Ok(())
+}
