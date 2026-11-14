@@ -418,3 +418,29 @@ non e fissato per digest/versione, quindi il servizio di qualifica non e ermetic
 Ambito solo CI effimera, nessuna dipendenza del prodotto. Rischio: aggiornamenti
 apt cambiano il servizio provato. Chiusura: immagine PostgreSQL+PostGIS pubblicata
 e verificata, fissata per digest, con aggiornamenti espliciti.
+
+
+## S3 DATA candidate: confine dei budget e staging upstream
+
+Regola: nessuna quota dichiarata come limite OS se il provider non la applica.
+Adapter: massimo 1 MiB per input/output/documento, 8 porte per lato, IPC senza
+compressione/EOS obbligatorio, schema 16 KiB/32 campi, massimo 32 passi e
+max_governed_memory_bytes esplicito <=16 MiB nel piano nativo; limiti righe
+entro la reservation. Risorse host riservate conservativamente (128 MiB) e
+riconciliate senza pubblicare se il budget del journal non basta.
+
+Rischio residuo: DATA crea temporanei interni con tempfile::tempdir; API pubblica
+senza directory/quota spool iniettabile. max_governed_memory_bytes non e un
+limite RSS/allocator; alcuni limiti core sono dichiarati ma non applicati.
+La reservation governa il ledger e i byte attraverso il resolver, NON una quota
+OS dei temporanei interni o delle allocazioni native. Cleanup su errore puo
+passare dal Drop upstream senza conferma. Non si cambia TEMP globale in-process.
+Chiusura: API upstream con staging controllabile, quote applicate e cleanup
+confermato, poi test fault/quota. Non qualificato per una sandbox ostile con
+hard cap RSS/spool richiesto. La cancellazione e cooperativa fra kernel: il
+worker blocking viene sempre drenato, non si promette interruzione immediata.
+
+Il pin DATA impone crc32fast 1.5.2 e unicode-normalization 0.1.25: Cargo ha dovuto
+unificare queste due transitive (prima 1.5.3/0.1.26). Nessun aggiornamento globale
+del lockfile: necessari all'esatto pin candidate. Audit/deny restano gate CI;
+la compilazione offline non attesta l'assenza di advisory.

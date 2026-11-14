@@ -514,7 +514,26 @@ fn all_dependency_versions_are_exactly_pinned_or_workspace_inherited() -> Result
                 && quoted_assignment_value(trimmed, "branch").is_none()
                 && quoted_assignment_value(trimmed, "tag").is_none()
                 && root.join("docs/adr/0012-io-chain-adapter.md").is_file();
-            if !approved_database_pin
+            // ADR0013: only the product adapter may link this DATA candidate Rust API.
+            let approved_data_pin = manifest_path
+                .parent()
+                .and_then(std::path::Path::file_name)
+                .and_then(|n| n.to_str())
+                == Some("plenora-runtime-adapter-data")
+                && matches!(
+                    trimmed.split('=').next().map(str::trim),
+                    Some("plenora-cli" | "plenora-core" | "plenora-pipeline")
+                )
+                && quoted_assignment_value(trimmed, "git")
+                    == Some("https://github.com/PlenoraETL/plenora-data-tools.git")
+                && quoted_assignment_value(trimmed, "rev")
+                    == Some("eba11205df585469a154de3ad76ab22a0cb9cad6")
+                && quoted_assignment_value(trimmed, "version") == Some("=5.0.0")
+                && quoted_assignment_value(trimmed, "branch").is_none()
+                && quoted_assignment_value(trimmed, "tag").is_none()
+                && root.join("docs/adr/0013-data-chain-adapter.md").is_file();
+            if !approved_data_pin
+                && !approved_database_pin
                 && !approved_io_pin
                 && ["git", "branch", "tag", "rev"]
                     .iter()

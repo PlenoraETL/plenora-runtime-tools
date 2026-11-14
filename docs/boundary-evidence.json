@@ -13,11 +13,15 @@
     },
     "RT-011": {
       "status": "open",
-      "residual": "Lookup scriptato; qualificare cataloghi e adapter reali S3.",
+      "residual": "Discovery DATA candidate provata al pin eba11205; non qualifica tutti i 146 kernel, gli altri adapter o i deployment reali.",
       "subsystem_proofs": [
         {
           "path": "tests/integration/tests/boundary_facades.rs",
           "test": "every_p2_1_row_has_an_executed_raw_probe"
+        },
+        {
+          "path": "crates/plenora-runtime-adapter-data/tests/data.rs",
+          "test": "discovery_uses_real_runtime_version_and_artifact_ports"
         }
       ]
     },

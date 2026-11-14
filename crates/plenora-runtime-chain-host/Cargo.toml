@@ -10,6 +10,7 @@ publish = false
 [dependencies]
 # Real IO composition stays in the product host; docs/adr/0012-io-chain-adapter.md.
 plenora-runtime-adapter-io = { version = "=0.1.0", path = "../plenora-runtime-adapter-io" }
+plenora-runtime-adapter-data = { version = "=0.1.0", path = "../plenora-runtime-adapter-data" }
 # Real ETL composition stays in the product host; docs/adr/0011-database-chain-adapter.md.
 plenora-runtime-adapter-database = { version = "=0.1.0", path = "../plenora-runtime-adapter-database" }
 plenora-runtime-chains = { version = "=0.1.0", path = "../plenora-runtime-chains" }
@@ -35,6 +36,10 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "sy
 workspace = true
 
 [dev-dependencies]
+# Real DATA parity fixtures use the same exact Arrow ABI as all three pinned libraries (ADR0013).
+arrow-array = "=60.1.0"
+arrow-schema = { version = "=60.1.0", features = ["serde"] }
+arrow-ipc = "=60.1.0"
 # Provider and source data assertions in the real PostgreSQL S3 tests; docs/adr/0011-database-chain-adapter.md.
 plenora-database-core = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }
 plenora-db-postgres = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }

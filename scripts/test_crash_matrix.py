@@ -16,7 +16,7 @@ GATES = {
 
 INSTALLED = [
     "python -m unittest discover -s crates/plenora-runtime-chain-python/tests -p 'test_*.py'",
-    'cargo test --no-fail-fast -p plenora-runtime-chain-host --test remote --test worker --test controls --test database --test io --locked -- --ignored --nocapture',
+    'cargo test --no-fail-fast -p plenora-runtime-chain-host --test remote --test worker --test controls --test database --test io --test data --locked -- --ignored --nocapture',
 ]
 
 

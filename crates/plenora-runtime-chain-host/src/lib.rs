@@ -2,8 +2,10 @@
 //! Host and step calls use the durable dispatcher; remaining gates are in docs/qualification.md.
 #![forbid(unsafe_code)]
 mod control;
+mod data;
 mod database;
 mod io;
+pub use data::{DataConfig, DataHost};
 pub use database::{DatabaseConfig, DatabaseConnectionConfig, DatabaseHost};
 pub use io::{IoConfig, IoHost};
 mod ownership;

@@ -83,6 +83,6 @@ class Campaign(unittest.TestCase):
                 self.assertIn('CREATE EXTENSION postgis', text)
                 self.assertRegex(text, r'--example io_fixture --locked -- "\$RUNNER_TEMP/[^"]+"')
             coverage = ci_job(workflow, 'coverage')
-            for adapter in ('database', 'io'):
+            for adapter in ('database', 'io', 'data'):
                 self.assertIn(f'--test {adapter} --locked --no-report -- --ignored', coverage)
                 self.assertIn(f'campaign_adapter_{adapter}', coverage.split('run: python scripts/ci_campaign.py')[-1])

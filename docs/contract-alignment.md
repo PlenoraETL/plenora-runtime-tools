@@ -880,7 +880,7 @@ ratifica e rigenerazione dei consumer. I contratti common restano al loro pin.
 DATA 4.1.5 `2ff92a250ec8921a78d6d842ea92954173b36e63`: run@3 esiste nella API
 Rust plenora_cli::artefatti; CLI/SDK run@3 e binding runtime restano lacune,
 senza alias run@2/run@3. IO `9c087aa7daf5d9ad10843ebf3027ae8858f66b94` resta
-**candidate 9.0.0 non pubblicata**. DATA resta il passo successivo, sul binding runtime previsto con 5.0.0.
+**candidate 9.0.0 non pubblicata**. Questo era il limite del pin DATA 4.1.5; il binding 5.0.0 candidate adottato successivamente e descritto nella sezione S3 DATA sotto.
 Le evidenze incrementali non promuovono le cinque superfici dell'inventario:
 PostgreSQL reale e parita installata sono gate CI, distinti dalle prove locali.
 
@@ -931,3 +931,39 @@ Rischio: il profilo PostgreSQL senza estensione non e qualificato; nessun bypass
 nel provider. Chiusura: correzione upstream e nuovo pin provato senza PostGIS.
 Il nuovo job reale e il recupero della soglia coverage 90% devono essere verificati
 in CI; la sola raccolta aggiunta non costituisce un gate passato.
+
+
+## S3 DATA 5.0.0 candidate (eba11205)
+
+Regola: usare le API e i contratti reali, senza alias di versione. Il prodotto
+collega plenora-cli/core/pipeline al commit completo
+`eba11205df585469a154de3ad76ab22a0cb9cad6`, candidate NON release. Il crate
+plenora-cli espone una libreria Rust: nessun subprocess CLI. Discovery runtime
+reale data.run@3, input/result v3, artifact_content_types source/sink per le
+porte Arrow. CLI e SDK upstream conservano run@2: la parita delle facciate
+runtime-tools non cambia le versioni upstream e non qualifica i 146 kernel.
+
+Ambito provato: Arrow stream esatto, porte nominate (1..8 ingressi/uscite),
+Primary Geometry e metadata verificati prima/dopo la libreria. Il manifesto
+chiuso e C-01 `plenora-data-localized-effects-v1` restano documenti distinti,
+con digest e risorse nel journal/rapporto catena. C-01 e associato ai passi
+native per numero, ordine, out/op; division_by_zero_rows e verificato dal
+manifesto separatamente. `reported` non concede perdite DATA: removed,
+metadata_invalidated o divisioni per zero non vengono pubblicati. Chiusura
+per profili con perdite: consenso comune ratificato e prove di grant scoped.
+
+Lacuna upstream riprodotta: multi-geometria con primary_geometry=none perde
+la chiave durante pubblicazione dello schema anche su piano senza passi;
+C-01 ha steps vuoto. Rischio: perdita metadata non riportata. Mitigazione:
+confronto conservativo dei metadata dello schema e delle identita dei campi
+sopravvissuti; rifiuto prima di pubblicare Arrow, manifesto/C-01 conservati in
+upstream_result/diagnostics, fidelity/loss_report unavailable. Chiusura:
+nuovo pin che copra anche la riscrittura finale dello schema, test raw metadata.
+La guardia puo rifiutare trasformazioni lecite con metadata riscritti: nessun
+claim universale di lossless o qualifica derivata dal catalogo.
+
+Errori native possono non restituire C-01; unavailable non significa rapporto
+vuoto. Errori pubblici preservano assi e usano messaggio fisso; dettagli native
+non vengono esposti. L'effetto native riguarda il resolver privato e resta nel
+documento; remote_effect catena resta none per il calcolo, pubblicazione
+artefatti solo con conferma del journal. Dopo conferma incerta non si reinvoca.

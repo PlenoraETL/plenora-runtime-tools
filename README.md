@@ -136,3 +136,11 @@ Il profilo S3 IO usa la **candidate 9.0.0 non pubblicata**, pinnata al commit
 9c087aa7daf5d9ad10843ebf3027ae8858f66b94. Read/write reali, limiti, Primary Geometry,
 rapporti e uso di CLI/wheel sono descritti nel
 [README adapter IO](crates/plenora-runtime-adapter-io/README.md).
+
+
+Il profilo sperimentale DATA usa la candidate 5.0.0 al pin eba11205 (non release):
+`plenora-runtime data-call CONFIG` oppure `chain run --data-config CONFIG ...`,
+SDK `Client(config, profile="data")` / `AsyncClient.create(config, profile="data")`.
+La configurazione contiene `database` del journal e `adapter` con piani confermati,
+porte nominate e artefatti immutabili. `cargo run -p plenora-runtime-adapter-data --example data_fixture --locked` genera una fixture reale autonoma per le prove.
+Ambito, limiti e lacune: docs/contract-alignment.md e docs/qualification.md.

@@ -12,6 +12,8 @@ pub enum Endpoint {
     Database(String),
     /// Read the real IO candidate host configuration.
     Io(String),
+    /// Read the real DATA candidate host configuration.
+    Data(String),
     /// Connect to the exact host endpoint and subject.
     Remote {
         /// Broker connection address, excluded from errors.
@@ -91,6 +93,8 @@ pub fn parse(
         Endpoint::Scripted(file)
     } else if let Some(file) = options.remove("--database-config") {
         Endpoint::Database(file)
+    } else if let Some(file) = options.remove("--data-config") {
+        Endpoint::Data(file)
     } else if let Some(file) = options.remove("--io-config") {
         Endpoint::Io(file)
     } else {

@@ -14,3 +14,5 @@ Facciate scriptate sperimentali: [ADR 0010](0010-scripted-chain-facades.md).
 Adapter database reale: [ADR 0011](0011-database-chain-adapter.md).
 
 Adapter IO candidate reale: [ADR 0012](0012-io-chain-adapter.md).
+
+Adapter DATA candidate reale: [ADR 0013](0013-data-chain-adapter.md).

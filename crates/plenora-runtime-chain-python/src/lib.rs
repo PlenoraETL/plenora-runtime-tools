@@ -1,7 +1,7 @@
 //! Native binding; orchestration remains in plenora-runtime-chains.
 #![forbid(unsafe_code)]
 use plenora_runtime_chain_host::{
-    DatabaseConfig, IoConfig, RemoteClient, ScriptedConfig, ScriptedHost,
+    DataConfig, DatabaseConfig, IoConfig, RemoteClient, ScriptedConfig, ScriptedHost,
 };
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use std::sync::Arc;
@@ -22,6 +22,11 @@ impl NativeClient {
                     let config: ScriptedConfig = serde_json::from_str(config)
                         .map_err(|_| PyRuntimeError::new_err("invalid"))?;
                     ScriptedHost::new(config)
+                }
+                "data" => {
+                    let config: DataConfig = serde_json::from_str(config)
+                        .map_err(|_| PyRuntimeError::new_err("invalid"))?;
+                    ScriptedHost::data(config)
                 }
                 "io" => {
                     let config: IoConfig = serde_json::from_str(config)

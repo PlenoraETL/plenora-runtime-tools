@@ -640,9 +640,9 @@ dependencies = [
 
 [[package]]
 name = "crc32fast"
-version = "1.5.3"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ba106e844045ddc02c20768ac4b0b7cb45f2cc2ecbd833ac9f5dacb183c2055"
+checksum = "01a7799fd6b852db0e61728dde9a204c423b44d689dbd432522543614b490e78"
 dependencies = [
  "cfg-if",
 ]
@@ -664,6 +664,31 @@ dependencies = [
  "phf 0.11.3",
  "winnow",
 ]
+
+[[package]]
+name = "crossbeam-deque"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "622f3fc73690be383c7214310406f28a90e6edeadc3cea882f9d71e495b9711a"
+dependencies = [
+ "crossbeam-epoch",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-epoch"
+version = "0.9.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc74980687109a3b14c72fd458107bf0baa1da1a1a805e178d15501ba9b86d9d"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6"
 
 [[package]]
 name = "crunchy"
@@ -1031,6 +1056,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "earcut"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88459a2a8e3a514b6e6de38cf3aaa9250a894cb098f74a932db77fcc8341b6d0"
+dependencies = [
+ "num-traits 0.2.19",
+]
+
+[[package]]
 name = "ed25519"
 version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1180,6 +1214,12 @@ dependencies = [
  "miniz_oxide",
  "zlib-rs",
 ]
+
+[[package]]
+name = "float_next_after"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37007738a80ea34f969af54a3390dd72cacdef654974cfd449c9f6f72dbaac10"
 
 [[package]]
 name = "fluent-uri"
@@ -1350,6 +1390,7 @@ checksum = "777d18aa0f12f8b285331cd867133ee14422b3f023f6d388034c47d43e28786a"
 dependencies = [
  "approx",
  "num-traits 0.2.19",
+ "rayon",
  "rstar 0.10.0",
  "rstar 0.11.0",
  "rstar 0.12.2",
@@ -1357,7 +1398,17 @@ dependencies = [
  "rstar 0.8.4",
  "rstar 0.9.3",
  "serde",
+ "spade",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "geographiclib-rs"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5a7f08910fd98737a6eda7568e7c5e645093e073328eeef49758cfe8b0489c7"
+dependencies = [
+ "libm",
 ]
 
 [[package]]
@@ -1372,6 +1423,20 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "tinyvec",
+]
+
+[[package]]
+name = "geozero"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db5eda63aa99ac06160fd53328ed75c34f14e3196d3f56a3649e247ed796e54b"
+dependencies = [
+ "geo-types",
+ "log",
+ "scroll",
+ "serde_json",
+ "thiserror 2.0.21",
+ "wkt",
 ]
 
 [[package]]
@@ -1456,6 +1521,8 @@ version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 dependencies = [
+ "allocator-api2",
+ "equivalent",
  "foldhash",
 ]
 
@@ -1617,6 +1684,52 @@ dependencies = [
  "tokio",
  "tower-service",
 ]
+
+[[package]]
+name = "i_float"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ecaff1ce29bcacd72cdf581ba6fce636ef4c4e0b2da7e7846dd0137d98141e2"
+dependencies = [
+ "libm",
+]
+
+[[package]]
+name = "i_key_sort"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c6c58d0c60705e66264ce0f788a69a2f21472aeb8188559e7c8c619dbdc10fa"
+dependencies = [
+ "rayon",
+]
+
+[[package]]
+name = "i_overlay"
+version = "9.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a518dce2d7cf7e3758159747e7175c8b86ccdcd8d333dfcb7dbeb3eac2e324fc"
+dependencies = [
+ "i_float",
+ "i_key_sort",
+ "i_shape",
+ "i_tree",
+ "rayon",
+]
+
+[[package]]
+name = "i_shape"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa1878f91ef7921feaf1b2346253ebc5e661878b22d5715195c1d5dcf0f20ae5"
+dependencies = [
+ "i_float",
+]
+
+[[package]]
+name = "i_tree"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "180cbc5c4af5d8f57b8096c3cf39efdac3642ece00ca54710db44db3536baed4"
 
 [[package]]
 name = "iana-time-zone"
@@ -2375,6 +2488,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
+name = "plenora-cli"
+version = "5.0.0"
+source = "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6"
+dependencies = [
+ "chrono",
+ "ctrlc",
+ "plenora-core",
+ "plenora-io",
+ "plenora-pipeline",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+]
+
+[[package]]
+name = "plenora-core"
+version = "5.0.0"
+source = "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6"
+dependencies = [
+ "arrow-array",
+ "arrow-data",
+ "arrow-ipc",
+ "arrow-schema",
+ "arrow-select",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "plenora-database-core"
 version = "11.0.0"
 source = "git+https://github.com/PlenoraETL/plenora-database-tools.git?rev=f4fdb9b5f09d8babe795f68e894949693aa9d0a1#f4fdb9b5f09d8babe795f68e894949693aa9d0a1"
@@ -2552,6 +2696,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "plenora-geo"
+version = "0.33.1"
+source = "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6"
+dependencies = [
+ "earcut",
+ "float_next_after",
+ "geo-types",
+ "geographiclib-rs",
+ "i_overlay",
+ "log",
+ "num-traits 0.2.19",
+ "rand 0.10.2",
+ "rand_pcg",
+ "robust",
+ "rstar 0.12.2",
+ "sif-itree",
+ "spade",
+]
+
+[[package]]
+name = "plenora-io"
+version = "5.0.0"
+source = "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6"
+dependencies = [
+ "arrow-buffer",
+ "base64 0.23.1",
+ "crc32fast",
+ "plenora-core",
+ "plenora-parquet",
+ "plenora-pipeline",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "plenora-io-core"
 version = "9.0.0"
 source = "git+https://github.com/PlenoraETL/plenora-IO-tools.git?rev=9c087aa7daf5d9ad10843ebf3027ae8858f66b94#9c087aa7daf5d9ad10843ebf3027ae8858f66b94"
@@ -2601,6 +2780,107 @@ dependencies = [
  "serde_json",
  "tempfile",
  "uuid",
+]
+
+[[package]]
+name = "plenora-kernels-geo"
+version = "5.0.0"
+source = "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6"
+dependencies = [
+ "geographiclib-rs",
+ "geozero",
+ "plenora-core",
+ "plenora-geo",
+ "plenora-kernels-table",
+ "plenora-wkt",
+ "rayon",
+ "rstar 0.12.2",
+ "serde",
+ "serde_json",
+ "spade",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "plenora-kernels-table"
+version = "5.0.0"
+source = "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6"
+dependencies = [
+ "chrono",
+ "chrono-tz",
+ "md-5",
+ "num-traits 0.2.19",
+ "plenora-core",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "unicode-normalization",
+ "uuid",
+]
+
+[[package]]
+name = "plenora-parquet"
+version = "60.0.0"
+source = "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6"
+dependencies = [
+ "ahash",
+ "arrow-array",
+ "arrow-buffer",
+ "arrow-data",
+ "arrow-ipc",
+ "arrow-schema",
+ "arrow-select",
+ "base64 0.23.1",
+ "bytes",
+ "chrono",
+ "crc32fast",
+ "half",
+ "hashbrown 0.17.1",
+ "num-bigint 0.5.1",
+ "num-integer",
+ "num-traits 0.2.19",
+ "seq-macro",
+ "snap",
+ "twox-hash",
+ "zstd",
+]
+
+[[package]]
+name = "plenora-pipeline"
+version = "5.0.0"
+source = "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6"
+dependencies = [
+ "plenora-core",
+ "plenora-geo",
+ "plenora-kernels-geo",
+ "plenora-kernels-table",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "plenora-runtime-adapter-data"
+version = "0.1.0"
+dependencies = [
+ "arrow-array",
+ "arrow-ipc",
+ "arrow-schema",
+ "async-trait",
+ "plenora-cli",
+ "plenora-core",
+ "plenora-pipeline",
+ "plenora-runtime-boundary",
+ "plenora-runtime-capabilities",
+ "plenora-runtime-chains",
+ "plenora-runtime-core",
+ "plenora-runtime-messaging",
+ "plenora-runtime-testkit",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
 ]
 
 [[package]]
@@ -2729,11 +3009,15 @@ dependencies = [
 name = "plenora-runtime-chain-host"
 version = "0.1.0"
 dependencies = [
+ "arrow-array",
+ "arrow-ipc",
+ "arrow-schema",
  "async-nats",
  "async-trait",
  "futures-util",
  "plenora-database-core",
  "plenora-db-postgres",
+ "plenora-runtime-adapter-data",
  "plenora-runtime-adapter-database",
  "plenora-runtime-adapter-io",
  "plenora-runtime-boundary",
@@ -3014,6 +3298,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "plenora-wkt"
+version = "0.14.0"
+source = "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6"
+dependencies = [
+ "geo-traits",
+ "geo-types",
+ "log",
+ "num-traits 0.2.19",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "portable-atomic"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3264,6 +3560,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
+name = "rand_pcg"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "caa0f4137e1c0a72f4c651489402276c8e8e1cf081f3b0ba156d2cbeef09e86a"
+dependencies = [
+ "rand_core 0.10.1",
+]
+
+[[package]]
+name = "rayon"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb39b166781f92d482534ef4b4b1b2568f42613b53e5b6c160e24cfbfa30926d"
+dependencies = [
+ "either",
+ "rayon-core",
+]
+
+[[package]]
+name = "rayon-core"
+version = "1.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
+dependencies = [
+ "crossbeam-deque",
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3351,6 +3676,12 @@ dependencies = [
  "untrusted",
  "windows-sys 0.52.0",
 ]
+
+[[package]]
+name = "robust"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e27ee8bb91ca0adcf0ecb116293afa12d393f9c2b9b9cd54d33e8078fe19839"
 
 [[package]]
 name = "rsqlite-vfs"
@@ -3569,6 +3900,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "scroll"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1257cd4248b4132760d6524d6dda4e053bc648c9070b960929bf50cfb1e7add"
+
+[[package]]
 name = "security-framework"
 version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3715,6 +4052,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
+name = "sif-itree"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7f45b8998ced5134fb1d75732c77842a3e888f19c1ff98481822e8fbfbf930b"
+
+[[package]]
 name = "signal-hook-registry"
 version = "1.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3784,6 +4127,18 @@ checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "spade"
+version = "2.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9699399fd9349b00b184f5635b074f9ec93afffef30c853f8c875b32c0f8c7fa"
+dependencies = [
+ "hashbrown 0.16.1",
+ "num-traits 0.2.19",
+ "robust",
+ "smallvec",
 ]
 
 [[package]]
@@ -4334,9 +4689,9 @@ checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
 name = "unicode-normalization"
-version = "0.1.26"
+version = "0.1.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75cd3fb03d5288b3ba9a1ee103ac7e9cbb59f0b03d64f8ddfcc04dd42758a85d"
+checksum = "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8"
 dependencies = [
  "tinyvec",
 ]

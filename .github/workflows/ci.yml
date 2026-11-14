@@ -350,6 +350,7 @@ jobs:
             psql -h 127.0.0.1 -U postgres -d chain_store -v ON_ERROR_STOP=1 -c 'CREATE DATABASE chain_surfaces'
           docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" \
             psql -h 127.0.0.1 -U postgres -d chain_surfaces -v ON_ERROR_STOP=1 -c "CREATE EXTENSION postgis; CREATE TABLE s3_source (value text); CREATE TABLE s3_target (value text); INSERT INTO s3_source VALUES (NULL), (''), ('hello');"
+          cargo run -p plenora-runtime-adapter-data --example data_fixture --locked > target/s3-data-fixture.json
           cargo run -p plenora-runtime-adapter-database --example database_fixture --locked > target/s3-database-fixture.json
           cargo run -p plenora-runtime-adapter-io --example io_fixture --locked -- "$RUNNER_TEMP/s3-io-fixture" > target/s3-io-fixture.json
       - name: Verify installed cancel resume and event cursors on isolated PostgreSQL
@@ -358,6 +359,7 @@ jobs:
         continue-on-error: true
         env:
           PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime
+          PLENORA_DATA_FIXTURE: ${{ github.workspace }}/target/s3-data-fixture.json
           PLENORA_DATABASE_FIXTURE: ${{ github.workspace }}/target/s3-database-fixture.json
           PLENORA_IO_FIXTURE: ${{ github.workspace }}/target/s3-io-fixture.json
         shell: bash
@@ -387,19 +389,21 @@ jobs:
         continue-on-error: true
         env:
           PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime
+          PLENORA_DATA_FIXTURE: ${{ github.workspace }}/target/s3-data-fixture.json
           PLENORA_DATABASE_FIXTURE: ${{ github.workspace }}/target/s3-database-fixture.json
           PLENORA_IO_FIXTURE: ${{ github.workspace }}/target/s3-io-fixture.json
           PLENORA_NATS_URL: ${{ steps.product_nats.outputs.client_url }}
         shell: bash
         run: |
           PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_surfaces}" \
-            cargo test --no-fail-fast -p plenora-runtime-chain-host --test remote --test worker --test controls --test database --test io --locked -- --ignored --nocapture
+            cargo test --no-fail-fast -p plenora-runtime-chain-host --test remote --test worker --test controls --test database --test io --test data --locked -- --ignored --nocapture
       - name: Verify installed journal report pages after real fault injection
         id: campaign_13
         if: always()
         continue-on-error: true
         env:
           PLENORA_CHAIN_BIN: ${{ github.workspace }}/target/chain-install/bin/plenora-runtime
+          PLENORA_DATA_FIXTURE: ${{ github.workspace }}/target/s3-data-fixture.json
           PLENORA_DATABASE_FIXTURE: ${{ github.workspace }}/target/s3-database-fixture.json
           PLENORA_IO_FIXTURE: ${{ github.workspace }}/target/s3-io-fixture.json
           PLENORA_JOURNAL_REPORT: ${{ github.workspace }}/target/p14c1-journal-real.json
@@ -581,6 +585,7 @@ jobs:
         run: |
           docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE chain_host'
           docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" psql -h 127.0.0.1 -U postgres -d chain_host -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION postgis'
+          cargo run -p plenora-runtime-adapter-data --example data_fixture --locked > target/s3-data-fixture.json
           cargo run -p plenora-runtime-adapter-io --example io_fixture --locked -- "$RUNNER_TEMP/s3-io-coverage" > target/s3-io-coverage.json
 
       - name: Collect real scripted host request reply coverage
@@ -631,6 +636,16 @@ jobs:
           PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_host}" \
             cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test io --locked --no-report -- --ignored --nocapture --test-threads=1
 
+      - name: Collect real data adapter host coverage
+        id: campaign_adapter_data
+        if: always()
+        continue-on-error: true
+        env:
+          PLENORA_DATA_FIXTURE: ${{ github.workspace }}/target/s3-data-fixture.json
+        run: |
+          PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_host}" \
+            cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test data --locked --no-report -- --ignored --nocapture --test-threads=1
+
       - name: Enforce line coverage threshold
         id: campaign_15
         if: always()
@@ -661,7 +676,7 @@ jobs:
         if: always()
         env:
           CAMPAIGN_STEPS: ${{ toJson(steps) }}
-        run: python scripts/ci_campaign.py campaign_clean campaign_01 campaign_02 campaign_03 campaign_04 nats campaign_06 campaign_07 campaign_08 campaign_09 campaign_10 campaign_11 campaign_12 campaign_13 campaign_14 campaign_host_db campaign_host campaign_host_worker campaign_host_transport campaign_adapter_database campaign_adapter_io campaign_15 campaign_17 campaign_18
+        run: python scripts/ci_campaign.py campaign_clean campaign_01 campaign_02 campaign_03 campaign_04 nats campaign_06 campaign_07 campaign_08 campaign_09 campaign_10 campaign_11 campaign_12 campaign_13 campaign_14 campaign_host_db campaign_host campaign_host_worker campaign_host_transport campaign_adapter_database campaign_adapter_io campaign_adapter_data campaign_15 campaign_17 campaign_18
 
   fuzz-smoke:
     name: Fuzz smoke suite
