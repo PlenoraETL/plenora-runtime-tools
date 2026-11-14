@@ -548,3 +548,15 @@ candidate che normalizza metadata Primary Geometry. Chiusura: CI Linux/Windows
 verde, nuovo pin upstream corretto e campagne crash/durabilita. Nessuna promozione
 a qualifica completa delle cinque superfici sulla sola base del catalogo.
 DATA e rinviato al passo successivo, binding runtime 5.0.0.
+
+
+## CI25: prerequisito PostgreSQL del provider database 11.0.0
+
+Regola: qualificare solo il profilo eseguito. Ambito: read@1/write@2 del pin
+f4fdb9b. Il probe interroga spatial_ref_sys e postgis_typmod_* anche per colonne
+non spaziali: PostgreSQL senza PostGIS fallisce not_found/probe. La CI installa
+PostGIS e attiva l'estensione nelle basi isolate delle superfici e della coverage.
+Rischio: il profilo PostgreSQL senza estensione non e qualificato; nessun bypass
+nel provider. Chiusura: correzione upstream e nuovo pin provato senza PostGIS.
+Il nuovo job reale e il recupero della soglia coverage 90% devono essere verificati
+in CI; la sola raccolta aggiunta non costituisce un gate passato.

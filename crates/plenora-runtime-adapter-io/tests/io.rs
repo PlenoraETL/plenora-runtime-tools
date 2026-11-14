@@ -88,11 +88,13 @@ async fn real_conflict_keeps_original_bundle_and_input_counter() -> TestResult {
     let root = tempfile::tempdir()?;
     std::fs::create_dir(root.path().join("bundle"))?;
     std::fs::write(root.path().join("bundle/sentinel"), b"untouched")?;
-    let (config, plan) = fixture::fixture(root.path(), ipc(&batch(None, 0)?)?, false, "ipc")?;
+    let input = batch(None, 0)?;
+    let expected_rows = u64::try_from(input.num_rows())?;
+    let (config, plan) = fixture::fixture(root.path(), ipc(&input)?, false, "ipc")?;
     let (result, engine) = run_case(config, &plan).await?;
     assert_ne!(result.state, "succeeded");
     assert_ne!(result.remote_effect, "committed");
-    assert_eq!(result.steps[1].counters.rows_read, 3);
+    assert_eq!(result.steps[1].counters.rows_read, expected_rows);
     assert_eq!(
         std::fs::read(root.path().join("bundle/sentinel"))?,
         b"untouched"

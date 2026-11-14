@@ -227,7 +227,10 @@ async fn read_error_retains_its_terminal_report_and_consumed_rows() -> TestResul
     let _execution = engine.run(&plan, options()).await;
     let result = engine.result(RUN).await?;
     let step = &result.steps[0];
-    assert_eq!(step.counters.rows_read, 3);
+    assert_eq!(
+        step.counters.rows_read,
+        u64::try_from(provider.batch.num_rows())?
+    );
     assert_eq!(step.reports[0].availability, "available");
     let doc = step.upstream_result.as_ref().ok_or("document")?;
     let bytes = engine.artifact(&doc.artifact_ref).await?;

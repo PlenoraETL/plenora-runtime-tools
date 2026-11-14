@@ -408,3 +408,13 @@ non mantenuto (RUSTSEC-2023-0089), dipendenza transitiva, senza vulnerabilita
 rilevate in quella cache. Nessuna soppressione di advisory aggiunta. Rischio:
 assenza manutenzione upstream e advisory cache non aggiornata; chiusura con
 rimozione/aggiornamento upstream e audit CI aggiornato (inclusi yanked).
+
+
+## CI25: pacchetto PostGIS del servizio effimero
+
+Il base image PostgreSQL resta fissato per digest. Il Dockerfile dei test installa
+postgresql-17-postgis-3 dal repository apt del base image: il pacchetto transitivo
+non e fissato per digest/versione, quindi il servizio di qualifica non e ermetico.
+Ambito solo CI effimera, nessuna dipendenza del prodotto. Rischio: aggiornamenti
+apt cambiano il servizio provato. Chiusura: immagine PostgreSQL+PostGIS pubblicata
+e verificata, fissata per digest, con aggiornamenti espliciti.

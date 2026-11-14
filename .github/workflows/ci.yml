@@ -299,11 +299,12 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          docker build -t plenora-postgres-adapter-ci - < scripts/postgres-adapter-ci.Dockerfile
           docker run -d --name "$POSTGRES_CONTAINER" \
             -e POSTGRES_PASSWORD=ephemeral-ci-only -e POSTGRES_DB=chain_store \
             -e POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 \
             -p 127.0.0.1::5432 \
-            postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+            plenora-postgres-adapter-ci
           # The initdb server accepts socket connections before the final TCP server starts.
           # Authenticate against the actual database; pg_isready alone does not check credentials.
           for attempt in $(seq 1 60); do
@@ -348,9 +349,9 @@ jobs:
           docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" \
             psql -h 127.0.0.1 -U postgres -d chain_store -v ON_ERROR_STOP=1 -c 'CREATE DATABASE chain_surfaces'
           docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" \
-            psql -h 127.0.0.1 -U postgres -d chain_surfaces -v ON_ERROR_STOP=1 -c "CREATE TABLE s3_source (value text); CREATE TABLE s3_target (value text); INSERT INTO s3_source VALUES (NULL), (''), ('hello');"
+            psql -h 127.0.0.1 -U postgres -d chain_surfaces -v ON_ERROR_STOP=1 -c "CREATE EXTENSION postgis; CREATE TABLE s3_source (value text); CREATE TABLE s3_target (value text); INSERT INTO s3_source VALUES (NULL), (''), ('hello');"
           cargo run -p plenora-runtime-adapter-database --example database_fixture --locked > target/s3-database-fixture.json
-          cargo run -p plenora-runtime-adapter-io --example io_fixture --locked > target/s3-io-fixture.json
+          cargo run -p plenora-runtime-adapter-io --example io_fixture --locked -- "$RUNNER_TEMP/s3-io-fixture" > target/s3-io-fixture.json
       - name: Verify installed cancel resume and event cursors on isolated PostgreSQL
         id: campaign_10
         if: always()
@@ -482,11 +483,12 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          docker build -t plenora-postgres-adapter-ci - < scripts/postgres-adapter-ci.Dockerfile
           docker run -d --name "$POSTGRES_CONTAINER" \
             -e POSTGRES_PASSWORD=ephemeral-ci-only -e POSTGRES_DB=chain_store \
             -e POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 \
             -p 127.0.0.1::5432 \
-            postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+            plenora-postgres-adapter-ci
           # The initdb server accepts socket connections before the final TCP server starts.
           # Authenticate against the actual database; pg_isready alone does not check credentials.
           for attempt in $(seq 1 60); do
@@ -576,7 +578,10 @@ jobs:
         id: campaign_host_db
         if: always()
         continue-on-error: true
-        run: docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE chain_host'
+        run: |
+          docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE chain_host'
+          docker exec -e PGPASSWORD=ephemeral-ci-only "$POSTGRES_CONTAINER" psql -h 127.0.0.1 -U postgres -d chain_host -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION postgis'
+          cargo run -p plenora-runtime-adapter-io --example io_fixture --locked -- "$RUNNER_TEMP/s3-io-coverage" > target/s3-io-coverage.json
 
       - name: Collect real scripted host request reply coverage
         id: campaign_host
@@ -605,6 +610,26 @@ jobs:
         env:
           PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
         run: cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test transport --locked --no-report -- --ignored --nocapture --test-threads=1
+
+      - name: Collect real database adapter host coverage
+        id: campaign_adapter_database
+        if: always()
+        continue-on-error: true
+        env:
+          PLENORA_IO_FIXTURE: ${{ github.workspace }}/target/s3-io-coverage.json
+        run: |
+          PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_host}" \
+            cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test database --locked --no-report -- --ignored --nocapture --test-threads=1
+
+      - name: Collect real io adapter host coverage
+        id: campaign_adapter_io
+        if: always()
+        continue-on-error: true
+        env:
+          PLENORA_IO_FIXTURE: ${{ github.workspace }}/target/s3-io-coverage.json
+        run: |
+          PLENORA_POSTGRES_URL="${PLENORA_POSTGRES_URL/dbname=chain_store/dbname=chain_host}" \
+            cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-host --test io --locked --no-report -- --ignored --nocapture --test-threads=1
 
       - name: Enforce line coverage threshold
         id: campaign_15
@@ -636,7 +661,7 @@ jobs:
         if: always()
         env:
           CAMPAIGN_STEPS: ${{ toJson(steps) }}
-        run: python scripts/ci_campaign.py campaign_clean campaign_01 campaign_02 campaign_03 campaign_04 nats campaign_06 campaign_07 campaign_08 campaign_09 campaign_10 campaign_11 campaign_12 campaign_13 campaign_14 campaign_host_db campaign_host campaign_host_worker campaign_host_transport campaign_15 campaign_17 campaign_18
+        run: python scripts/ci_campaign.py campaign_clean campaign_01 campaign_02 campaign_03 campaign_04 nats campaign_06 campaign_07 campaign_08 campaign_09 campaign_10 campaign_11 campaign_12 campaign_13 campaign_14 campaign_host_db campaign_host campaign_host_worker campaign_host_transport campaign_adapter_database campaign_adapter_io campaign_15 campaign_17 campaign_18
 
   fuzz-smoke:
     name: Fuzz smoke suite

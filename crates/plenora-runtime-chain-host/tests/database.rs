@@ -16,11 +16,31 @@ async fn postgres_real_database_read_write_and_restart_reports()
     let connection = std::env::var("PLENORA_POSTGRES_URL")?;
     let (client, driver) = tokio_postgres::connect(&connection, tokio_postgres::NoTls).await?;
     let driver = tokio::spawn(driver);
+    let postgis: bool = client
+        .query_one(
+            "SELECT EXISTS (SELECT FROM pg_catalog.pg_extension WHERE extname = 'postgis')",
+            &[],
+        )
+        .await?
+        .get(0);
+    assert!(
+        postgis,
+        "database 11.0.0 real adapter requires PostGIS in the job database"
+    );
     // Names generated locally, never interpolated from provider data or configuration.
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let source = format!("s3_source_{suffix}");
     let target = format!("s3_target_{suffix}");
     client.batch_execute(&format!("CREATE TABLE {source} (value text); CREATE TABLE {target} (value text); INSERT INTO {source} VALUES (NULL), (''), ('hello');")).await?;
+    let expected: Vec<Option<String>> = client
+        .query(
+            &format!("SELECT value FROM {source} ORDER BY value NULLS FIRST"),
+            &[],
+        )
+        .await?
+        .iter()
+        .map(|row| row.get(0))
+        .collect();
     let store = Arc::new(PostgresStore::new(&connection)?);
     store.migrate(Retention::default()).await?;
     let (config, plan) = fixture::fixture_names(true, true, &source, &target)?;
@@ -66,9 +86,14 @@ async fn postgres_real_database_read_write_and_restart_reports()
         )
         .await?;
     let values: Vec<Option<String>> = rows.iter().map(|row| row.get(0)).collect();
+    assert_eq!(values, expected);
     assert_eq!(
-        values,
-        vec![None, Some(String::new()), Some("hello".into())]
+        response.value["steps"][0]["counters"]["rows_read"],
+        expected.len()
+    );
+    assert_eq!(
+        response.value["steps"][1]["counters"]["rows_read"],
+        expected.len()
     );
     drop(host);
     let restored = DatabaseHost::with_database(

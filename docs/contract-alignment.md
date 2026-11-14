@@ -919,3 +919,15 @@ che preservino evidenza completa sugli errori e clock/budget governabili.
 
 Contratti catene restano bozza locale; prove locali IO non ratificano la bozza,
 non qualificano ogni driver opzionale e non attestano CI Linux/Windows.
+
+
+## CI25: prerequisito PostgreSQL del provider database 11.0.0
+
+Regola: qualificare solo il profilo eseguito. Ambito: read@1/write@2 del pin
+f4fdb9b. Il probe interroga spatial_ref_sys e postgis_typmod_* anche per colonne
+non spaziali: PostgreSQL senza PostGIS fallisce not_found/probe. La CI installa
+PostGIS e attiva l'estensione nelle basi isolate delle superfici e della coverage.
+Rischio: il profilo PostgreSQL senza estensione non e qualificato; nessun bypass
+nel provider. Chiusura: correzione upstream e nuovo pin provato senza PostGIS.
+Il nuovo job reale e il recupero della soglia coverage 90% devono essere verificati
+in CI; la sola raccolta aggiunta non costituisce un gate passato.

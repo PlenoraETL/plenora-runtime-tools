@@ -7,9 +7,15 @@ async fn postgres_real_io_and_restart_reports() -> Result<(), Box<dyn std::error
     let fixture: serde_json::Value =
         serde_json::from_slice(&std::fs::read(std::env::var("PLENORA_IO_FIXTURE")?)?)?;
     let mut config = serde_json::json!({"database":std::env::var("PLENORA_POSTGRES_URL")?,"adapter":fixture["adapter"]});
-    let root = std::env::current_dir()?
-        .join("target")
-        .join(format!("io-ci-{}", uuid::Uuid::new_v4()));
+    let staging = std::path::Path::new(
+        fixture["adapter"]["staging_directory"]
+            .as_str()
+            .ok_or("fixture staging directory required")?,
+    );
+    if !staging.is_absolute() || !staging.is_dir() {
+        return Err("fixture staging directory must exist and be absolute".into());
+    }
+    let root = staging.join(format!("io-ci-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir(&root)?;
     config["adapter"]["destinations"]["ref:destination"]["directory"] =
         serde_json::json!(root.join("bundle").to_str().ok_or("path")?);

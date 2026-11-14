@@ -30,6 +30,8 @@ class Campaign(unittest.TestCase):
             '--test remote --locked --no-report -- nats_real_scripted --ignored',
             '--test worker --locked --no-report -- postgres_nats_real --ignored',
             '--test transport --locked --no-report -- --ignored',
+            '--test database --locked --no-report -- --ignored',
+            '--test io --locked --no-report -- --ignored',
             'cargo llvm-cov report --summary-only --fail-under-lines 90',
         ]:
             self.assertIn(fragment, coverage)
@@ -71,3 +73,16 @@ class Campaign(unittest.TestCase):
             for failed in actual:
                 outcomes = {name:{'outcome':'failure' if name==failed else 'success', 'conclusion':'success'} for name in actual}
                 self.assertEqual(failures(outcomes,expected),[failed])
+
+    def test_real_adapter_prerequisites_are_explicit_in_both_campaigns(self):
+        for name in ('ci.yml', 'boundary-confirmation.yml'):
+            workflow = (ROOT/'.github/workflows'/name).read_text(encoding='utf-8')
+            for job in ('postgres-integration', 'coverage'):
+                text = ci_job(workflow, job)
+                self.assertIn('scripts/postgres-adapter-ci.Dockerfile', text)
+                self.assertIn('CREATE EXTENSION postgis', text)
+                self.assertRegex(text, r'--example io_fixture --locked -- "\$RUNNER_TEMP/[^"]+"')
+            coverage = ci_job(workflow, 'coverage')
+            for adapter in ('database', 'io'):
+                self.assertIn(f'--test {adapter} --locked --no-report -- --ignored', coverage)
+                self.assertIn(f'campaign_adapter_{adapter}', coverage.split('run: python scripts/ci_campaign.py')[-1])
