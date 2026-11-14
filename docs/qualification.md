@@ -471,3 +471,48 @@ Il test NATS nel job PostgreSQL usa product_nats; un gate verifica che ogni outp
 provenga da uno step precedente dello stesso job. Prove con ManualClock e probe
 PostgreSQL di restart/worker inclusi; qualifica infrastrutturale del delta da
 confermare nella CI sullo SHA finale, senza attestazione di provider di dominio.
+
+
+## Conferma integrata P2.5
+
+Il workflow dispatch [boundary-confirmation.yml](../.github/workflows/boundary-confirmation.yml)
+richiede lo SHA esatto del ref selezionato. Deriva i comandi dalla CI tramite
+[generate_boundary_confirmation.py](../scripts/generate_boundary_confirmation.py):
+Linux e Windows, anti-panic, PostgreSQL, NATS, binario/wheel installati e coverage
+con soglia invariata del 90%. Tutti i passi indipendenti vengono tentati anche
+in presenza di errori; il rapporto conserva gli outcome originali, incluso
+skipped/cancelled. I job verdi da soli non sostituiscono le ricevute di esecuzione.
+
+Il [registro D](specs/BOUNDARY-REGISTER-D.md) e il
+[manifest delle evidenze](boundary-evidence.json) enumerano RT-010..027 e le
+successive regole comuni dell'adoption register. Per ogni riga sono obbligatorie
+Rust, CLI, SDK sync, SDK async e client remoto; quest'ultimo richiede sync,
+async e CLI su NATS reale. Le ricevute vengono scritte dopo le asserzioni,
+vincolate a SHA, run, attempt e digest del corpus. Sono richieste anche le prove
+Rust pertinenti del confine, osservate nell'output libtest; ignored e zero test
+non sono prove. Le campagne reali aggiungono crash/race, migrazioni, retention,
+settlement e copertura, senza sostituire queste prove con semplici nomi di test.
+
+Il rapporto unico e i dati completi sono nell'artefatto
+`boundary-confirmation-<SHA>-<attempt>`. Un verde del gate significa raccolta ed
+esecuzione complete delle prove dichiarate: **non chiude i requisiti D completi**.
+Ogni riga del manifest resta open; una promozione a closed viene rifiutata fino
+all'estensione esplicita del modello di evidenza con prove dell'intero requisito.
+Nuove righe senza cinque celle fanno fallire l'inventario; la fotografia del
+progetto e il suo digest vanno aggiornati insieme al manifest.
+
+Deviazioni residue (regola, ambito, rischio e chiusura):
+
+| Regole | Ambito e rischio residuo | Condizione di chiusura |
+|---|---|---|
+| RT-010/019/020/024 | Facade scriptate e subsystem di settlement; non dimostrano ogni terminale/limite dopo effetto di un engine reale. Possibile attribuzione indebita di completezza o certezza. | Prove per ogni ingresso e componente reale, conservazione integrale di fase/effetto/report e conferma dello stesso SHA. |
+| RT-011/012/016/017/018/021/023/025 | Corpus raw e facade distinti; schemi/cataloghi fixture non qualificano tutti gli ingressi e contratti reali. Rischio di accettazione o rifiuto diverso nel deployment. | Ratifica contratti, adapter S3 e corpus completo su ogni ingresso reale. |
+| RT-013 | Riferimenti fixture e rifiuto file:; autorizzazione tenant/scopo/revoca non qualificata per resolver reali. Rischio di accesso non autorizzato. | Resolver reali S3 con zero aperture e sentinelle assenti in errori/log. |
+| RT-014/015 | Probe discovery, manifest/risorse e grafo separati; nessuna prova di fedelta Arrow dei cinque engine. Rischio di perdite o dipendenze indebite. | Grafo con adapter S3 e byte/digest/schema/metadata per hop reale S4. |
+| RT-022/026/027 | Race e store/broker effimeri; nessuna qualifica dedup dei provider, TLS/ACL, topologia e retention operativa. Rischio di replay o contesto perduto nel deployment. | Profilo operativo reale con policy fissata, forwarding, dedup e recovery qualificati. |
+
+La nuova automazione non e stata eseguita in CI durante questa modifica locale;
+non promuove i gate storici ne i consumer legacy. Audit/deny, fuzz prolungato,
+memoria e provider S3/S4 conservano i propri gate separati. Una cancellazione
+del workflow puo impedire l'upload: assenza dell'artefatto significa mancata
+conferma, mai successo.

@@ -349,3 +349,14 @@ residuo: rifiuto sicuro dell'upgrade per timeout su database grandi, senza commi
 parziale. Condizione di chiusura: qualifica del backfill alla dimensione operativa
 e campagne PostgreSQL/NATS verdi sul medesimo SHA. La responsabilita di questo
 costo nei fallimenti ci23c non e ancora provata; i gate restano aperti.
+
+
+## Evidenza integrata P2.5
+
+Regola: nessuna qualifica per deduzione. Ambito: report del confine e cinque
+superfici, con adapter di dominio scriptati. Rischio: scambiare ricevute di probe
+facade e campagne effimere PostgreSQL/NATS per conformita completa dei requisiti
+D o del deployment TLS/ACL. Chiusura: prove complete dei requisiti nel profilo
+operativo e degli engine S3/S4; deviazioni per regola in
+[qualification](qualification.md#conferma-integrata-p25). Il manifest mantiene
+ogni riga open e il gate rifiuta promozioni non supportate dal modello di prova.

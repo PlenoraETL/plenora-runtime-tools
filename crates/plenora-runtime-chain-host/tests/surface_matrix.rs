@@ -96,6 +96,7 @@ async fn public_rust_and_client_visit_every_rt_and_catalog_cell() -> Result<(), 
             if case["profile"] != "catalog" {
                 visited.insert(case["id"].as_str().ok_or("id")?.to_owned());
             }
+            record_confirmation(surface, case)?;
         }
         let cells: BTreeSet<_> = matrix["cells"]
             .as_array()
@@ -105,6 +106,32 @@ async fn public_rust_and_client_visit_every_rt_and_catalog_cell() -> Result<(), 
             .map(|c| c["item"].as_str().unwrap_or("").to_owned())
             .collect();
         assert_eq!(visited, cells);
+    }
+    Ok(())
+}
+
+fn record_confirmation(surface: &str, case: &Value) -> Result<(), Box<dyn StdError>> {
+    if surface == "rust"
+        && case["id"].as_str().ok_or("id")?.starts_with("RT-")
+        && let Some(directory) = std::env::var_os("PLENORA_CONFIRMATION_DIR")
+    {
+        use sha2::{Digest, Sha256};
+        let directory = std::path::PathBuf::from(directory);
+        std::fs::create_dir_all(&directory)?;
+        let receipt = json!({
+            "GITHUB_SHA": std::env::var("GITHUB_SHA")?,
+            "GITHUB_RUN_ID": std::env::var("GITHUB_RUN_ID")?,
+            "GITHUB_RUN_ATTEMPT": std::env::var("GITHUB_RUN_ATTEMPT")?,
+            "matrix_sha256": format!("{:x}", Sha256::digest(include_str!("fixtures/surfaces.json").replace("\r\n", "\n").as_bytes())),
+            "rule": case["id"], "mode": "rust", "status": "passed"
+        });
+        std::fs::write(
+            directory.join(format!(
+                "cell-rust-{}.json",
+                case["id"].as_str().ok_or("id")?
+            )),
+            serde_json::to_vec(&receipt)?,
+        )?;
     }
     Ok(())
 }
