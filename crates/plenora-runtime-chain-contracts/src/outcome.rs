@@ -201,6 +201,21 @@ pub(crate) fn result(
     Ok(())
 }
 
+fn step_budget(step: &StepResult, definition: &Step) -> bool {
+    let timeout = step.state != "succeeded"
+        && step
+            .error
+            .iter()
+            .chain(&step.other_errors)
+            .any(|e| e.category == "timeout");
+    step.counters
+        .amounts()
+        .into_iter()
+        .zip(definition.budgets.amounts())
+        .enumerate()
+        .all(|(i, (n, limit))| n <= limit || (i == 1 && timeout))
+}
+
 fn step_result(
     step: &StepResult,
     definition: &Step,
@@ -219,14 +234,7 @@ fn step_result(
             && step.attempt <= definition.retry_policy.max_attempts,
         Code::Result,
     )?;
-    ensure(
-        step.counters
-            .amounts()
-            .iter()
-            .zip(definition.budgets.amounts())
-            .all(|(n, limit)| *n <= limit),
-        Code::Result,
-    )?;
+    ensure(step_budget(step, definition), Code::Result)?;
     if matches!(step.state.as_str(), "blocked" | "skipped" | "rejected") {
         ensure(
             step.attempt == 0 && step.remote_effect == "none" && step.outputs.is_empty(),
@@ -343,7 +351,25 @@ fn aggregate(
         .zip(plan.budgets.amounts())
         .enumerate()
     {
-        ensure(*amount <= limit, Code::Result)?;
+        // Observed elapsed time can exceed a deadline while stopping/finalizing.
+        // Preserve it exactly, with an explicit timeout; never clamp it to the budget.
+        ensure(
+            *amount <= limit
+                || (index == 1
+                    && result.state != "succeeded"
+                    && result
+                        .error
+                        .iter()
+                        .chain(&result.other_errors)
+                        .chain(
+                            result
+                                .steps
+                                .iter()
+                                .flat_map(|s| s.error.iter().chain(&s.other_errors)),
+                        )
+                        .any(|e| e.category == "timeout")),
+            Code::Result,
+        )?;
         if !matches!(index, 0 | 1 | 5) {
             let total = result.steps.iter().try_fold(0_u64, |sum, step| {
                 let n = step

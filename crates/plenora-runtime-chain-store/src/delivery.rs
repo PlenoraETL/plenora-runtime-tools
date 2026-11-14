@@ -3,10 +3,12 @@ use crate::{PostgresStore, StoreError};
 use async_trait::async_trait;
 use plenora_runtime_boundary::{
     DeliveryChange, DeliveryJournal, DeliveryOpen, DeliveryPlan, DeliveryStage,
-    DurableExecutionStore, SettlementError,
+    DurableExecutionStore, IdempotencyOpen, IdempotencyReceipt, SettlementError,
 };
 use tokio_postgres::Transaction;
-fn failure(_: impl std::fmt::Debug) -> SettlementError {
+#[track_caller]
+fn failure<E: std::any::Any>(error: E) -> SettlementError {
+    crate::diagnostics::report(&error);
     SettlementError
 }
 fn valid_key(key: &str) -> Result<(), SettlementError> {
@@ -33,13 +35,21 @@ async fn read(
 ) -> Result<DeliveryJournal, SettlementError> {
     let row = tx
         .query_opt(
-            "SELECT journal FROM plenora_chain_delivery WHERE key=$1",
+            "SELECT journal,created_ms,expired_report FROM plenora_chain_delivery WHERE key=$1",
             &[&key],
         )
         .await
         .map_err(failure)?
         .ok_or(SettlementError)?;
-    let mut j = DeliveryJournal::from_json(&row.try_get::<_, Vec<u8>>(0).map_err(failure)?)?;
+    let mut j = DeliveryJournal::from_json(&row.try_get::<_, Vec<u8>>(0).map_err(failure)?)
+        .map_err(failure)?;
+    if i64::try_from(j.created_ms()).map_err(failure)?
+        != row.try_get::<_, i64>(1).map_err(failure)?
+        || j.report_expired() != row.try_get::<_, bool>(2).map_err(failure)?
+    {
+        crate::diagnostics::integrity("delivery_retention_metadata");
+        return Err(SettlementError);
+    }
     j.maintain(now, delivery, reports)?;
     Ok(j)
 }
@@ -56,8 +66,8 @@ async fn write(
     };
     let bytes = j.to_json()?;
     tx.execute(
-        "UPDATE plenora_chain_delivery SET journal=$2,stage=$3,delivered=$4 WHERE key=$1",
-        &[&key, &bytes, &stage, &j.delivered()],
+        "UPDATE plenora_chain_delivery SET journal=$2,stage=$3,delivered=$4,expired_report=$5 WHERE key=$1",
+        &[&key, &bytes, &stage, &j.delivered(), &j.report_expired()],
     )
     .await
     .map_err(failure)?;
@@ -65,6 +75,52 @@ async fn write(
 }
 #[async_trait]
 impl DurableExecutionStore for PostgresStore {
+    async fn idempotency(
+        &self,
+        key: &str,
+        binding: [u8; 32],
+        candidate: Option<IdempotencyReceipt>,
+    ) -> Result<IdempotencyOpen, SettlementError> {
+        valid_key(key)?;
+        let mut client = self.connect().await.map_err(failure)?;
+        let tx = Self::transaction(&mut client).await.map_err(failure)?;
+        Self::expire(&tx).await.map_err(failure)?;
+        let (now, delivery, _) = policy(&tx).await.map_err(failure)?;
+        let existing = tx
+            .query_opt(
+                "SELECT binding, created_ms, carrier FROM plenora_chain_idempotency WHERE key=$1",
+                &[&key],
+            )
+            .await
+            .map_err(failure)?;
+        let result = if let Some(row) = existing {
+            let created =
+                u64::try_from(row.try_get::<_, i64>(1).map_err(failure)?).map_err(failure)?;
+            if now < created || now - created >= delivery {
+                return Err(SettlementError);
+            }
+            if row.try_get::<_, Vec<u8>>(0).map_err(failure)? == binding {
+                let bytes = row
+                    .try_get::<_, Option<Vec<u8>>>(2)
+                    .map_err(failure)?
+                    .ok_or(SettlementError)?;
+                IdempotencyOpen::Selected(serde_json::from_slice(&bytes).map_err(failure)?)
+            } else {
+                IdempotencyOpen::Conflict
+            }
+        } else if let Some(candidate) = candidate {
+            let bytes = serde_json::to_vec(&candidate).map_err(failure)?;
+            if bytes.len() > 8 * 1024 * 1024 {
+                return Err(SettlementError);
+            }
+            tx.execute("INSERT INTO plenora_chain_idempotency(key,binding,created_ms,carrier) VALUES ($1,$2,$3,$4)", &[&key,&binding.as_slice(),&i64::try_from(now).map_err(failure)?,&bytes]).await.map_err(failure)?;
+            IdempotencyOpen::Selected(candidate)
+        } else {
+            IdempotencyOpen::Absent
+        };
+        Self::commit(tx).await.map_err(failure)?;
+        Ok(result)
+    }
     async fn open(
         &self,
         key: &str,
@@ -100,11 +156,27 @@ impl DurableExecutionStore for PostgresStore {
             // This is a new response identity with the host's explicit v2 emission policy,
             // not reconstructed forwarding context from the rejected request.
             tx.execute("INSERT INTO plenora_chain_acceptance(id,requires,downgrade,accepted_at,expires_at) SELECT $1,'plenora-runtime-binding-v2',false,clock_timestamp(),clock_timestamp()+delivery_seconds*interval '1 second' FROM plenora_chain_schema WHERE singleton",&[&j.result_id()]).await.map_err(failure)?;
-            tx.execute("INSERT INTO plenora_chain_delivery(key,result_id,route,stage,journal,request_id) VALUES ($1,$2,$3,'ready',$4,$5)",&[&key,&j.result_id(),&plan.route(),&j.to_json()?,&request_identity(key)]).await.map_err(failure)?;
+            tx.execute("INSERT INTO plenora_chain_delivery(key,result_id,route,stage,journal,request_id,created_ms,expired_report) VALUES ($1,$2,$3,'ready',$4,$5,$6,$7)",&[&key,&j.result_id(),&plan.route(),&j.to_json()?,&request_identity(key),&i64::try_from(j.created_ms()).map_err(failure)?,&j.report_expired()]).await.map_err(failure)?;
             j
         };
         Self::commit(tx).await.map_err(failure)?;
         Ok(DeliveryOpen::Opened(j, now))
+    }
+    async fn result_receipt(
+        &self,
+        scope_prefix: &str,
+        result_id: &str,
+    ) -> Result<(String, DeliveryJournal), SettlementError> {
+        valid_key(scope_prefix)?;
+        let mut client = self.connect().await.map_err(failure)?;
+        let tx = Self::transaction(&mut client).await.map_err(failure)?;
+        Self::expire(&tx).await.map_err(failure)?;
+        let (now, delivery, reports) = policy(&tx).await.map_err(failure)?;
+        let row = tx.query_opt("SELECT key FROM plenora_chain_delivery WHERE result_id=$1 AND left(key,length($2))=$2", &[&result_id,&scope_prefix]).await.map_err(failure)?.ok_or(SettlementError)?;
+        let key: String = row.try_get(0).map_err(failure)?;
+        let j = read(&tx, &key, now, delivery, reports).await?;
+        Self::commit(tx).await.map_err(failure)?;
+        Ok((key, j))
     }
     async fn load(&self, key: &str) -> Result<(DeliveryJournal, u64), SettlementError> {
         valid_key(key)?;
@@ -160,4 +232,27 @@ fn request_identity(key: &str) -> Option<&str> {
     let (_, id) = key.rsplit_once(":m:")?;
     let parsed = id.parse::<plenora_runtime_messaging::MessageId>().ok()?;
     (parsed.to_string() == id).then_some(id)
+}
+
+impl PostgresStore {
+    pub(crate) async fn expire_delivery_reports(tx: &Transaction<'_>) -> Result<(), StoreError> {
+        let (now, _, reports) = policy(tx).await?;
+        let Some(cutoff) = now.checked_sub(reports) else {
+            return Ok(());
+        };
+        let cutoff = i64::try_from(cutoff).map_err(|_| StoreError::Invalid)?;
+        // Select bounded indexed keys, then validate metadata before touching evidence.
+        let rows = tx.query("SELECT key FROM plenora_chain_delivery WHERE NOT expired_report AND created_ms <= $1 ORDER BY created_ms,key LIMIT 32", &[&cutoff]).await?;
+        let (_, delivery, _) = policy(tx).await?;
+        for row in rows {
+            let key: String = row.try_get(0)?;
+            let journal = read(tx, &key, now, delivery, reports)
+                .await
+                .map_err(|_| StoreError::Unavailable)?;
+            write(tx, &key, &journal)
+                .await
+                .map_err(|_| StoreError::Unavailable)?;
+        }
+        Ok(())
+    }
 }

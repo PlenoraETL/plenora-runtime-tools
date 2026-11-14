@@ -267,3 +267,207 @@ Il job PostgreSQL esegue anche il percorso combinato con NATS, con entrambi i
 container effimeri e cleanup always. Non sono stati eseguiti sull'host.
 Rischio: confondere prove locali con qualifica infrastrutturale o engine reali.
 Chiusura: job verdi sul medesimo candidato; nessuna superficie CLI/SDK promossa.
+
+## Gate P1.4/P1.5 sperimentale
+
+Regola: P1.4/P1.5 richiedono macchina a stati/crash matrix completa e parita su
+cinque superfici. Ambito: nuovi crate chains, chain-host, chain-cli e chain-python.
+Il coordinatore P1.4b applica retry bounded e worker fenced; le facciate sono un
+profilo scriptato che attraversa il boundary/dispatcher durevole in P1.4a.
+Restano aperti: prenotazione completa delle risorse,
+manifest/lease degli artefatti e autorizzazione reali, enumerazione RT/catalogo su ogni superficie,
+opzioni finali CLI, errori di dominio finali e qualifica dei test di controllo da
+wheel/binario su PostgreSQL/NATS. Iterator sync/async e paginazione CLI condividono
+EventCursor Rust; le prove installate PostgreSQL sono cablate in un database CI
+isolato, senza attestazione locale del backend. Il trasporto NATS del solo harness non e P2.5.
+
+Rischio: confondere prove incrementali con chiusura dei blocchi. Condizione di
+chiusura: integrazione e prove mancanti, rilettura senza rilievi bloccanti, CI
+Linux/Windows sul candidato. Il resoconto locale e target/P1-4-5.md. Nessun gate
+reale o non eseguito e attestato dai doppi scriptati.
+
+Il sotto-passo P1.4c-1 implementa e prova localmente prenotazione e misura
+del journal serializzato; rapporti oltre il canale intero sono leggibili a chunk.
+La prova reale e installata e cablata in CI, non attestata come eseguita localmente.
+Il lookup idempotente precede ora il controllo della nuova deadline; il loop del
+server drena i task accettati dopo errore di pubblicazione, con regressioni locali
+scriptate. Restano non qualificati abort/drop esterni del server e settlement
+end-to-end del nuovo host. I gate aperti impediscono la chiusura del blocco anche
+in presenza di compilazione verde.
+
+P1.4c remains OPEN. Complete-plan confirmation is explicit and default-deny in
+the scripted profile. P1.4c-1 separately covers the serialized journal only;
+the resource resolver/lease/cleanup gates above remain open. Tests of immutable plan confirmation
+and pre-invocation denial are incremental evidence only. Real PostgreSQL/NATS
+coverage remains ignored locally and wired to the existing CI job.
+
+## Evidenza incrementale P1.4c-2
+
+Regola: resolver, digest, schema e fedelta si verificano prima dell'effetto.
+Ambito: provider immutabile di risorse e oracoli JSON dichiaratamente fake,
+comune a Rust, CLI, SDK sync/async e client remoto. I test host esercitano
+riferimenti mancanti/alterati, documenti chiusi, schema statico/dinamico,
+metadata/primaria/counts, consenso DB e recovery dopo cambio delle risorse.
+Il corpus differenziale controlla la barriera dynamic-static in Rust/Python.
+I test remote/worker PostgreSQL/NATS e quelli wheel/binario installati usano
+il nuovo corpus e sono eseguiti dai job CI esistenti, ignorati localmente.
+Rischio: scambiare l'oracolo fake per un decoder Arrow o una libreria reale.
+Condizione di chiusura dell'adozione: prove equivalenti sui provider reali e
+CI Linux/Windows verde. Lease/fan-out/cleanup restano aperti. Esiti locali
+puntuali e gate non eseguiti sono registrati in target/P1-4-5.md.
+
+
+## P1.4c-3: ownership, lease e cleanup del provider dichiarato fake
+
+Regola: ownership prima dell'effetto, scadenza distinta dalla prova di stop,
+nessuna cancellazione di evidenze o tombstone. Ambito: il provider di byte
+scriptato registra sullo store P2.2 i buffer realmente restituiti tramite
+riferimenti opachi per tenant/run. I template immutabili della configurazione
+sono risorse prese in prestito; non sono output posseduti e non vengono eliminati.
+Gli input tra step leggono gli stessi byte pubblicati, con controllo SHA-256.
+La lettura applica clock e retention del primario anche senza sweep.
+
+Il ledger riserva l'encoding JSON peggiore, copie di staging e handle di fan-out
+contro memory/spool globali; le copie fisiche consumano anche artifact_bytes.
+Admission atomica, lease per identita immutabile di tentativo, rinnovo prima
+della scadenza e riconciliazione senza nuova autorita di invoke. Il worker
+rinnova il fence di lavoro mentre continua a far avanzare lo step. Il provider
+fake termina immediatamente dopo registrazione/rinnovo: non si attesta un
+provider reale di lunga durata o un heartbeat di libreria.
+
+Stop noto e cleanup sono parte della CAS del journal: errore prima del commit
+conserva la ricevuta durevole; risposta persa dopo commit non duplica l'effetto.
+I temporanei si liberano dopo stop; output/evidenze restano fino alla retention
+rapporti (90 giorni massimi). A scadenza i consumer mai avviati sono marcati
+abbandonati. Unknown conserva i buffer in quarantena, anche con lease scaduto:
+solo riconciliazione autenticata autorizza la pulizia. Lo sweep riavviabile del
+worker e maintain lavora per chiavi in batch limitati e conserva tombstone,
+manifest e ricevute dopo la liberazione dei byte. Delivery resta 7 giorni massimi;
+le riduzioni della policy primaria valgono anche per risorse e letture.
+
+Prove: resources.rs, retry_worker.rs, host/tests/support/ownership.rs;
+resources_tests.rs nel filtro postgres_real e remote.rs nel job PostgreSQL/NATS
+gia esistente. Le prove reali restano ignorate localmente. Rischio residuo:
+scambiare i buffer del doppio per ownership di file, processi o librerie reali.
+Condizione di chiusura dell'adozione: adapter reali con registrazione prima
+dell'effetto, rinnovo durante il lavoro, prova di stop e cleanup idempotente
+qualificati su tutte le superfici. Nessuna promozione dei criteri 5-6 o della
+conformita complessiva; esiti dei gate locali in target/P1-4-5.md.
+
+Esito P1.4c-3: verde locale nel profilo fake; con c-1 e c-2 chiude localmente
+il criterio 3. Suite workspace 496 passati/20 ignorati, suite installata
+7 passati/5 saltati. Infrastruttura reale e CI multipiattaforma non eseguite
+localmente; i limiti di adozione sopra restano aperti.
+
+
+## P1.5 criterio 5: protocollo e matrice delle facciate
+
+Regola: una sola semantica su Rust pubblico, CLI, SDK sync/async e remoto.
+Ambito: sintassi chiusa con recovery observe/continue/reconcile; Response.failure
+calcolato da Rust preserva categoria/fase/effetto/retry del dominio e del boundary,
+oltre a contesto e identita della run nota. Gli errori di coordinazione non
+attestano assenza di effetti per una run attiva. SDK costruisce fuori dal loop,
+rilascia il GIL e traduce uniformemente gli errori; cancellare l'attesa non cancella
+il lavoro. Interfaccia e compatibilita in [chain-interface](chain-interface.md).
+
+La matrice eseguibile enumera 37 operazioni (anche condizionali/legacy), 18 righe
+RT e 11 controlli su cinque superfici; la sottrazione di ogni cella e testata.
+Per le operazioni si usano piani a uno step e provider dichiarati fake, senza
+porte di dominio; i contratti solo inventariati restano fixture esplicite.
+Corretto il vincolo locale che rifiutava nomi catalogati database.transaction.*:
+segmenti canonici multipli, mai vuoti, con vettori Rust/Python condivisi.
+Non e un cambiamento ai contratti upstream fissati ne un'attestazione librerie.
+
+Rischio: confondere enumerazione/selezione delle facciate con qualifica della
+semantica ETL o con copertura raw-ingress/crash completa. Condizione di chiusura:
+adozione provider reali separata e criterio 6 con intera matrice C e controlli
+remoti end-to-end. Le nuove prove PostgreSQL/NATS della wheel e del binario sono
+cablati nei job esistenti e restano ignorati localmente quando manca infrastruttura.
+Esiti locali e stato corrente dei criteri in target/P1-4-5.md.
+
+
+## P1.5 criterio 6: controlli installati e crash matrix C
+
+Regola: ogni riga C.4 deve avere prove eseguibili, senza confondere assenza di
+risultato con assenza di effetto. Ambito: esecutore/host con adapter dichiarati
+fake, piu prove PostgreSQL/NATS dei sottosistemi durevoli e del trasporto.
+La fonte enumerata e [CHAIN-CRASH-MATRIX-C](specs/CHAIN-CRASH-MATRIX-C.md);
+[chain-crash-evidence.json](chain-crash-evidence.json) associa tutte le sette
+righe a test locali e reali ignorati. Il gate verifica fonte, righe, test,
+classificazione ignored/local e cablaggio CI; omissioni e prove mancanti sono
+regressioni negative. Non si attesta un process-kill end-to-end per ogni riga.
+
+I controlli positivi installati usano CLI nominata, Client e AsyncClient sia
+sul primario reale sia tramite NATS. La prova remota mantiene lease primarie
+rinnovate sui run accettati finche cancel e persistito; quindi le rilascia al
+worker. Verifica observe inerte, revisioni obsolete rifiutate, resume fino a
+cancelled, nessun tentativo/effetto, pagine eventi complete e duplicate control
+senza nuovi eventi. La barriera di scheduling e dichiarata: non si prova stop
+di un provider reale. Subprocess e costruttori sync sono fuori dai loop async.
+
+Rischio residuo: attribuire questi esiti a librerie ETL/provider reali o alla
+CI non eseguita. Condizione di chiusura infrastrutturale: job esistenti verdi
+sullo stesso SHA con wheel/binario installati e container effimeri; adozione
+librerie reali resta successiva. Il cablaggio e compilato localmente, i test
+infrastrutturali restano ignorati dove mancano i servizi. I criteri 1-6 sono
+riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.
+
+
+## PR23: raccolta completa delle campagne reali
+
+Regola: un test reale fallito non deve impedire di osservare gli altri casi.
+I job NATS, PostgreSQL e coverage tentano ogni passo; ogni comando test usa
+no-fail-fast, i comandi indipendenti hanno passi distinti. Il riepilogo finale
+legge outcome originale (non conclusion ammorbidita), include setup/install e
+cleanup, e rifiuta anche skipped/cancelled/missing. Test negativi verificano
+inventario e fallimento in ciascun passo. La migrazione prova ogni prefisso del
+catalogo senza arrestare la raccolta al primo database fallito.
+
+La CI di e4979ef si e fermata prima delle altre prove reali: queste non sono
+qualificate da quella esecuzione. La chiusura richiede la nuova campagna intera
+sullo SHA corretto, inclusi i job reali e la soglia coverage. I gate locali non
+sostituiscono quella evidenza. Dettagli correnti in target/P1-4-5.md.
+
+
+## PR23 ci23c: gate infrastrutturali aperti
+
+Sul commit 674943d le migrazioni passano; cinque prove host PostgreSQL/NATS
+falliscono e la coverage e separatamente al 89.69%, sotto il 90% richiesto.
+La selezione retention V3 e la diagnostica del delta richiedono una nuova campagna
+reale aggregata. I test ignorati verificano anche backfill popolato, rifiuto di
+metadati incoerenti senza perdita e mancata decodifica di payload non scaduti.
+Rischio: attribuire ai gate locali una qualifica reale non eseguita. Chiusura:
+job Linux/Windows e campagne infrastrutturali verdi sul medesimo SHA; soglia 90%
+invariata. Backfill sotto timeout da qualificare anche alla dimensione operativa.
+
+
+## PR23 ci23d: osservazione e coverage host
+
+Due prove run via NATS scadono a 10 secondi senza errori SQL associati. La fixture
+consente 100 secondi piu cleanup: le prove dichiarano 131000 ms di osservazione
+(100000 esecuzione, 1000 cleanup, due statement SQL da 15000). Il default pubblico
+rimane 10000. Una nuova prova NATS reale distingue timeout, reply tardiva, assenza
+di servizio e risposta oltre il timer implicito del driver, senza replay.
+Il job coverage raccoglie anche host/worker PostgreSQL-NATS e queste prove di
+trasporto, senza esclusioni e senza ridurre la soglia. Database host separato
+per preservare i 7/90 giorni dopo i test store che riducono la policy.
+Resta aperta la conferma CI sul medesimo SHA; nessuna attestazione locale di
+PostgreSQL/NATS. I log delle chiamate indicano operazione, durata e categoria,
+senza valori del piano. Non si attribuisce a uno specifico costo SQL una causa
+non dimostrata dai log disponibili.
+
+
+## PR23 ci23e: cancellazione e finalizzazione oltre deadline
+
+La cancellazione prima del primo intento mantiene lo stato cancelled e zero
+invocazioni anche quando la finalizzazione supera il budget: elapsed conserva il
+valore effettivo e un timeout di finalizzazione esplicito soddisfa il contratto.
+La classificazione di evidenza e contatori usa un solo istante dopo la lettura
+primaria, anche nei retry CAS. Un commit noto rimane documentato nel report grezzo;
+un'attesa oltre deadline non produce da sola recovery o replay.
+Lo stop esplicito del listener drena il lavoro accettato senza inventare Storage;
+EOF, perdita del controllo e fallimento di pubblicazione restano errori.
+Il test NATS nel job PostgreSQL usa product_nats; un gate verifica che ogni output
+provenga da uno step precedente dello stesso job. Prove con ManualClock e probe
+PostgreSQL di restart/worker inclusi; qualifica infrastrutturale del delta da
+confermare nella CI sullo SHA finale, senza attestazione di provider di dominio.

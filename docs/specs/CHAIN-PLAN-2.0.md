@@ -42,6 +42,9 @@ I numeri del contenitore sono interi JSON lessicali fra 0 e 2^53−1, positivi
 dove lo schema richiede; `-0` non è canonico; `2.0`, `2e0`, booleani e stringhe non sono versioni.
 I payload di dominio sono documenti separati: possono contenere numeri del
 proprio contratto senza modificarli o convertirli in questo contenitore.
+Operazioni: due o piu segmenti canonici `[a-z][a-z0-9_]*` separati da punto;
+nessun segmento vuoto. Include i nomi `database.transaction.*` del catalogo
+fissato, senza alias e senza promessa di provider implementato.
 UUID minuscoli con trattini, ID e porte ASCII `[a-z][a-z0-9_-]*`, 1–64 caratteri.
 Versioni positive fino a 2147483647; pacchetti esatti major.minor.patch,
 SHA-256 esadecimali minuscoli; niente latest, range o fallback.
@@ -108,6 +111,9 @@ type comuni; `adapter_required` un adapter nominato/versionato presente e
 qualificato; `provisional` è sempre rifiutato. Un arco direct riguarda le porte
 Arrow, NON l'intero documento io.read → richiesta data.run.
 I descrittori di mapping devono conservare tutti i manifest e rapporti.
+Un digest schema produttore dinamico (null) puo essere verificato contro quello
+fisso del consumer alla barriera obbligatoria; gli altri attributi delle porte
+direct devono coincidere esattamente. Il manifest originale non si riscrive.
 
 Handoff: `plenora-arrow-interchange-v1`, IPC stream/file, o valori nativi
 compatibili; il profilo iniziale effettua checkpoint durevoli tra step.
@@ -342,3 +348,11 @@ Il risultato `reference_only` non certifica payload referenziati, conservazione
 Arrow reale, report disponibili, autorizzazioni, provider o runtime. I gate sono
 espliciti in [qualification](../qualification.md),
 [contract-alignment](../contract-alignment.md) e [security-review](../security-review.md).
+
+## Tempo osservato oltre deadline
+
+La durata osservata puo superare il budget durante stop/finalizzazione. Il
+contatore elapsed_ms conserva il valore esatto; l'overrun e ammesso soltanto
+su esito non succeeded con errore timeout esplicito nello step/risultato
+pertinente. Gli altri contatori restano limitati. Questa regola non autorizza
+nuove invocazioni oltre deadline e non converte un commit noto in rollback.

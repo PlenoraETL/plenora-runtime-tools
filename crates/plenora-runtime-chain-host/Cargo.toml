@@ -1,0 +1,35 @@
+[package]
+name = "plenora-runtime-chain-host"
+description = "Explicit scripted chain qualification host backed by PostgreSQL."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+plenora-runtime-chains = { version = "=0.1.0", path = "../plenora-runtime-chains" }
+plenora-runtime-chain-store = { version = "=0.1.0", path = "../plenora-runtime-chain-store" }
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+# Composition uses the same protected receipt/dispatcher and typed runtime carrier on every surface.
+plenora-runtime-boundary = { version = "=0.1.0", path = "../plenora-runtime-boundary" }
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../plenora-runtime-capabilities" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+plenora-runtime-worker = { version = "=0.1.0", path = "../plenora-runtime-worker" }
+uuid.workspace = true
+async-trait.workspace = true
+# Qualification request/reply on the existing exact NATS client; docs/adr/0010-scripted-chain-facades.md.
+async-nats.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# Same exact digest implementation as chain-contracts; verifies immutable fake resource bytes.
+sha2 = "=0.10.9"
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "sync", "time"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

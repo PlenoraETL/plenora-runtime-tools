@@ -66,6 +66,15 @@
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -132,6 +141,15 @@
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -170,6 +188,32 @@
               "RT-020",
               "RT-024"
             ]
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore scriptato, lookup prima della deadline nuova accettazione; replay scaduto, conflitto, tenant e retention con ManualClock; un tentativo, nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale",
+            "p14c_authorization": {
+              "scope": "Declared scripted host: complete-plan confirmation default-deny; dispatcher rechecks before invocation and recovery.",
+              "local_tests": [
+                "crates/plenora-runtime-chain-host/tests/support/host.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs"
+              ],
+              "remaining": "Criterion 3 open: journal reservations, resolver/digest/schema/fidelity, artifact lease/fan-out/cleanup."
+            },
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
+            }
           }
         },
         "cli": {
@@ -212,6 +256,15 @@
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -228,6 +281,32 @@
             "rejection": "errore tipizzato con risultato allegato",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale",
+            "p14c_authorization": {
+              "scope": "Declared scripted host: complete-plan confirmation default-deny; dispatcher rechecks before invocation and recovery.",
+              "local_tests": [
+                "crates/plenora-runtime-chain-host/tests/support/host.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs"
+              ],
+              "remaining": "Criterion 3 open: journal reservations, resolver/digest/schema/fidelity, artifact lease/fan-out/cleanup."
+            },
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
+            }
           }
         },
         "cli": {
@@ -269,6 +348,15 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -308,6 +396,11 @@
               "RT-020",
               "RT-024"
             ]
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -349,6 +442,15 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -389,6 +491,11 @@
               "RT-020",
               "RT-024"
             ]
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -434,6 +541,15 @@
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
           "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -452,7 +568,12 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "EventCursor Rust con pagine atomiche, gap/run estraneo/limiti rifiutati; iteratori wheel su pagine fake; CLI installata con sintassi nominata e rifiuti. Nessuna promozione, PostgreSQL locale non eseguito.",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "cli": {
           "status": "specificata",
@@ -463,7 +584,12 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chain-python/tests/test_installed.py",
+            "scope": "EventCursor Rust con pagine atomiche, gap/run estraneo/limiti rifiutati; iteratori wheel su pagine fake; CLI installata con sintassi nominata e rifiuti. Nessuna promozione, PostgreSQL locale non eseguito.",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "python_sync": {
           "status": "specificata",
@@ -474,7 +600,12 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chain-python/tests/test_installed.py",
+            "scope": "EventCursor Rust con pagine atomiche, gap/run estraneo/limiti rifiutati; iteratori wheel su pagine fake; CLI installata con sintassi nominata e rifiuti. Nessuna promozione, PostgreSQL locale non eseguito.",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "python_async": {
           "status": "specificata",
@@ -485,7 +616,12 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chain-python/tests/test_installed.py",
+            "scope": "EventCursor Rust con pagine atomiche, gap/run estraneo/limiti rifiutati; iteratori wheel su pagine fake; CLI installata con sintassi nominata e rifiuti. Nessuna promozione, PostgreSQL locale non eseguito.",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "runtime": {
           "status": "specificata",
@@ -497,6 +633,21 @@
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           },
           "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "p1_5_criterion_6": {
+          "scope": "Declared scripted providers; positive installed native/remote controls on real PostgreSQL/NATS, CI wired and locally skipped without infrastructure. No real-library attestation.",
+          "installed": "crates/plenora-runtime-chain-python/tests/test_controls_real.py",
+          "host": "crates/plenora-runtime-chain-host/tests/controls.rs",
+          "crash_matrix": "docs/chain-crash-evidence.json"
         }
       }
     },
@@ -514,6 +665,11 @@
             "rejection": "expected_revision stale",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -555,6 +711,21 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "p1_5_criterion_6": {
+          "scope": "Declared scripted providers; positive installed native/remote controls on real PostgreSQL/NATS, CI wired and locally skipped without infrastructure. No real-library attestation.",
+          "installed": "crates/plenora-runtime-chain-python/tests/test_controls_real.py",
+          "host": "crates/plenora-runtime-chain-host/tests/controls.rs",
+          "crash_matrix": "docs/chain-crash-evidence.json"
         }
       }
     },
@@ -594,6 +765,24 @@
               "RT-020",
               "RT-024"
             ]
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale",
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
+            }
           }
         },
         "cli": {
@@ -634,7 +823,27 @@
             "rejection": "unknown senza evidenza autenticata",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        },
+        "p1_5_criterion_6": {
+          "scope": "Declared scripted providers; positive installed native/remote controls on real PostgreSQL/NATS, CI wired and locally skipped without infrastructure. No real-library attestation.",
+          "installed": "crates/plenora-runtime-chain-python/tests/test_controls_real.py",
+          "host": "crates/plenora-runtime-chain-host/tests/controls.rs",
+          "crash_matrix": "docs/chain-crash-evidence.json"
         }
       }
     },
@@ -694,6 +903,15 @@
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -710,6 +928,21 @@
             "rejection": "report indisponibile distinto da zero perdite",
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
+          },
+          "incremental_evidence": {
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
+            }
           }
         },
         "cli": {
@@ -751,6 +984,15 @@
             "limit": "quota richiesta/risposta e timeout attesa finiti; nessun troncamento",
             "effect": "nessun nuovo effetto durante controllo/lettura; per submit/run/cancel/resume verificare ledger, replay e assi none/committed/partial/unknown"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -810,6 +1052,15 @@
             "effect": "data.catalog@2: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -867,6 +1118,15 @@
             "limit": "data.describe@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "data.describe@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -926,6 +1186,15 @@
             "effect": "data.validate@2: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -983,6 +1252,15 @@
             "limit": "data.run@2: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "data.run@2: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -1042,6 +1320,15 @@
             "effect": "data.run@3: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -1099,6 +1386,15 @@
             "limit": "database.test_connection@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "database.test_connection@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -1158,6 +1454,15 @@
             "effect": "database.list_catalogs@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -1215,6 +1520,15 @@
             "limit": "database.list_schemas@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "database.list_schemas@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -1274,6 +1588,15 @@
             "effect": "database.list_objects@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -1331,6 +1654,15 @@
             "limit": "database.describe_object@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "database.describe_object@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -1390,6 +1722,15 @@
             "effect": "database.read@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -1447,6 +1788,15 @@
             "limit": "database.query@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "database.query@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -1506,6 +1856,15 @@
             "effect": "database.write@2: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -1563,6 +1922,15 @@
             "limit": "io.catalog@2: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "io.catalog@2: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -1622,6 +1990,15 @@
             "effect": "io.inspect@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -1679,6 +2056,15 @@
             "limit": "io.layers@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "io.layers@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -1738,6 +2124,15 @@
             "effect": "io.read@2: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -1795,6 +2190,15 @@
             "limit": "io.write@2: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "io.write@2: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -1854,6 +2258,15 @@
             "effect": "io.convert@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -1911,6 +2324,15 @@
             "limit": "storage.test@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "storage.test@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -1970,6 +2392,15 @@
             "effect": "storage.list@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -2027,6 +2458,15 @@
             "limit": "storage.stat@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "storage.stat@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -2086,6 +2526,15 @@
             "effect": "storage.get@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -2143,6 +2592,15 @@
             "limit": "storage.put@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "storage.put@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -2202,6 +2660,15 @@
             "effect": "storage.copy@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -2259,6 +2726,15 @@
             "limit": "storage.delete@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "storage.delete@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -2318,6 +2794,15 @@
             "effect": "rest.test@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -2375,6 +2860,15 @@
             "limit": "rest.generate@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "rest.generate@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -2434,6 +2928,15 @@
             "effect": "rest.enrich@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -2492,6 +2995,15 @@
             "effect": "rest.download@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
       }
     },
     {
@@ -2549,6 +3061,15 @@
             "limit": "rest.upload@1: limiti input/output e risorse della discovery effettiva, nessun troncamento",
             "effect": "rest.upload@1: errore nativo, cancellazione e risposta persa; conservare assi provati e report senza replay cieco"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     },
@@ -2620,6 +3141,20 @@
             "effect": "rifiuto prima di resolver/invoke"
           },
           "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+        }
+      },
+      "incremental_evidence": {
+        "p14c2": {
+          "scope": "ScriptedHost: immutable fake resources, byte SHA-256, closed parameter doubles, resolved schema barriers and scoped fidelity evidence; not real libraries",
+          "local_tests": [
+            "crates/plenora-runtime-chain-host/tests/support/verification.rs",
+            "crates/plenora-runtime-chain-contracts/tests/parity.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-host/tests/remote.rs",
+            "crates/plenora-runtime-chain-python/tests/test_installed.py"
+          ],
+          "remaining": "Real provider adoption; lease/fan-out/cleanup; criteria 5-6. No full surface promotion."
         }
       }
     },
@@ -2767,7 +3302,22 @@
             "limit": "fan-out, join espansivo, retry e fallimenti consumano quote globali",
             "effect": "resource_limit con fase/effetto provati, nessun reset al retry"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "p14c1_journal": {
+              "scope": "Serialized journal quota, exact JSON bytes, pre-effect slots, raw report byte pages; declared fake adapters only.",
+              "local_tests": [
+                "crates/plenora-runtime-chains/tests/support/accounting.rs",
+                "crates/plenora-runtime-chains/tests/sequential.rs",
+                "crates/plenora-runtime-chain-host/tests/support/host.rs"
+              ],
+              "ci_only": [
+                "crates/plenora-runtime-chain-host/tests/support/journal_real.rs",
+                "crates/plenora-runtime-chain-python/tests/test_journal_report.py"
+              ],
+              "remaining": "No promotion of complete surface cells; resource resolver, artifact leases/cleanup and criteria 5-6 remain open."
+            }
+          }
         },
         "cli": {
           "status": "specificata",
@@ -2830,7 +3380,12 @@
             "limit": "attesa/backoff/pubblicazione inclusi; cleanup finito separato",
             "effect": "restart non rinnova deadline; timeout attesa non cancella run"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/sequential.rs",
+            "scope": "coordinatore con adapter/store scriptati; un tentativo; nessuna promozione della cella",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "cli": {
           "status": "specificata",
@@ -3128,6 +3683,20 @@
           },
           "specification": "docs/specs/CHAIN-PLAN-2.0.md"
         }
+      },
+      "incremental_evidence": {
+        "p14c2": {
+          "scope": "ScriptedHost: immutable fake resources, byte SHA-256, closed parameter doubles, resolved schema barriers and scoped fidelity evidence; not real libraries",
+          "local_tests": [
+            "crates/plenora-runtime-chain-host/tests/support/verification.rs",
+            "crates/plenora-runtime-chain-contracts/tests/parity.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-host/tests/remote.rs",
+            "crates/plenora-runtime-chain-python/tests/test_installed.py"
+          ],
+          "remaining": "Real provider adoption; lease/fan-out/cleanup; criteria 5-6. No full surface promotion."
+        }
       }
     },
     {
@@ -3423,6 +3992,20 @@
             "effect": "zero aperture prima di ammissione; sentinelle assenti da log/Debug/Display/source"
           }
         }
+      },
+      "incremental_evidence": {
+        "p14c2": {
+          "scope": "ScriptedHost: immutable fake resources, byte SHA-256, closed parameter doubles, resolved schema barriers and scoped fidelity evidence; not real libraries",
+          "local_tests": [
+            "crates/plenora-runtime-chain-host/tests/support/verification.rs",
+            "crates/plenora-runtime-chain-contracts/tests/parity.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-host/tests/remote.rs",
+            "crates/plenora-runtime-chain-python/tests/test_installed.py"
+          ],
+          "remaining": "Real provider adoption; lease/fan-out/cleanup; criteria 5-6. No full surface promotion."
+        }
       }
     },
     {
@@ -3481,6 +4064,21 @@
             "effect": "recovery non perde artefatti per liberare quota; errore cleanup conserva effetto"
           }
         }
+      },
+      "incremental_evidence": {
+        "p1_4c_3": {
+          "scope": "Owned byte provider double: renewable primary leases, globally bounded copies/fan-out, atomic stop/cleanup, primary retention on reads and durable quarantine for unknown. No real library claim.",
+          "local_tests": [
+            "crates/plenora-runtime-chains/src/resources.rs",
+            "crates/plenora-runtime-chains/tests/retry_worker.rs",
+            "crates/plenora-runtime-chain-host/tests/support/ownership.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-store/src/resources_tests.rs",
+            "crates/plenora-runtime-chain-host/tests/remote.rs"
+          ],
+          "remaining": "Real provider adoption and criteria 5-6; no full surface promotion."
+        }
       }
     },
     {
@@ -3497,6 +4095,11 @@
             "rejection": "store non autorevole o worker stale",
             "limit": "race multi-host e lease scaduto",
             "effect": "crash in ogni finestra C.4; commit remoto non atomico col journal"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
         },
         "cli": {
@@ -3537,7 +4140,27 @@
             "rejection": "store non autorevole o worker stale",
             "limit": "race multi-host e lease scaduto",
             "effect": "crash in ogni finestra C.4; commit remoto non atomico col journal"
+          },
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
           }
+        }
+      },
+      "incremental_evidence": {
+        "p1_4c_3": {
+          "scope": "Owned byte provider double: renewable primary leases, globally bounded copies/fan-out, atomic stop/cleanup, primary retention on reads and durable quarantine for unknown. No real library claim.",
+          "local_tests": [
+            "crates/plenora-runtime-chains/src/resources.rs",
+            "crates/plenora-runtime-chains/tests/retry_worker.rs",
+            "crates/plenora-runtime-chain-host/tests/support/ownership.rs"
+          ],
+          "ci_only": [
+            "crates/plenora-runtime-chain-store/src/resources_tests.rs",
+            "crates/plenora-runtime-chain-host/tests/remote.rs"
+          ],
+          "remaining": "Real provider adoption and criteria 5-6; no full surface promotion."
         }
       }
     },
@@ -3556,7 +4179,12 @@
             "limit": "chiave vuota/oltre bound; race e restart",
             "effect": "assenza esito non prova none; niente dedup remota inventata"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chain-host/tests/support/host.rs; crates/plenora-runtime-chains/tests/sequential.rs; tests/architecture/tests/chain_dispatch.rs",
+            "scope": "P1.4a: host e step attraverso DurableRuntime; RT-022 tenant/operazione, replay, conflitto, race e retention su fake dichiarato; nessuna promozione",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "cli": {
           "status": "specificata",
@@ -3600,7 +4228,12 @@
             "limit": "chiave vuota/oltre bound; race e restart",
             "effect": "assenza esito non prova none; niente dedup remota inventata"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chain-host/tests/support/host.rs; crates/plenora-runtime-chains/tests/sequential.rs; tests/architecture/tests/chain_dispatch.rs",
+            "scope": "P1.4a: host e step attraverso DurableRuntime; RT-022 tenant/operazione, replay, conflitto, race e retention su fake dichiarato; nessuna promozione",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         }
       }
     },
@@ -4724,7 +5357,12 @@
             "limit": "max_attempts, deadline e quote cumulative anche su fallimento",
             "effect": "committed/partial/unknown non ritentati alla cieca; resource_limit none ha retry never"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         },
         "cli": {
           "status": "specificata",
@@ -4768,7 +5406,12 @@
             "limit": "max_attempts, deadline e quote cumulative anche su fallimento",
             "effect": "committed/partial/unknown non ritentati alla cieca; resource_limit none ha retry never"
           },
-          "specification": "docs/specs/CHAIN-PLAN-2.0.md"
+          "specification": "docs/specs/CHAIN-PLAN-2.0.md",
+          "incremental_evidence": {
+            "tests": "crates/plenora-runtime-chains/tests/retry_worker.rs; crates/plenora-runtime-chain-host/tests/support/host.rs",
+            "scope": "P1.4b: retry bounded, budget cumulativi, resume selettivo, worker con lease/fence e crash/race su fake dichiarati; prova reale worker.rs cablata in CI, non attestata locale",
+            "remaining": "docs/qualification.md#gate-p14p15-sperimentale"
+          }
         }
       }
     },
@@ -5001,6 +5644,408 @@
             "limit": "durata/risorse/sessioni limitate",
             "effect": "commit perso e rollback non confermato restano unknown"
           }
+        }
+      }
+    },
+    {
+      "id": "database.execute@1",
+      "name": "database.execute@1",
+      "owner": "plenora-runtime-adapter-database",
+      "source": "catalogo fissato database-tools-v2; estensione condizionale o versione legacy",
+      "surfaces": {
+        "rust": {
+          "status": "da fare",
+          "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
+          "required_tests": {
+            "positive": "database.execute@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.execute@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.execute@1: budget e risultato bounded senza troncamento",
+            "effect": "database.execute@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "cli": {
+          "status": "da fare",
+          "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
+          "required_tests": {
+            "positive": "database.execute@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.execute@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.execute@1: budget e risultato bounded senza troncamento",
+            "effect": "database.execute@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_sync": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
+          "required_tests": {
+            "positive": "database.execute@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.execute@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.execute@1: budget e risultato bounded senza troncamento",
+            "effect": "database.execute@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_async": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
+          "required_tests": {
+            "positive": "database.execute@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.execute@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.execute@1: budget e risultato bounded senza troncamento",
+            "effect": "database.execute@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "runtime": {
+          "status": "da fare",
+          "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
+          "required_tests": {
+            "positive": "database.execute@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.execute@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.execute@1: budget e risultato bounded senza troncamento",
+            "effect": "database.execute@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
+      }
+    },
+    {
+      "id": "database.transaction.begin@1",
+      "name": "database.transaction.begin@1",
+      "owner": "plenora-runtime-adapter-database",
+      "source": "catalogo fissato database-tools-v2; estensione condizionale o versione legacy",
+      "surfaces": {
+        "rust": {
+          "status": "da fare",
+          "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
+          "required_tests": {
+            "positive": "database.transaction.begin@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.begin@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.begin@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.begin@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "cli": {
+          "status": "da fare",
+          "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
+          "required_tests": {
+            "positive": "database.transaction.begin@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.begin@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.begin@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.begin@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_sync": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
+          "required_tests": {
+            "positive": "database.transaction.begin@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.begin@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.begin@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.begin@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_async": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
+          "required_tests": {
+            "positive": "database.transaction.begin@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.begin@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.begin@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.begin@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "runtime": {
+          "status": "da fare",
+          "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
+          "required_tests": {
+            "positive": "database.transaction.begin@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.begin@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.begin@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.begin@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
+      }
+    },
+    {
+      "id": "database.transaction.commit@1",
+      "name": "database.transaction.commit@1",
+      "owner": "plenora-runtime-adapter-database",
+      "source": "catalogo fissato database-tools-v2; estensione condizionale o versione legacy",
+      "surfaces": {
+        "rust": {
+          "status": "da fare",
+          "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
+          "required_tests": {
+            "positive": "database.transaction.commit@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.commit@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.commit@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.commit@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "cli": {
+          "status": "da fare",
+          "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
+          "required_tests": {
+            "positive": "database.transaction.commit@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.commit@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.commit@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.commit@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_sync": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
+          "required_tests": {
+            "positive": "database.transaction.commit@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.commit@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.commit@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.commit@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_async": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
+          "required_tests": {
+            "positive": "database.transaction.commit@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.commit@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.commit@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.commit@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "runtime": {
+          "status": "da fare",
+          "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
+          "required_tests": {
+            "positive": "database.transaction.commit@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.commit@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.commit@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.commit@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
+      }
+    },
+    {
+      "id": "database.transaction.rollback@1",
+      "name": "database.transaction.rollback@1",
+      "owner": "plenora-runtime-adapter-database",
+      "source": "catalogo fissato database-tools-v2; estensione condizionale o versione legacy",
+      "surfaces": {
+        "rust": {
+          "status": "da fare",
+          "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
+          "required_tests": {
+            "positive": "database.transaction.rollback@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.rollback@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.rollback@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.rollback@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "cli": {
+          "status": "da fare",
+          "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
+          "required_tests": {
+            "positive": "database.transaction.rollback@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.rollback@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.rollback@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.rollback@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_sync": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
+          "required_tests": {
+            "positive": "database.transaction.rollback@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.rollback@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.rollback@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.rollback@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_async": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
+          "required_tests": {
+            "positive": "database.transaction.rollback@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.rollback@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.rollback@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.rollback@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "runtime": {
+          "status": "da fare",
+          "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
+          "required_tests": {
+            "positive": "database.transaction.rollback@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.rollback@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.rollback@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.rollback@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
+      }
+    },
+    {
+      "id": "database.transaction.savepoint@1",
+      "name": "database.transaction.savepoint@1",
+      "owner": "plenora-runtime-adapter-database",
+      "source": "catalogo fissato database-tools-v2; estensione condizionale o versione legacy",
+      "surfaces": {
+        "rust": {
+          "status": "da fare",
+          "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
+          "required_tests": {
+            "positive": "database.transaction.savepoint@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.savepoint@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.savepoint@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.savepoint@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "cli": {
+          "status": "da fare",
+          "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
+          "required_tests": {
+            "positive": "database.transaction.savepoint@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.savepoint@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.savepoint@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.savepoint@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_sync": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
+          "required_tests": {
+            "positive": "database.transaction.savepoint@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.savepoint@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.savepoint@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.savepoint@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_async": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
+          "required_tests": {
+            "positive": "database.transaction.savepoint@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.savepoint@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.savepoint@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.savepoint@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "runtime": {
+          "status": "da fare",
+          "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
+          "required_tests": {
+            "positive": "database.transaction.savepoint@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.transaction.savepoint@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.transaction.savepoint@1: budget e risultato bounded senza troncamento",
+            "effect": "database.transaction.savepoint@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
+        }
+      }
+    },
+    {
+      "id": "database.write@1",
+      "name": "database.write@1",
+      "owner": "plenora-runtime-adapter-database",
+      "source": "catalogo fissato database-tools-v2; estensione condizionale o versione legacy",
+      "surfaces": {
+        "rust": {
+          "status": "da fare",
+          "entrypoint": "API pubblica Rust in-process, async e facciata blocking; stesso dispatcher reale",
+          "required_tests": {
+            "positive": "database.write@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.write@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.write@1: budget e risultato bounded senza troncamento",
+            "effect": "database.write@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "cli": {
+          "status": "da fare",
+          "entrypoint": "binario plenora-runtime installato, modalità locale e remota; JSON/exit code",
+          "required_tests": {
+            "positive": "database.write@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.write@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.write@1: budget e risultato bounded senza troncamento",
+            "effect": "database.write@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_sync": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, Client sync nativo e remoto; GIL e interruzione",
+          "required_tests": {
+            "positive": "database.write@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.write@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.write@1: budget e risultato bounded senza troncamento",
+            "effect": "database.write@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "python_async": {
+          "status": "da fare",
+          "entrypoint": "wheel plenora_runtime installata, AsyncClient nativo e remoto; await/async iterator e heartbeat event loop",
+          "required_tests": {
+            "positive": "database.write@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.write@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.write@1: budget e risultato bounded senza troncamento",
+            "effect": "database.write@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        },
+        "runtime": {
+          "status": "da fare",
+          "entrypoint": "raw ingress boundary/codec/dispatcher, adapter e sink; PostgreSQL e NATS/Apalis reali, header e settlement",
+          "required_tests": {
+            "positive": "database.write@1: semantica del provider reale qualificata sulla discovery effettiva",
+            "rejection": "database.write@1: rifiuto prima invoke per selettore/contratto/consenso discordante",
+            "limit": "database.write@1: budget e risultato bounded senza troncamento",
+            "effect": "database.write@1: errori, cancel e recovery conservano gli assi provati"
+          }
+        }
+      },
+      "incremental_evidence": {
+        "p1_5_criterion_5": {
+          "scope": "Complete facade selection/enumeration on declared domain doubles, including conditional/legacy operations; real libraries remain unqualified.",
+          "matrix": "crates/plenora-runtime-chain-host/tests/fixtures/surfaces.json",
+          "rust_and_transport_double": "crates/plenora-runtime-chain-host/tests/surface_matrix.rs",
+          "installed_real_ci": "crates/plenora-runtime-chain-python/tests/test_surface_matrix.py",
+          "remaining": "Criterion 6 raw/crash matrix and complete remote control scenarios; actual provider/library semantics."
         }
       }
     }

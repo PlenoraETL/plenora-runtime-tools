@@ -75,6 +75,13 @@ pub trait AdmissionPolicy: Send + Sync {
     /// # Errors
     /// Returns a public category (e.g. `invalid_configuration` for two deadline channels).
     fn validate_payload(&self, request: &CapabilityRequest) -> Result<(), Category>;
+    /// Exact semantic input for a supported host key. Defaults to the complete payload.
+    /// Overrides may exclude only explicitly nonbinding caller-generated receipt identities.
+    /// # Errors
+    /// Rejects payloads that cannot be bound without ambiguity.
+    fn idempotency_payload(&self, request: &CapabilityRequest) -> Result<Vec<u8>, Category> {
+        Ok(request.input().bytes.to_vec())
+    }
 }
 
 /// Request admitted by this boundary. There is deliberately no public constructor.
@@ -113,6 +120,7 @@ pub struct RuntimeBoundary {
     clock: Arc<dyn Clock>,
     policy: Arc<dyn AdmissionPolicy>,
     sink: Arc<dyn BoundaryResultSink>,
+    check_deadline: bool,
 }
 impl RuntimeBoundary {
     /// Creates a boundary; the same injected clock is installed in the dispatcher.
@@ -128,6 +136,7 @@ impl RuntimeBoundary {
             clock,
             policy,
             sink,
+            check_deadline: true,
         }
     }
 
@@ -292,9 +301,11 @@ impl RuntimeBoundary {
         if raw.contains_key(KEY) && key_limit.is_none() {
             return Err(reject(Category::Unsupported));
         }
-        if deadline.is_some_and(|deadline| {
-            deadline <= chrono::DateTime::<chrono::Utc>::from(self.clock.now())
-        }) {
+        if self.check_deadline
+            && deadline.is_some_and(|deadline| {
+                deadline <= chrono::DateTime::<chrono::Utc>::from(self.clock.now())
+            })
+        {
             return Err(reject(Category::Timeout));
         }
         if input.exceeds_transport_payload_limit()
@@ -317,6 +328,15 @@ impl RuntimeBoundary {
             identity,
             raw: input,
         })
+    }
+}
+
+impl RuntimeBoundary {
+    // Private lookup-only admission. This value is never exposed as invocation authority.
+    fn for_replay(&self) -> Self {
+        let mut replay = self.clone();
+        replay.check_deadline = false;
+        replay
     }
 }
 
@@ -420,9 +440,12 @@ mod test_fake_capability;
 mod journal;
 pub use journal::{
     DeliveryChange, DeliveryJournal, DeliveryOpen, DeliveryPlan, DeliveryStage,
-    DurableExecutionStore, JOURNAL_LIMIT, PreparedResult,
+    DurableExecutionStore, IdempotencyOpen, IdempotencyReceipt, JOURNAL_LIMIT, PreparedResult,
 };
 mod durable;
 pub use durable::{
     DurableRuntime, DurableWorker, NegotiatedForwarder, RawDelivery, RouteTable, SettlementRetry,
 };
+
+mod primary_sink;
+pub use primary_sink::PrimaryResultSink;

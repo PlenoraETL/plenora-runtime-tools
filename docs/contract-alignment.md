@@ -392,3 +392,408 @@ stesso scenario e eseguito localmente con un doppio, senza attestare il backend.
 Storage significa autorita non confermata: la SPI comune aggrega anche assenza
 e scadenza oltre a errori transitori. Nessuna promessa di successo con retry;
 la finestra durevole e i tombstone continuano a impedire nuove invocazioni.
+
+## Incremento P1.4/P1.5 non qualificato
+
+Regola: stessa semantica e stessi gate su Rust, CLI, SDK sync/async e runtime.
+Ambito: coordinatore sequenziale e facciate sperimentali, con adapter fake
+esplicitamente dichiarati. Sono presenti journal PostgreSQL, scope host
+(tenant, chain.submit@2, chiave), CAS, evidenza originale conservata prima della
+classificazione, cancel richiesto distinto da stop e recovery senza replay.
+Le prove locali sono in crates/plenora-runtime-chains/tests/sequential.rs e
+crates/plenora-runtime-chain-python/tests/test_installed.py. Il passo P1.4a descritto sotto collega ora host e step al runtime durevole;
+non chiude la qualifica complessiva delle cinque superfici.
+
+Deviazioni residue: adapter delle facciate ancora scriptati,
+qualifica incompleta delle opzioni CLI e del modello errori,
+classificazione degli errori delle facciate ancora sperimentale. Rischio:
+scambiare la presenza dei metodi per parita qualificata. Chiusura: gate
+[P1.4/P1.5](qualification.md#gate-p14p15-sperimentale) e ADR 0010.
+Nessuna cella dell'inventario e promossa per queste prove incrementali.
+
+Il validatore locale dell'esito ammette elapsed_ms osservato oltre budget solo
+su esito non riuscito con timeout esplicito, per conservare il tempo di arresto
+senza clamp. Regola, ambito e rischio: bozza locale, non ratifica upstream; non
+autorizza nuovi effetti dopo deadline. Chiusura: ratifica e vettori centrali.
+
+Gli ingressi aggiunti nell'inventario boundary-api sono classificati come:
+parse_step_result = decoder chiuso senza I/O; ChainEngine/Store/Submission/Change =
+coordinatore e SPI fidate con autorita non costruibile dai caller; ScriptedHost,
+CLI scripted-call, NativeClient/NativeRemoteClient e NATS serve = harness
+sperimentale di ADR 0010, non ingresso del prodotto qualificato. Le prove di
+parita disponibili sono limitate al corpus elencato nel resoconto, e non
+chiudono l'enumerazione RT richiesta per ogni superficie.
+
+### Incremento replay e paginazione del candidato P1.4/P1.5
+
+Il lookup autorevole tenant/run e tenant/chain.submit@2/key precede il controllo
+della deadline di nuova accettazione; conserva il binding completo e la finestra
+di delivery. `create` ripete il confronto atomico per la race lookup/inserimento.
+La regressione `expired_deadline_replays_binding_but_never_accepts_new_work`
+prova replay scaduto, conflitto, isolamento e rifiuto dopo retention con fake.
+Il test PostgreSQL corrispondente resta una prova ignorata da eseguire in CI.
+
+Il loop comune `drive` del listener attende tutti i task gia accettati dopo un
+fallimento di pubblicazione; il test sincronizza un task fratello ancora attivo.
+Non qualifica abort/drop esterno del server, JetStream o settlement del prodotto.
+
+`EventCursor` valida atomicamente pagine e continuita di sequenza in Rust; CLI
+JSON-lines e iteratori Python lo riusano. Il codec Request JSON ammette i controlli
+Python senza coercizioni numeriche PyO3. Le nuove forme CLI mappano soltanto le
+Request esistenti. Le celle di inventario restano senza promozione: integrazione
+retry/worker, risorse, modello completo degli errori,
+RT end-to-end e crash matrix completa restano condizioni di chiusura del gate.
+
+### P1.4a: unico percorso durevole di host e step
+
+Regola: ogni invocazione usa ammissione, wrapper e settlement P2.3/P2.4.
+Ambito: ScriptedHost possiede soltanto DurableRuntime; ChainEngine possiede un
+StepExecutor concreto privato, senza adapter invocabile o executor sostituibile.
+Solo i componenti EvidenceComponent registrati possono invocare adapter e
+controlli; prepare/artifact restano la vista limitata delle risorse. Guardie AST
+e compile-fail impediscono il ritorno al percorso diretto del candidato.
+
+RT-022 usa lookup/CAS primario e binding distinto dall'identita della ricevuta:
+(tenant fidato, capability, operazione, versione, chiave). Il replay conserva
+contratto/output e ricollega soltanto identita/correlazione/causazione; non concede
+un nuovo tentativo. Il tenant non viene dal messaggio. Submit e run con la stessa
+chiave sono operazioni distinte. La migrazione aggiunge il registro delle chiavi;
+retention 7/90 giorni, puntatore eliminabile dopo retention e tombstone permanenti.
+
+PrimaryResultSink conferma la disponibilita del terminale immutabile sul primario
+per lettura locale: non certifica un ack JetStream. La risposta NATS osserva quel
+risultato gia persistito; non costituisce un secondo settlement. Il carrier remoto
+conserva identita, metadati e negoziazione del client. L'assenza del primario causa
+Storage anche nelle funzioni di lettura, senza fallback fuori dal dispatcher.
+
+Prove locali: chains/tests/sequential.rs, chain-host/tests/support/host.rs e
+architecture/tests/chain_dispatch.rs nei rispettivi crate/test workspace. Le prove
+PostgreSQL/NATS di chain-host/tests/remote.rs sono ignorate localmente e cablate
+nel job postgres-integration esistente, su database chain_surfaces.
+Rischio residuo: adapter scriptati e sink locale non qualificano librerie reali,
+trasporto P2.5 o parita completa RT/catalogo. Un rifiuto durevole dello step dopo
+la registrazione dell'intento puo restare Recovery esplicito, senza consultare
+il fake o ripetere il dominio. Chiusura: passi successivi, stati completi e CI
+Linux/Windows; nessuna promozione delle celle di prodotto in questo passo.
+
+### P1.4b: retry dello step e worker del journal
+
+Regola: retry solo con effetto none/rolled_back e safe/after di ogni errore;
+resource_limit, committed/partial/unknown e controlli provider non provati non
+concedono tentativi. Ambito: coordinatore unico, tutte le facciate esistenti lo
+riusano. Il runtime di ciascun tentativo conserva attempts=1. Max tentativi,
+consumo locale/globale e deadline originale limitano il coordinatore; backoff e
+retry-after usano il massimo e un due persistito. Nessun reset al resume.
+
+StepResult pubblico espone contatori cumulativi, inclusi fallimenti e attese;
+la SPI fidata Adapter restituisce contatori del singolo tentativo (max_attempts=1),
+aggregati soltanto dal coordinatore. Il report conserva queste ricevute grezze;
+non sono dichiarate risultati cumulativi gia validati. Nuovi tentativi hanno ID distinti e causation persistita
+verso il predecessore. I succeeded e i loro manifest restano identici. Resume
+selettivo avanza il solo step fallito eleggibile; un terminale esaurito o con retry
+vietato non viene riaperto. Stop al primo fallimento definitivo resta invariato.
+
+Il worker host scansiona il primario anche dopo restart, con lease finito e fence
+monotono per run. Ogni CAS del worker verifica ownership e scadenza. Solo la
+richiesta monotona di cancel puo attraversare un lease altrui, preservando tutto
+il resto del journal. Un vecchio owner conserva l'esito nella ricevuta runtime,
+ma non puo confermare una nuova revisione del run. Il takeover riconsegna soltanto
+il carrier identico: Running non concede un secondo invoke. Unknown classificato
+resta quiescente fino a recovery esplicito. Le failure del worker sono esposte al
+supervisore; il server interrompe intake e drena i task gia accettati.
+
+Avvio: ScriptedHost.work(stop) per host in-process; serve avvia e supervisiona lo
+stesso worker insieme al listener NATS. La durata di una richiesta non possiede
+il lavoro persistito. Gli adapter restano fake: attempts nella configurazione
+scriptata dichiara ricevute aggiuntive esatte, senza fabbricare esiti di retry.
+
+Prove locali: retry_worker.rs, sequential.rs, test host autonomo e matrice degli
+assi in retry.rs. Prova PostgreSQL/NATS worker.rs ignorata localmente e cablata
+nel job postgres-integration esistente. Rischio residuo: queste prove non chiudono
+risorse/provider, crash matrix completa o enumerazione di ogni operazione sulle
+cinque superfici. Chiusura: criteri 3-6 e CI Linux/Windows sul candidato; nessuna
+promozione di una cella completa del catalogo in questo passo.
+
+## P1.4c - complete-plan confirmation (partial criterion 3)
+
+The trusted scripted host now supplies authorized_plans: explicit complete plan
+documents confirmed once in its tenant context. Missing confirmation denies new
+submission. CHAIN-C14N-1 binds destination, inputs, parameters, policy, graph and
+scoped loss grants; changing any of them requires a new confirmation. This is a
+declared fake of the authorization provider, not authentication of a real user.
+All facades share the same native host. Existing exact idempotent receipts remain
+readable; new invocation and reconciliation recheck the current trusted profile.
+
+The durable dispatcher repeats read-only preparation on worker restart. Denial
+before invoke produces validate/none/never, not unknown: it cannot authorize a
+scripted recovery result for work never invoked. A run whose intention already
+exists can still require coordinator reconciliation after this known runtime
+rejection; no synthetic StepResult is fabricated. Local regression covers both
+authorization and resource-limit denial after the persisted intention.
+
+Criterion 3 remains open: actual journal reservations, resource bytes/digest and
+schema/fidelity checks, durable artifact leases, bounded fan-out and cleanup are
+not qualified by this change. The existing real PostgreSQL/NATS test now includes
+rejection of an unconfirmed plan, but was not executed locally. Closure requires
+these missing resource guarantees and their tests; real library adoption remains
+a separate qualification gate.
+
+## P1.4c-1: serialized journal reservations and complete raw report recovery
+
+Scope: the authoritative run snapshot, not database WAL/index overhead, process
+RSS, artifact leases or real provider buffers. `ScriptedConfig.journal_bytes`
+(default 64 MiB, finite and no greater than 64 MiB) and Rust
+`with_journal_budget` apply to new submissions. The accepted quota is persisted
+and cannot be increased or removed by CAS or a host restart. It is a separate
+host storage budget; raw receipts also consume the plan/step result-byte budgets
+using measured bytes, independently of adapter-supplied counters.
+
+The serializer measures every JSON byte before allocating the output buffer.
+An exhaustive Journal destructure accounts for every field and its JSON key,
+separator, array expansion and optional-field presence. Each byte in a Vec<u8>
+can require four JSON bytes. Fixed slots cover view, intention/prior and current
+raw evidence (each at most 1 MiB before byte-array encoding); metadata bounds use
+maximum numeric widths and all plan step identities. History slots are at most
+1 MiB each, event slots 4 KiB each. Slot counts are bounded independently of the
+serialized quota (1024 history, 16384 events); the byte quota can bind sooner.
+
+Before every new invocation/inquiry, the same primary CAS reserves a history
+slot and six event/revision positions for admission, raw receipt, classification,
+recovery, concurrent cancellation and terminal rejection. No effect can spend
+that reservation on another new invocation. Each stored state is checked against
+its exact per-field allocation and total quota. The terminal view and current
+raw evidence slots remain protected when history capacity is exhausted.
+
+The effective raw-result limit also reserves the aggregate view: current view,
+plan alias keys/IDs, measured maximum control envelopes and copies of the raw
+result in its step, primary error and named outputs. The limit is fixed in the
+new intention. Existing intents omit the optional field without changing their
+carrier; an unreserved legacy intent cannot start a new receipt, only consume
+proof of work already started. Legacy state remains readable within its old
+hard ceiling; migration does not manufacture prior reservations.
+
+A reconciliation has a separately reserved stable carrier. Uncertain delivery
+reuses it. Confirmed null or a pre-invocation rejection releases it with a CAS,
+allowing a later bounded inquiry. Unknown original effects are never reinvoked.
+Reports are attributed to their coordinator finalizing events, not to untrusted
+step_id claims inside a report. Compliant aggregate report responses reserve
+512 KiB, leaving control-envelope space; no original evidence is truncated to
+satisfy that convenience limit.
+
+A defective adapter can violate its announced result limit. Its structurally
+accepted raw receipt (within the runtime's 1 MiB input/output ceiling) remains
+in the reserved journal slot and the run requires recovery. All surfaces can
+read it with the same native byte-page implementation, including when the full
+report response is too large. Existing report calls keep their full-response
+shape. Optional cursor `{index: 0, offset: 0}` returns `ReportPage`: cursor,
+bytes, report_bytes, total_reports and next. Chunks are at most 64 KiB; offsets
+are bytes, and report indices remain stable as new evidence is appended.
+
+CLI: `plenora-runtime chain report --run UUID --report-index 0 --offset 0
+--config profile.json --json` (or the existing remote endpoint options).
+Python sync/async: `client.report(run_id=run_id, cursor={"index": 0, "offset": 0})`,
+awaited for the async client. Continue with `next`; concatenate bytes for each
+report index. Rust exposes `ReportCursor`, `ReportPage` and `report_page`.
+This extends report retrieval only; it does not close criteria 5-6.
+
+Local evidence: exhaustive serializer/slot tests, exact quota and pre-effect
+rejection, cumulative recovery exhaustion, cancel/crash regressions, legacy
+carrier guard, confirmed-empty/denied inquiry renewal and complete recovery of
+a declared defective adapter report over 400 KiB through the durable host.
+Real PostgreSQL/NATS tests and installed wheel/bin byte-for-byte reconstruction
+are wired in the existing infrastructure job and remain ignored locally.
+Resource resolver/digest/schema/fidelity, artifact lease/fan-out/cleanup and
+real-library qualification remain open.
+
+## P1.4c-2: risoluzione e prove di schema/fedelta del profilo scriptato
+
+Regola: prima di ogni step verificare riferimenti, digest, schema effettivo e
+fedelta; nessuna perdita senza consenso specifico. Ambito: ScriptedHost e tutte
+le sue facciate usano verification.rs nello stesso adapter durevole, anche
+in recovery. La mappa risorse e il piano confermato sono immutabili per istanza;
+al riavvio non si riusa una precedente approvazione dei byte. Autorizzazione
+per tenant e digest dell'intero piano precede la lettura dei riferimenti.
+Cataloghi, parametri, input, output, rapporti e upstream/error document sono
+verificati contro SHA-256 dei byte; manifest confrontati anche per dimensione.
+Un riferimento mancante/alterato ferma lo step prima di invoke. Le prove di
+schema restano separate dai manifest originali, compreso schema_digest=null.
+
+Deviazione dichiarata: il provider di dominio e un doppio JSON canonico
+scripted-v1/scripted-arrow-v1, NON un decoder IPC o schema di libreria reale.
+Il suo schema completo include ordine dei campi, ID, tipi, nullabilita e tutti
+i metadata; il digest e SHA-256 del JSON canonico del doppio. Il dominio dei
+tipi fake e int64/utf8/binary; righe, colonne e celle del doppio sono controllate.
+Primary Geometry applica none, ID esplicito e inferenza solo con una geometria.
+Il trasporto di piu geometrie senza primaria resta lecito se non richiesta.
+Un producer dinamico puo incontrare uno schema consumer fisso soltanto con
+barriera obbligatoria: gli altri attributi restano esatti. Rust e oracolo Python
+condividono i vettori dynamic-static, inclusi i rifiuti.
+
+La prova fake di fedelta e un documento integro legato a step, operazione/versione,
+parametri, porte/riferimenti/digest input-output e destinazione. Exact non ammette
+DatabaseLoss; reported lo ammette solo per database.write@2, consenso esplicito
+con grant validato e loss_report riferito alla medesima prova. ForbiddenLoss
+resta vietato anche con consenso DB. Il documento e un oracolo scriptato fidato,
+non una deduzione della fedelta dal solo hash dei byte. I rapporti originali
+restano disponibili senza riscrittura. Una verifica fallita in recovery non
+trasforma l'effetto unknown in none.
+
+Rischio/chiusura: questa qualifica non attesta schemi parametri reali, Arrow IPC,
+CRS/WKB, algoritmi di trasformazione, WriteOutcome/loss_report DB v3 o resolver
+di connessioni/segreti dei provider. Occorrono adapter e oracoli delle librerie
+adottate. Il profilo non apre file/path/URL del piano. Lease/fan-out/cleanup e
+criteri 5-6 restano fuori da questo passo; nessuna casella completa e promossa.
+
+
+## P1.4c-3: ownership, lease e cleanup del provider dichiarato fake
+
+Regola: ownership prima dell'effetto, scadenza distinta dalla prova di stop,
+nessuna cancellazione di evidenze o tombstone. Ambito: il provider di byte
+scriptato registra sullo store P2.2 i buffer realmente restituiti tramite
+riferimenti opachi per tenant/run. I template immutabili della configurazione
+sono risorse prese in prestito; non sono output posseduti e non vengono eliminati.
+Gli input tra step leggono gli stessi byte pubblicati, con controllo SHA-256.
+La lettura applica clock e retention del primario anche senza sweep.
+
+Il ledger riserva l'encoding JSON peggiore, copie di staging e handle di fan-out
+contro memory/spool globali; le copie fisiche consumano anche artifact_bytes.
+Admission atomica, lease per identita immutabile di tentativo, rinnovo prima
+della scadenza e riconciliazione senza nuova autorita di invoke. Il worker
+rinnova il fence di lavoro mentre continua a far avanzare lo step. Il provider
+fake termina immediatamente dopo registrazione/rinnovo: non si attesta un
+provider reale di lunga durata o un heartbeat di libreria.
+
+Stop noto e cleanup sono parte della CAS del journal: errore prima del commit
+conserva la ricevuta durevole; risposta persa dopo commit non duplica l'effetto.
+I temporanei si liberano dopo stop; output/evidenze restano fino alla retention
+rapporti (90 giorni massimi). A scadenza i consumer mai avviati sono marcati
+abbandonati. Unknown conserva i buffer in quarantena, anche con lease scaduto:
+solo riconciliazione autenticata autorizza la pulizia. Lo sweep riavviabile del
+worker e maintain lavora per chiavi in batch limitati e conserva tombstone,
+manifest e ricevute dopo la liberazione dei byte. Delivery resta 7 giorni massimi;
+le riduzioni della policy primaria valgono anche per risorse e letture.
+
+Prove: resources.rs, retry_worker.rs, host/tests/support/ownership.rs;
+resources_tests.rs nel filtro postgres_real e remote.rs nel job PostgreSQL/NATS
+gia esistente. Le prove reali restano ignorate localmente. Rischio residuo:
+scambiare i buffer del doppio per ownership di file, processi o librerie reali.
+Condizione di chiusura dell'adozione: adapter reali con registrazione prima
+dell'effetto, rinnovo durante il lavoro, prova di stop e cleanup idempotente
+qualificati su tutte le superfici. Nessuna promozione dei criteri 5-6 o della
+conformita complessiva; esiti dei gate locali in target/P1-4-5.md.
+
+Esito P1.4c-3: verde locale nel profilo fake; con c-1 e c-2 chiude localmente
+il criterio 3. Suite workspace 496 passati/20 ignorati, suite installata
+7 passati/5 saltati. Infrastruttura reale e CI multipiattaforma non eseguite
+localmente; i limiti di adozione sopra restano aperti.
+
+
+## P1.5 criterio 5: protocollo e matrice delle facciate
+
+Regola: una sola semantica su Rust pubblico, CLI, SDK sync/async e remoto.
+Ambito: sintassi chiusa con recovery observe/continue/reconcile; Response.failure
+calcolato da Rust preserva categoria/fase/effetto/retry del dominio e del boundary,
+oltre a contesto e identita della run nota. Gli errori di coordinazione non
+attestano assenza di effetti per una run attiva. SDK costruisce fuori dal loop,
+rilascia il GIL e traduce uniformemente gli errori; cancellare l'attesa non cancella
+il lavoro. Interfaccia e compatibilita in [chain-interface](chain-interface.md).
+
+La matrice eseguibile enumera 37 operazioni (anche condizionali/legacy), 18 righe
+RT e 11 controlli su cinque superfici; la sottrazione di ogni cella e testata.
+Per le operazioni si usano piani a uno step e provider dichiarati fake, senza
+porte di dominio; i contratti solo inventariati restano fixture esplicite.
+Corretto il vincolo locale che rifiutava nomi catalogati database.transaction.*:
+segmenti canonici multipli, mai vuoti, con vettori Rust/Python condivisi.
+Non e un cambiamento ai contratti upstream fissati ne un'attestazione librerie.
+
+Rischio: confondere enumerazione/selezione delle facciate con qualifica della
+semantica ETL o con copertura raw-ingress/crash completa. Condizione di chiusura:
+adozione provider reali separata e criterio 6 con intera matrice C e controlli
+remoti end-to-end. Le nuove prove PostgreSQL/NATS della wheel e del binario sono
+cablati nei job esistenti e restano ignorati localmente quando manca infrastruttura.
+Esiti locali e stato corrente dei criteri in target/P1-4-5.md.
+
+
+## P1.5 criterio 6: controlli installati e crash matrix C
+
+Regola: ogni riga C.4 deve avere prove eseguibili, senza confondere assenza di
+risultato con assenza di effetto. Ambito: esecutore/host con adapter dichiarati
+fake, piu prove PostgreSQL/NATS dei sottosistemi durevoli e del trasporto.
+La fonte enumerata e [CHAIN-CRASH-MATRIX-C](specs/CHAIN-CRASH-MATRIX-C.md);
+[chain-crash-evidence.json](chain-crash-evidence.json) associa tutte le sette
+righe a test locali e reali ignorati. Il gate verifica fonte, righe, test,
+classificazione ignored/local e cablaggio CI; omissioni e prove mancanti sono
+regressioni negative. Non si attesta un process-kill end-to-end per ogni riga.
+
+I controlli positivi installati usano CLI nominata, Client e AsyncClient sia
+sul primario reale sia tramite NATS. La prova remota mantiene lease primarie
+rinnovate sui run accettati finche cancel e persistito; quindi le rilascia al
+worker. Verifica observe inerte, revisioni obsolete rifiutate, resume fino a
+cancelled, nessun tentativo/effetto, pagine eventi complete e duplicate control
+senza nuovi eventi. La barriera di scheduling e dichiarata: non si prova stop
+di un provider reale. Subprocess e costruttori sync sono fuori dai loop async.
+
+Rischio residuo: attribuire questi esiti a librerie ETL/provider reali o alla
+CI non eseguita. Condizione di chiusura infrastrutturale: job esistenti verdi
+sullo stesso SHA con wheel/binario installati e container effimeri; adozione
+librerie reali resta successiva. Il cablaggio e compilato localmente, i test
+infrastrutturali restano ignorati dove mancano i servizi. I criteri 1-6 sono
+riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.
+
+
+## PR23: fonte unica dello schema durevole
+
+Ambito P2.2/P1.4: schema.rs associa ogni SQL alla sua revisione e ne fissa
+l'ordine; migrate, vincolo SQL corrente, readiness e test usano quel catalogo.
+La revisione globale corrente e 3; la versione 1 delle evidenze e un asse distinto.
+Il conteggio rigido 12 del test era incompatibile con le 13 tabelle complete:
+la qualifica ora confronta i nomi derivati dagli SQL, non un numero mantenuto
+separatamente. DB vuoto, ogni prefisso v1/v2, idempotenza, preservazione dati,
+riduzione retention e rifiuto versioni sconosciute sono enumerati. Il rifiuto
+verifica anche rollback della creazione DDL, non soltanto della versione.
+Rischio residuo: prove reali del delta ancora da eseguire nella CI aggregata;
+nessuna estensione della qualifica a librerie o provider di dominio.
+
+
+## PR23: selezione retention e diagnostica del primario
+
+Il journal delivery conserva origine e flag di purge in colonne scalari indicizzate,
+aggiornate nella stessa transazione del documento. La manutenzione seleziona al
+massimo 32 candidati e verifica documento/metadati prima del purge; la lettura
+puntuale applica comunque la retention, anche se il batch non ha raggiunto la riga.
+La migrazione V3 recupera i metadati dai documenti esistenti atomicamente. Identita,
+fence e tombstone non vengono cancellati. Il backfill resta soggetto al timeout
+SQL: la qualifica su database popolati di dimensione operativa resta aperta.
+
+PLENORA_STORAGE_DIAGNOSTICS=1 abilita anche nei binari/wheel la posizione del
+fallimento, categoria chiusa, SQLSTATE e stato connessione; non vengono stampati
+SQL, messaggi del driver, DSN o valori. Il timeout interno NATS conserva Timeout.
+La scansione globale dei payload era un costo non limitato sotto il lock globale;
+la sua responsabilita nei cinque fallimenti ci23c resta da confermare in CI.
+
+
+## Budget di osservazione remoto
+
+Rust, CLI e SDK sync/async inoltrano lo stesso parametro di osservazione al client
+Rust: default 10s invariato, limite finito 1ms..1giorno, distinto dai budget e dal
+consenso del piano. Il timeout non implica fallimento dello step, cancellazione
+o retry. Il driver NATS non applica un secondo timer nascosto. Le prove di catena
+usano un budget dichiarato compatibile con la durata autorizzata dalla fixture;
+RT-010 continua ad attendere failed, effetto none, senza modificare il verdetto.
+Qualifica del delta: nuova campagna reale e coverage 90% sullo SHA finale.
+
+
+## PR23 ci23e: cancellazione e finalizzazione oltre deadline
+
+La cancellazione prima del primo intento mantiene lo stato cancelled e zero
+invocazioni anche quando la finalizzazione supera il budget: elapsed conserva il
+valore effettivo e un timeout di finalizzazione esplicito soddisfa il contratto.
+La classificazione di evidenza e contatori usa un solo istante dopo la lettura
+primaria, anche nei retry CAS. Un commit noto rimane documentato nel report grezzo;
+un'attesa oltre deadline non produce da sola recovery o replay.
+Lo stop esplicito del listener drena il lavoro accettato senza inventare Storage;
+EOF, perdita del controllo e fallimento di pubblicazione restano errori.
+Il test NATS nel job PostgreSQL usa product_nats; un gate verifica che ogni output
+provenga da uno step precedente dello stesso job. Prove con ManualClock e probe
+PostgreSQL di restart/worker inclusi; qualifica infrastrutturale del delta da
+confermare nella CI sullo SHA finale, senza attestazione di provider di dominio.

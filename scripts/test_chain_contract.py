@@ -13,6 +13,19 @@ FIXTURES = ROOT / "contracts/chains-v2/fixtures"
 
 
 class ChainContractTests(unittest.TestCase):
+    def test_observed_elapsed_overrun_requires_explicit_timeout(self):
+        plan = parse((FIXTURES / "plan-valid.json").read_bytes())
+        context = parse((FIXTURES / "context.json").read_bytes())
+        result = parse((FIXTURES / "result-failed-valid.json").read_bytes())
+        result["counters"]["elapsed_ms"] = plan["budgets"]["elapsed_ms"] + 1
+        with self.assertRaises(Rejection):
+            validate(canonical(result), "result", context=context, plan=plan)
+        result["error"]["category"] = "timeout"
+        validate(canonical(result), "result", context=context, plan=plan)
+        result["counters"]["memory_bytes"] = plan["budgets"]["memory_bytes"] + 1
+        with self.assertRaises(Rejection):
+            validate(canonical(result), "result", context=context, plan=plan)
+
     def test_schemas_are_draft_2020_12(self):
         for path in SCHEMAS.glob("*.schema.json"):
             with self.subTest(schema=path.name):

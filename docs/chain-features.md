@@ -101,6 +101,12 @@ Ogni cella richiede quattro prove: positiva (P), rifiuto (R), limite (L), effett
 | database-query-arrow-extension — Estensione condizionata: query Arrow pubblica / `plenora-runtime-adapter-database` / B.2/E.3/G | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | database-execute-extension — Estensione condizionata: database.execute / `plenora-runtime-adapter-database` / B.2/G | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 | database-transactions-extension — Estensione condizionata: transazioni database / `plenora-runtime-adapter-database` / B.2/G | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| database.execute@1 — database.execute@1 / `plenora-runtime-adapter-database` / catalogo fissato database-tools-v2; estensione condizionale o versione legacy | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| database.transaction.begin@1 — database.transaction.begin@1 / `plenora-runtime-adapter-database` / catalogo fissato database-tools-v2; estensione condizionale o versione legacy | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| database.transaction.commit@1 — database.transaction.commit@1 / `plenora-runtime-adapter-database` / catalogo fissato database-tools-v2; estensione condizionale o versione legacy | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| database.transaction.rollback@1 — database.transaction.rollback@1 / `plenora-runtime-adapter-database` / catalogo fissato database-tools-v2; estensione condizionale o versione legacy | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| database.transaction.savepoint@1 — database.transaction.savepoint@1 / `plenora-runtime-adapter-database` / catalogo fissato database-tools-v2; estensione condizionale o versione legacy | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
+| database.write@1 — database.write@1 / `plenora-runtime-adapter-database` / catalogo fissato database-tools-v2; estensione condizionale o versione legacy | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) | da fare (P/R/L/E) |
 
 ## Prove richieste per riga
 
@@ -879,3 +885,57 @@ Estensione condizionata: transazioni database
 - **rejection**: promessa di transazione distribuita fra step o API non ratificata
 - **limit**: durata/risorse/sessioni limitate
 - **effect**: commit perso e rollback non confermato restano unknown
+
+### database.execute@1
+
+database.execute@1
+
+- **positive**: database.execute@1: semantica del provider reale qualificata sulla discovery effettiva
+- **rejection**: database.execute@1: rifiuto prima invoke per selettore/contratto/consenso discordante
+- **limit**: database.execute@1: budget e risultato bounded senza troncamento
+- **effect**: database.execute@1: errori, cancel e recovery conservano gli assi provati
+
+### database.transaction.begin@1
+
+database.transaction.begin@1
+
+- **positive**: database.transaction.begin@1: semantica del provider reale qualificata sulla discovery effettiva
+- **rejection**: database.transaction.begin@1: rifiuto prima invoke per selettore/contratto/consenso discordante
+- **limit**: database.transaction.begin@1: budget e risultato bounded senza troncamento
+- **effect**: database.transaction.begin@1: errori, cancel e recovery conservano gli assi provati
+
+### database.transaction.commit@1
+
+database.transaction.commit@1
+
+- **positive**: database.transaction.commit@1: semantica del provider reale qualificata sulla discovery effettiva
+- **rejection**: database.transaction.commit@1: rifiuto prima invoke per selettore/contratto/consenso discordante
+- **limit**: database.transaction.commit@1: budget e risultato bounded senza troncamento
+- **effect**: database.transaction.commit@1: errori, cancel e recovery conservano gli assi provati
+
+### database.transaction.rollback@1
+
+database.transaction.rollback@1
+
+- **positive**: database.transaction.rollback@1: semantica del provider reale qualificata sulla discovery effettiva
+- **rejection**: database.transaction.rollback@1: rifiuto prima invoke per selettore/contratto/consenso discordante
+- **limit**: database.transaction.rollback@1: budget e risultato bounded senza troncamento
+- **effect**: database.transaction.rollback@1: errori, cancel e recovery conservano gli assi provati
+
+### database.transaction.savepoint@1
+
+database.transaction.savepoint@1
+
+- **positive**: database.transaction.savepoint@1: semantica del provider reale qualificata sulla discovery effettiva
+- **rejection**: database.transaction.savepoint@1: rifiuto prima invoke per selettore/contratto/consenso discordante
+- **limit**: database.transaction.savepoint@1: budget e risultato bounded senza troncamento
+- **effect**: database.transaction.savepoint@1: errori, cancel e recovery conservano gli assi provati
+
+### database.write@1
+
+database.write@1
+
+- **positive**: database.write@1: semantica del provider reale qualificata sulla discovery effettiva
+- **rejection**: database.write@1: rifiuto prima invoke per selettore/contratto/consenso discordante
+- **limit**: database.write@1: budget e risultato bounded senza troncamento
+- **effect**: database.write@1: errori, cancel e recovery conservano gli assi provati

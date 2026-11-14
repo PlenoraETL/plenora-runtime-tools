@@ -3,8 +3,10 @@
 Fondamenta Rust riusabili per servizi e worker asincroni dell'ecosistema Plenora,
 con un nuovo strato prodotto di orchestrazione catene progettato nello stesso repository.
 [ADR 0008](docs/adr/0008-chain-product-scope.md) ne registra il perimetro:
-sono presenti contratti catene e ammissione runtime locale; engine e host restano
-da realizzare. Il [boundary](crates/plenora-runtime-boundary/README.md) dichiara
+sono presenti contratti catene e ammissione runtime locale, oltre a un
+[coordinatore sperimentale](crates/plenora-runtime-chains/README.md) con facciate
+scriptate. P1.4/P1.5 e l'host protetto completo restano da qualificare e completare.
+Il [boundary](crates/plenora-runtime-boundary/README.md) dichiara
 prove e limiti del profilo P2.1, senza attestare settlement o dedup durevoli.
 Lo [store catene](crates/plenora-runtime-chain-store/README.md) implementa le
 primitive PostgreSQL di P2.2; le prove sul backend reale sono demandate al job CI

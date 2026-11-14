@@ -199,6 +199,153 @@ configurato e autenticato a ogni restart. Il database e la configurazione host
 sono autorita fidate; non si promette tolleranza a loro alterazioni malevole.
 Rischio residuo: test con servizi effimeri non qualificano TLS, permessi subject,
 backup/restore, failover o adapter di dominio reali. Chiusura: job reali verdi sul
-medesimo candidato e qualifica operativa del deploy. Le chiavi d'idempotenza
-host sono rifiutate fino allo scope autenticato P1.4/P1.5, come dichiarato in
+medesimo candidato e qualifica operativa del deploy. Le chiavi d'idempotenza host usano lo scope fidato tenant/operazione P1.4a,
+come dichiarato in
 [allineamento](contract-alignment.md). Nessuna qualifica di produzione attestata.
+
+## Profilo scriptato catene non qualificato
+
+Regola: nessuna superficie di produzione aggira boundary, autenticazione e
+negoziazione. Ambito: ScriptedHost e request/reply NATS di ADR 0010. Rischio:
+l'harness usa il tenant e la discovery forniti dalla configurazione fidata e
+non offre ancora il profilo protetto end-to-end. Non esporlo come prodotto di
+produzione. Chiusura: corpus RT completo su cinque
+superfici, store/broker reali e revisione indipendente.
+
+## Worker P1.4b: ownership e arresto
+
+Regola: il lease di coordinamento non prova terminazione del provider. Ambito:
+worker host e CAS del journal; il fence impedisce conferme di un owner vecchio,
+la ricevuta runtime impedisce un secondo invoke anche prima del takeover.
+Rischio residuo: kill/drop esterno del processo e provider che non rispondono
+non sono arresti confermati; Running senza prova resta recovery, senza nuovo
+writer. Shutdown cooperativo drena il lavoro corrente; nessun claim di hard kill.
+Chiusura: qualifica dei provider/OS e deployment reale, separata dal criterio 2
+provato con adapter scriptati. PostgreSQL/NATS effimeri in CI non attestano TLS,
+permessi o failover di produzione.
+
+### P1.4c-1 journal scope
+
+The finite quota covers serialized run state, including original raw evidence,
+not PostgreSQL physical/WAL storage or total process RSS. A defective adapter's
+oversized but structurally accepted receipt is retained in a separately reserved
+slot and recoverable through bounded native report pages; it cannot be declared
+successful merely by understating counters. Legacy intents without a proven
+report reservation cannot start new work. Real provider containment, resource
+leases and cleanup remain open. Closure of those risks requires their separate
+qualification; no library artifact is attested by the scripted profile.
+
+## Risorse fake P1.4c-2
+
+Regola: nessun uso di risorse alterate o perdite non autorizzate. Ambito:
+ScriptedHost verifica hash effettivi e prove fake prima di invoke/recovery;
+i JSON fake devono essere canonici, quindi membri duplicati anche annidati
+non possono essere normalizzati. Errori e Debug non riportano i dati.
+Rischio residuo: i documenti di fedelta provengono dal profilo host fidato;
+non sono firme o attestazioni delle librerie, ne proteggono da amministratori
+che falsifichino intenzionalmente l'intero profilo. Connessioni/segreti e
+validazione semantica dei provider reali restano all'adozione successiva.
+Chiusura: provider autenticati, decoder e oracoli reali qualificati con le
+stesse prove prima di promuovere le relative funzionalita.
+
+
+## P1.4c-3: ownership, lease e cleanup del provider dichiarato fake
+
+Regola: ownership prima dell'effetto, scadenza distinta dalla prova di stop,
+nessuna cancellazione di evidenze o tombstone. Ambito: il provider di byte
+scriptato registra sullo store P2.2 i buffer realmente restituiti tramite
+riferimenti opachi per tenant/run. I template immutabili della configurazione
+sono risorse prese in prestito; non sono output posseduti e non vengono eliminati.
+Gli input tra step leggono gli stessi byte pubblicati, con controllo SHA-256.
+La lettura applica clock e retention del primario anche senza sweep.
+
+Il ledger riserva l'encoding JSON peggiore, copie di staging e handle di fan-out
+contro memory/spool globali; le copie fisiche consumano anche artifact_bytes.
+Admission atomica, lease per identita immutabile di tentativo, rinnovo prima
+della scadenza e riconciliazione senza nuova autorita di invoke. Il worker
+rinnova il fence di lavoro mentre continua a far avanzare lo step. Il provider
+fake termina immediatamente dopo registrazione/rinnovo: non si attesta un
+provider reale di lunga durata o un heartbeat di libreria.
+
+Stop noto e cleanup sono parte della CAS del journal: errore prima del commit
+conserva la ricevuta durevole; risposta persa dopo commit non duplica l'effetto.
+I temporanei si liberano dopo stop; output/evidenze restano fino alla retention
+rapporti (90 giorni massimi). A scadenza i consumer mai avviati sono marcati
+abbandonati. Unknown conserva i buffer in quarantena, anche con lease scaduto:
+solo riconciliazione autenticata autorizza la pulizia. Lo sweep riavviabile del
+worker e maintain lavora per chiavi in batch limitati e conserva tombstone,
+manifest e ricevute dopo la liberazione dei byte. Delivery resta 7 giorni massimi;
+le riduzioni della policy primaria valgono anche per risorse e letture.
+
+Prove: resources.rs, retry_worker.rs, host/tests/support/ownership.rs;
+resources_tests.rs nel filtro postgres_real e remote.rs nel job PostgreSQL/NATS
+gia esistente. Le prove reali restano ignorate localmente. Rischio residuo:
+scambiare i buffer del doppio per ownership di file, processi o librerie reali.
+Condizione di chiusura dell'adozione: adapter reali con registrazione prima
+dell'effetto, rinnovo durante il lavoro, prova di stop e cleanup idempotente
+qualificati su tutte le superfici. Nessuna promozione dei criteri 5-6 o della
+conformita complessiva; esiti dei gate locali in target/P1-4-5.md.
+
+
+## P1.5 criterio 5: protocollo e matrice delle facciate
+
+Regola: una sola semantica su Rust pubblico, CLI, SDK sync/async e remoto.
+Ambito: sintassi chiusa con recovery observe/continue/reconcile; Response.failure
+calcolato da Rust preserva categoria/fase/effetto/retry del dominio e del boundary,
+oltre a contesto e identita della run nota. Gli errori di coordinazione non
+attestano assenza di effetti per una run attiva. SDK costruisce fuori dal loop,
+rilascia il GIL e traduce uniformemente gli errori; cancellare l'attesa non cancella
+il lavoro. Interfaccia e compatibilita in [chain-interface](chain-interface.md).
+
+La matrice eseguibile enumera 37 operazioni (anche condizionali/legacy), 18 righe
+RT e 11 controlli su cinque superfici; la sottrazione di ogni cella e testata.
+Per le operazioni si usano piani a uno step e provider dichiarati fake, senza
+porte di dominio; i contratti solo inventariati restano fixture esplicite.
+Corretto il vincolo locale che rifiutava nomi catalogati database.transaction.*:
+segmenti canonici multipli, mai vuoti, con vettori Rust/Python condivisi.
+Non e un cambiamento ai contratti upstream fissati ne un'attestazione librerie.
+
+Rischio: confondere enumerazione/selezione delle facciate con qualifica della
+semantica ETL o con copertura raw-ingress/crash completa. Condizione di chiusura:
+adozione provider reali separata e criterio 6 con intera matrice C e controlli
+remoti end-to-end. Le nuove prove PostgreSQL/NATS della wheel e del binario sono
+cablati nei job esistenti e restano ignorati localmente quando manca infrastruttura.
+Esiti locali e stato corrente dei criteri in target/P1-4-5.md.
+
+
+## P1.5 criterio 6: controlli installati e crash matrix C
+
+Regola: ogni riga C.4 deve avere prove eseguibili, senza confondere assenza di
+risultato con assenza di effetto. Ambito: esecutore/host con adapter dichiarati
+fake, piu prove PostgreSQL/NATS dei sottosistemi durevoli e del trasporto.
+La fonte enumerata e [CHAIN-CRASH-MATRIX-C](specs/CHAIN-CRASH-MATRIX-C.md);
+[chain-crash-evidence.json](chain-crash-evidence.json) associa tutte le sette
+righe a test locali e reali ignorati. Il gate verifica fonte, righe, test,
+classificazione ignored/local e cablaggio CI; omissioni e prove mancanti sono
+regressioni negative. Non si attesta un process-kill end-to-end per ogni riga.
+
+I controlli positivi installati usano CLI nominata, Client e AsyncClient sia
+sul primario reale sia tramite NATS. La prova remota mantiene lease primarie
+rinnovate sui run accettati finche cancel e persistito; quindi le rilascia al
+worker. Verifica observe inerte, revisioni obsolete rifiutate, resume fino a
+cancelled, nessun tentativo/effetto, pagine eventi complete e duplicate control
+senza nuovi eventi. La barriera di scheduling e dichiarata: non si prova stop
+di un provider reale. Subprocess e costruttori sync sono fuori dai loop async.
+
+Rischio residuo: attribuire questi esiti a librerie ETL/provider reali o alla
+CI non eseguita. Condizione di chiusura infrastrutturale: job esistenti verdi
+sullo stesso SHA con wheel/binario installati e container effimeri; adozione
+librerie reali resta successiva. Il cablaggio e compilato localmente, i test
+infrastrutturali restano ignorati dove mancano i servizi. I criteri 1-6 sono
+riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.
+
+
+## Retention delivery V3: disponibilita durante upgrade
+
+Ambito: backfill atomico dei metadati di selezione dei journal PostgreSQL. La
+manutenzione ordinaria limita i candidati e valida prima del purge; la migrazione
+iniziale deve ancora leggere tutti i documenti sotto il timeout SQL. Rischio
+residuo: rifiuto sicuro dell'upgrade per timeout su database grandi, senza commit
+parziale. Condizione di chiusura: qualifica del backfill alla dimensione operativa
+e campagne PostgreSQL/NATS verdi sul medesimo SHA. La responsabilita di questo
+costo nei fallimenti ci23c non e ancora provata; i gate restano aperti.

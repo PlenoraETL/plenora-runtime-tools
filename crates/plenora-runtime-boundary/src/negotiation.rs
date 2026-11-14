@@ -56,13 +56,7 @@ impl<S: AcceptanceStore> NegotiatedRuntime<S> {
         message: &SerializedMessage,
         route: DeliveryRoute,
     ) -> Result<NegotiatedDelivery, NegotiatedSendError> {
-        let mut input = message.clone();
-        let _ = input.headers.remove(REQUIRES);
-        let _ = input.headers.remove(DOWNGRADE);
-        let admitted = self
-            .boundary
-            .admit_message(&input)
-            .map_err(NegotiatedSendError::Admission)?;
+        let admitted = self.inspect(message)?;
         let context = context(message)?;
         let record = self
             .store
@@ -81,14 +75,27 @@ impl<S: AcceptanceStore> NegotiatedRuntime<S> {
         )
         .map_err(|_| NegotiatedSendError::Negotiation)?;
         // Storage can block: recheck deadlines and host policy after its confirmed response.
-        let admitted = self
-            .boundary
-            .admit_message(&input)
-            .map_err(NegotiatedSendError::Admission)?;
+        let admitted = self.inspect(message)?;
         Ok(NegotiatedDelivery {
             admitted,
             message: message.clone(),
         })
+    }
+
+    // Pure canonical admission shared by normal delivery and lookup-only replay inspection.
+    pub(crate) fn inspect(
+        &self,
+        message: &SerializedMessage,
+    ) -> Result<AdmittedRequest, NegotiatedSendError> {
+        let mut input = message.clone();
+        let _ = input.headers.remove(REQUIRES);
+        let _ = input.headers.remove(DOWNGRADE);
+        let admitted = self
+            .boundary
+            .admit_message(&input)
+            .map_err(NegotiatedSendError::Admission)?;
+        context(message)?;
+        Ok(admitted)
     }
 
     /// Performs the same admission on a blocking worker, leaving the async reactor free.

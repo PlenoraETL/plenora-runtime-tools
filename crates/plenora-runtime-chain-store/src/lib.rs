@@ -6,6 +6,9 @@
 #![forbid(unsafe_code)]
 
 mod delivery;
+mod diagnostics;
+mod resources;
+mod runs;
 mod settlement;
 mod types;
 pub use types::{
@@ -24,13 +27,8 @@ use std::{fmt, str::FromStr};
 use tokio_postgres::{Client, Config, NoTls, Transaction};
 use uuid::Uuid;
 
-// Ordered source of truth shared by migration execution and qualification.
-const MIGRATIONS: &[(&str, &str)] = &[
-    ("migration.sql", include_str!("migration.sql")),
-    ("migration-v2.sql", include_str!("migration-v2.sql")),
-    ("evidence-v1.sql", include_str!("evidence-v1.sql")),
-    ("delivery-v1.sql", include_str!("delivery-v1.sql")),
-];
+mod schema;
+use schema::{MIGRATIONS, current_version, supported_versions};
 
 /// Connection factory. Each operation opens a primary connection and a transaction;
 /// no cached acceptance, replica fallback, or in-memory production profile exists.
@@ -88,36 +86,47 @@ impl PostgresStore {
     }
 
     async fn commit(tx: Transaction<'_>) -> Result<(), StoreError> {
-        tx.commit().await.map_err(|_| StoreError::Unconfirmed)
+        tx.commit().await.map_err(|error| {
+            diagnostics::report(&error);
+            StoreError::Unconfirmed
+        })
     }
 
-    /// Upgrades schema v1 to v2 atomically and persists only reductions of retention.
+    /// Upgrades every supported schema atomically and persists only reductions of retention.
     /// Concurrent processes serialize through the same lock used by all operations.
     /// # Errors
     /// Refuses incompatible schemas, unconfirmed commits, or policy extensions.
     pub async fn migrate(&self, retention: Retention) -> Result<(), StoreError> {
         let mut client = self.connect().await?;
         let tx = Self::transaction(&mut client).await?;
-        for (_, sql) in MIGRATIONS {
+        for (_, _, sql) in MIGRATIONS {
             tx.batch_execute(sql).await?;
         }
+        let version = current_version();
         let old = tx.query_opt("SELECT version, delivery_seconds, report_seconds FROM plenora_chain_schema WHERE singleton", &[]).await?;
         if let Some(old) = old {
-            if !matches!(old.try_get::<_, i32>(0)?, 1 | 2)
+            if !supported_versions().contains(&old.try_get::<_, i32>(0)?)
                 || retention.delivery > old.try_get::<_, i64>(1)?
                 || retention.reports > old.try_get::<_, i64>(2)?
             {
                 return Err(StoreError::Invalid);
             }
-            tx.execute("UPDATE plenora_chain_schema SET version=2, delivery_seconds=$1, report_seconds=$2 WHERE singleton", &[&retention.delivery, &retention.reports]).await?;
+            tx.execute("UPDATE plenora_chain_schema SET version=$3, delivery_seconds=$1, report_seconds=$2 WHERE singleton", &[&retention.delivery, &retention.reports, &version]).await?;
             tx.execute("UPDATE plenora_chain_acceptance SET expires_at=LEAST(expires_at, accepted_at + $1::bigint * interval '1 second')", &[&retention.delivery]).await?;
         } else {
             tx.execute(
-                "INSERT INTO plenora_chain_schema VALUES (true, 2, $1, $2)",
-                &[&retention.delivery, &retention.reports],
+                "INSERT INTO plenora_chain_schema VALUES (true, $3, $1, $2)",
+                &[&retention.delivery, &retention.reports, &version],
             )
             .await?;
         }
+        // Identifiers and numbers are closed migration metadata, never caller input.
+        let versions = supported_versions()
+            .iter()
+            .map(i32::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        tx.batch_execute(&format!("ALTER TABLE plenora_chain_schema ADD CONSTRAINT plenora_chain_schema_version_check CHECK (version IN ({versions}))")).await?;
         Self::expire(&tx).await?;
         Self::commit(tx).await
     }
@@ -130,13 +139,16 @@ impl PostgresStore {
             )
             .await?
             .try_get(0)?;
-        if version != 2 {
+        if version != current_version() {
             return Err(StoreError::Unavailable);
         }
+        tx.execute("UPDATE plenora_chain_idempotency i SET carrier=NULL FROM plenora_chain_schema p WHERE p.singleton AND i.carrier IS NOT NULL AND i.created_ms + p.report_seconds*1000 <= extract(epoch FROM clock_timestamp())*1000", &[]).await?;
+        // Purge retained run documents under the same monotone policy; keep scoped identities forever.
+        tx.execute("UPDATE plenora_chain_runs r SET journal=NULL FROM plenora_chain_schema p WHERE p.singleton AND r.journal IS NOT NULL AND r.created_ms + p.report_seconds*1000 <= extract(epoch FROM clock_timestamp())*1000", &[]).await?;
         tx.execute("UPDATE plenora_chain_acceptance SET tombstone=true WHERE expires_at <= clock_timestamp() AND NOT tombstone", &[]).await?;
         tx.execute("UPDATE plenora_chain_outbox o SET expired=true, lease=NULL, lease_until=NULL FROM plenora_chain_acceptance a WHERE o.id=a.id AND a.tombstone AND NOT o.delivered", &[]).await?;
         // The product journal shares the report clock even when nobody reads the result.
-        tx.execute("UPDATE plenora_chain_delivery d SET journal=convert_to(jsonb_set(jsonb_set(convert_from(d.journal,'UTF8')::jsonb,'{history}','[]'::jsonb),'{expired_report}','true'::jsonb)::text,'UTF8') FROM plenora_chain_schema p WHERE p.singleton AND NOT (convert_from(d.journal,'UTF8')::jsonb->>'expired_report')::boolean AND (convert_from(d.journal,'UTF8')::jsonb->>'created')::numeric + p.report_seconds*1000 <= extract(epoch FROM clock_timestamp())*1000", &[]).await?;
+        Self::expire_delivery_reports(tx).await?;
         // Report expiry removes retained data, never the explicit outcome/delivery evidence.
         tx.execute("UPDATE plenora_chain_steps s SET report=NULL, report_expired=true FROM plenora_chain_schema p, plenora_chain_outbox o WHERE p.singleton AND o.id=s.id AND NOT s.report_expired AND s.finished_at + p.report_seconds * interval '1 second' <= clock_timestamp()", &[]).await?;
         tx.execute("UPDATE plenora_chain_outbox o SET payload=''::bytea, expired=(o.expired OR NOT o.delivered), lease=NULL, lease_until=NULL FROM plenora_chain_steps s WHERE s.id=o.id AND s.report_expired AND octet_length(o.payload)>0", &[]).await?;
@@ -151,6 +163,9 @@ impl PostgresStore {
         let mut client = self.connect().await?;
         let tx = Self::transaction(&mut client).await?;
         Self::expire(&tx).await?;
+        Self::sweep_owned(&tx, None)
+            .await
+            .map_err(|_| StoreError::Unavailable)?;
         Self::commit(tx).await
     }
 

@@ -18,10 +18,31 @@ fn fixtures() -> PathBuf {
 }
 
 #[test]
-fn all_88_python_oracle_verdicts() -> Result<(), Box<dyn Error>> {
+fn all_manifest_python_oracle_verdicts() -> Result<(), Box<dyn Error>> {
     let root = fixtures();
     let cases: Vec<Case> = serde_json::from_slice(&fs::read(root.join("manifest.json"))?)?;
-    assert_eq!(cases.len(), 88);
+    assert!(!cases.is_empty());
+    let mut referenced = std::collections::BTreeSet::from(["manifest.json".to_owned()]);
+    let mut identities = std::collections::BTreeSet::new();
+    for case in &cases {
+        assert!(identities.insert(case.file.clone()));
+        referenced.insert(case.file.clone());
+        referenced.insert(case.context.clone());
+        referenced.extend(case.plan.iter().cloned());
+    }
+    let mut actual = std::collections::BTreeSet::new();
+    for entry in fs::read_dir(&root)? {
+        let path = entry?.path();
+        if path.extension().is_some_and(|e| e == "json") {
+            actual.insert(
+                path.file_name()
+                    .and_then(|n| n.to_str())
+                    .ok_or("fixture name")?
+                    .to_owned(),
+            );
+        }
+    }
+    assert_eq!(referenced, actual);
     for case in cases {
         let raw = fs::read(root.join(&case.file))?;
         if let Some(expected) = case.schema {

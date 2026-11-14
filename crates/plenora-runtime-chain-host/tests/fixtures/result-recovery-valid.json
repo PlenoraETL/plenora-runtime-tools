@@ -1,0 +1,299 @@
+{
+  "contract": "plenora-chain-result-v2",
+  "schema_version": 2,
+  "run_id": "00000000-0000-0000-0000-000000000001",
+  "result_message_id": "00000000-0000-0000-0000-000000000001",
+  "plan_id": "00000000-0000-0000-0000-000000000001",
+  "plan_revision": 1,
+  "plan_digest": "9c71a44871b35e920976ec6b6b220edd93bcac17720f36539998ee5096e142d4",
+  "state_revision": 1,
+  "state": "requires_recovery",
+  "started_at": "2026-11-13T12:00:00Z",
+  "finished_at": "2026-11-13T12:00:00Z",
+  "counters": {
+    "memory_bytes": 0,
+    "elapsed_ms": 0,
+    "rows_read": 0,
+    "rows_produced": 0,
+    "artifact_bytes": 0,
+    "spool_bytes": 0,
+    "request_bytes": 407,
+    "result_bytes": 0,
+    "max_attempts": 3
+  },
+  "steps": [
+    {
+      "step_id": "read",
+      "operation": "io.read",
+      "operation_version": 2,
+      "attempt": 1,
+      "state": "succeeded",
+      "input_manifests": {},
+      "outputs": {
+        "dataset": {
+          "artifact_ref": "ref:read",
+          "port": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "40165a88048275007a023c4308ab19413eaeaddb9149c566de2a23864421a79d",
+            "primary_geometry": true
+          },
+          "bytes": 286,
+          "sha256": "7a85cc5e6e6a2e510175ea8516f1fc49d84db2117294c5150beb68f9ff914614",
+          "rows": 0,
+          "columns": 1,
+          "producer_step": "read",
+          "attempt": 1,
+          "publication": "confirmed",
+          "lease_ref": "ref:lease",
+          "reports": []
+        }
+      },
+      "remote_effect": "none",
+      "retry": {
+        "kind": "never"
+      },
+      "error": null,
+      "other_errors": [],
+      "reports": [
+        {
+          "kind": "fidelity",
+          "availability": "available",
+          "document": {
+            "contract": "plenora-fixture-fidelity-v1",
+            "artifact_ref": "ref:fidelity-read",
+            "sha256": "ea83f5443fb7efd41d0a26e85d0807173fd9832f9408b1d2e4f60850bfe7e264"
+          }
+        }
+      ],
+      "counters": {
+        "memory_bytes": 0,
+        "elapsed_ms": 0,
+        "rows_read": 0,
+        "rows_produced": 0,
+        "artifact_bytes": 0,
+        "spool_bytes": 0,
+        "request_bytes": 131,
+        "result_bytes": 0,
+        "max_attempts": 1
+      },
+      "started_at": "2026-11-13T12:00:00Z",
+      "finished_at": "2026-11-13T12:00:00Z",
+      "stop_confirmed": true,
+      "reason": "completed",
+      "upstream_result": {
+        "contract": "plenora-fixture-read-result-v1",
+        "artifact_ref": "ref:upstream-read",
+        "sha256": "36974a0f0bf620b22ef98abae246f02394cf369989d255cb8368e46a4f2634d6"
+      }
+    },
+    {
+      "step_id": "transform",
+      "operation": "data.run",
+      "operation_version": 3,
+      "attempt": 1,
+      "state": "succeeded",
+      "input_manifests": {
+        "dataset": {
+          "artifact_ref": "ref:read",
+          "port": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "40165a88048275007a023c4308ab19413eaeaddb9149c566de2a23864421a79d",
+            "primary_geometry": true
+          },
+          "bytes": 286,
+          "sha256": "7a85cc5e6e6a2e510175ea8516f1fc49d84db2117294c5150beb68f9ff914614"
+        }
+      },
+      "outputs": {
+        "dataset": {
+          "artifact_ref": "ref:transform",
+          "port": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "40165a88048275007a023c4308ab19413eaeaddb9149c566de2a23864421a79d",
+            "primary_geometry": true
+          },
+          "bytes": 286,
+          "sha256": "7a85cc5e6e6a2e510175ea8516f1fc49d84db2117294c5150beb68f9ff914614",
+          "rows": 0,
+          "columns": 1,
+          "producer_step": "transform",
+          "attempt": 1,
+          "publication": "confirmed",
+          "lease_ref": "ref:lease",
+          "reports": []
+        }
+      },
+      "remote_effect": "none",
+      "retry": {
+        "kind": "never"
+      },
+      "error": null,
+      "other_errors": [],
+      "reports": [
+        {
+          "kind": "fidelity",
+          "availability": "available",
+          "document": {
+            "contract": "plenora-fixture-fidelity-v1",
+            "artifact_ref": "ref:fidelity-transform",
+            "sha256": "8c6a5d6b2ef6cb04da8a355a74dfd6b23a78b1ff197359aca5890628fb84bf07"
+          }
+        }
+      ],
+      "counters": {
+        "memory_bytes": 0,
+        "elapsed_ms": 0,
+        "rows_read": 0,
+        "rows_produced": 0,
+        "artifact_bytes": 0,
+        "spool_bytes": 0,
+        "request_bytes": 137,
+        "result_bytes": 0,
+        "max_attempts": 1
+      },
+      "started_at": "2026-11-13T12:00:00Z",
+      "finished_at": "2026-11-13T12:00:00Z",
+      "stop_confirmed": true,
+      "reason": "completed",
+      "upstream_result": {
+        "contract": "plenora-fixture-transform-result-v1",
+        "artifact_ref": "ref:upstream-transform",
+        "sha256": "2d6bf2ea84e1237d4959a39f27f712c8c333044447757fa51810d94d3c783b40"
+      }
+    },
+    {
+      "step_id": "write",
+      "operation": "database.write",
+      "operation_version": 2,
+      "attempt": 1,
+      "state": "requires_recovery",
+      "input_manifests": {
+        "dataset": {
+          "artifact_ref": "ref:transform",
+          "port": {
+            "contract": "plenora-arrow-interchange-v1",
+            "content_type": "application/vnd.apache.arrow.stream",
+            "cardinality": "one",
+            "required": true,
+            "schema_digest": "40165a88048275007a023c4308ab19413eaeaddb9149c566de2a23864421a79d",
+            "primary_geometry": true
+          },
+          "bytes": 286,
+          "sha256": "7a85cc5e6e6a2e510175ea8516f1fc49d84db2117294c5150beb68f9ff914614"
+        }
+      },
+      "outputs": {},
+      "remote_effect": "unknown",
+      "retry": {
+        "kind": "requires_recovery"
+      },
+      "error": {
+        "contract": "plenora-chain-error-v2",
+        "schema_version": 2,
+        "category": "io",
+        "phase": "commit",
+        "code": "CHAIN_UPSTREAM",
+        "remote_effect": "unknown",
+        "retry": {
+          "kind": "requires_recovery"
+        },
+        "message": "Chain operation rejected or incomplete.",
+        "step_id": null,
+        "upstream_error": null,
+        "reports": []
+      },
+      "other_errors": [],
+      "reports": [
+        {
+          "kind": "fidelity",
+          "availability": "available",
+          "document": {
+            "contract": "plenora-fixture-fidelity-v1",
+            "artifact_ref": "ref:fidelity-write",
+            "sha256": "610b691d65db66404f001010313592ee8d2328cbdc29bc62b33a75aa930320c7"
+          }
+        }
+      ],
+      "counters": {
+        "memory_bytes": 0,
+        "elapsed_ms": 0,
+        "rows_read": 0,
+        "rows_produced": 0,
+        "artifact_bytes": 0,
+        "spool_bytes": 0,
+        "request_bytes": 139,
+        "result_bytes": 0,
+        "max_attempts": 1
+      },
+      "started_at": "2026-11-13T12:00:00Z",
+      "finished_at": "2026-11-13T12:00:00Z",
+      "stop_confirmed": false,
+      "reason": "recovery_required",
+      "upstream_result": {
+        "contract": "plenora-fixture-write-result-v1",
+        "artifact_ref": "ref:upstream-write",
+        "sha256": "fc604a2bf2d1b8805e40e639b558af865672f902389a116cbc3cc9e6435c1d04"
+      }
+    }
+  ],
+  "outputs": {
+    "dataset": {
+      "artifact_ref": "ref:transform",
+      "port": {
+        "contract": "plenora-arrow-interchange-v1",
+        "content_type": "application/vnd.apache.arrow.stream",
+        "cardinality": "one",
+        "required": true,
+        "schema_digest": "40165a88048275007a023c4308ab19413eaeaddb9149c566de2a23864421a79d",
+        "primary_geometry": true
+      },
+      "bytes": 286,
+      "sha256": "7a85cc5e6e6a2e510175ea8516f1fc49d84db2117294c5150beb68f9ff914614",
+      "rows": 0,
+      "columns": 1,
+      "producer_step": "transform",
+      "attempt": 1,
+      "publication": "confirmed",
+      "lease_ref": "ref:lease",
+      "reports": []
+    }
+  },
+  "error": {
+    "contract": "plenora-chain-error-v2",
+    "schema_version": 2,
+    "category": "io",
+    "phase": "commit",
+    "code": "CHAIN_UPSTREAM",
+    "remote_effect": "unknown",
+    "retry": {
+      "kind": "requires_recovery"
+    },
+    "message": "Chain operation rejected or incomplete.",
+    "step_id": null,
+    "upstream_error": null,
+    "reports": []
+  },
+  "other_errors": [],
+  "remote_effect": "unknown",
+  "retry": {
+    "kind": "requires_recovery"
+  },
+  "reports": [],
+  "reports_complete": true,
+  "losses": "none",
+  "recovery": {
+    "required": true,
+    "evidence_ref": null,
+    "resumable_steps": []
+  },
+  "delivery": "persisted"
+}

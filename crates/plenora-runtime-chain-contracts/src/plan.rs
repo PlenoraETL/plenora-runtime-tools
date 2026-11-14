@@ -276,7 +276,17 @@ fn check_edge(
             Code::Boundary,
         )?;
     }
-    ensure(edge.mode != "direct" || actual == expected, Code::Boundary)?;
+    // A dynamic producer cannot prove the consumer's fixed schema statically.
+    // All other port properties still match exactly; semantics requires a barrier
+    // for every such producer, and the host must resolve it before invocation.
+    let mut comparable = actual.clone();
+    if comparable.schema_digest.is_none() {
+        comparable.schema_digest.clone_from(&expected.schema_digest);
+    }
+    ensure(
+        edge.mode != "direct" || comparable == *expected,
+        Code::Boundary,
+    )?;
     ensure(
         !actual.primary_geometry || expected.primary_geometry,
         Code::Boundary,

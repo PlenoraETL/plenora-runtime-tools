@@ -116,7 +116,7 @@ def main():
         else:
             text += "match value {\n" + "\n".join(f"wire::{name}::{field}(v) => Self::{field}({convert(ty, 'v')})," for field, ty in fields) + "\n}\n"
         text += "}\n}\n"
-    for name in ("Plan", "Registry", "ChainResult", "Event", "ChainError"):
+    for name in ("Plan", "Registry", "ChainResult", "Event", "ChainError", "StepResult"):
         text += (f"impl crate::Decode for {name} {{\nfn decode(value: serde_json::Value) -> crate::error::Checked<Self> {{\n"
                  f"serde_json::from_value::<wire::{name}>(value).map(Into::into).map_err(|_| crate::Rejection(crate::Code::Schema))\n}}\n}}\n")
     OUT.parent.mkdir(parents=True, exist_ok=True)

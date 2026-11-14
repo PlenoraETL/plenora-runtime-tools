@@ -50,7 +50,7 @@ mod cases {
                 )
                 .await?
                 .get::<_, i32>(0),
-            2
+            current_version()
         );
         let context = NegotiationContext {
             requires: RuntimeBinding::V2,
@@ -131,7 +131,14 @@ mod cases {
             DeliveryOpen::Conflict
         ));
         // Report maintenance must remove inactive bytes without requiring a read.
-        admin.execute("UPDATE plenora_chain_delivery SET journal=convert_to(jsonb_set(convert_from(journal,'UTF8')::jsonb,'{created}',to_jsonb((extract(epoch FROM clock_timestamp())*1000)::bigint-7776000001))::text,'UTF8') WHERE key=$1",&[&key]).await?;
+        let past: i64 = admin
+            .query_one(
+                "SELECT floor(extract(epoch FROM clock_timestamp())*1000)::bigint-7776000001",
+                &[],
+            )
+            .await?
+            .try_get(0)?;
+        admin.execute("UPDATE plenora_chain_delivery SET created_ms=$2::bigint,journal=convert_to(jsonb_set(convert_from(journal,'UTF8')::jsonb,'{created}',to_jsonb($2::bigint))::text,'UTF8') WHERE key=$1",&[&key,&past]).await?;
         admin.execute("UPDATE plenora_chain_acceptance SET expires_at=clock_timestamp()-interval '1 second' WHERE id=$1",&[&j.result_id()]).await?;
         store.maintain().await?;
         let bytes: Vec<u8> = admin
@@ -154,6 +161,66 @@ mod cases {
                 .await
                 .is_err()
         );
+        Ok(())
+    }
+    #[tokio::test]
+    #[ignore = "requires disposable PostgreSQL; included by the postgres_real CI filter"]
+    async fn postgres_real_retention_selects_metadata_before_decoding_and_preserves_corruption()
+    -> Result<(), Box<dyn Error>> {
+        let store = PostgresStore::new(&std::env::var("PLENORA_POSTGRES_URL")?)?;
+        store.migrate(Retention::default()).await?;
+        let admin = store.connect().await?;
+        let key = format!("retention:{}", MessageId::random());
+        let plan = DeliveryPlan::new("retention-route", 1, 0, 4096, 1024)?;
+        let DeliveryOpen::Opened(journal, _) = store.open(&key, [9; 32], &plan).await? else {
+            return Err("receipt".into());
+        };
+        let bytes = journal.to_json()?;
+        // An unrelated live payload must not be decoded by global maintenance.
+        let invalid = vec![0xff_u8];
+        admin
+            .execute(
+                "UPDATE plenora_chain_delivery SET journal=$2 WHERE key=$1",
+                &[&key, &invalid],
+            )
+            .await?;
+        let maintenance = store.maintain().await;
+        let rejected = store.load(&key).await.is_err();
+        admin
+            .execute(
+                "UPDATE plenora_chain_delivery SET journal=$2 WHERE key=$1",
+                &[&key, &bytes],
+            )
+            .await?;
+        maintenance?;
+        assert!(
+            rejected,
+            "the authoritative read must still reject corrupt bytes"
+        );
+        // A forged due scalar must fail before evidence can be erased.
+        admin
+            .execute(
+                "UPDATE plenora_chain_delivery SET created_ms=0 WHERE key=$1",
+                &[&key],
+            )
+            .await?;
+        let rejected = store.maintain().await.is_err();
+        let retained: Vec<u8> = admin
+            .query_one(
+                "SELECT journal FROM plenora_chain_delivery WHERE key=$1",
+                &[&key],
+            )
+            .await?
+            .try_get(0)?;
+        admin
+            .execute(
+                "UPDATE plenora_chain_delivery SET created_ms=$2 WHERE key=$1",
+                &[&key, &i64::try_from(journal.created_ms())?],
+            )
+            .await?;
+        assert!(rejected);
+        assert_eq!(retained, bytes, "failed maintenance must preserve evidence");
+        store.maintain().await?;
         Ok(())
     }
 }

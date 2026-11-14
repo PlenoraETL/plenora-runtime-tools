@@ -325,9 +325,17 @@ fn component(
 async fn enumerate_p2_3_all_21_sequences_through_product_gate() -> TestResult {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../contracts/runtime-negotiation-v1");
+    let fixtures = tokio::task::spawn_blocking(
+        move || -> Result<Vec<Value>, Box<dyn Error + Send + Sync>> {
+            std::fs::read_dir(path)?
+                .map(|file| Ok(serde_json::from_slice(&std::fs::read(file?.path())?)?))
+                .collect()
+        },
+    )
+    .await?
+    .map_err(|_| "negotiation fixture read failed")?;
     let mut count = 0;
-    for file in std::fs::read_dir(path)? {
-        let fixture: Value = serde_json::from_slice(&std::fs::read(file?.path())?)?;
+    for fixture in fixtures {
         let store = Arc::new(Double::default());
         let calls = Arc::new(AtomicUsize::new(0));
         let host = host(
