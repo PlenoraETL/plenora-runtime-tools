@@ -215,11 +215,14 @@ async fn corrupted_resources(server: &str) -> Result<(), Box<dyn Error>> {
     let reports = rejected_client
         .exchange(Request::Report {
             run_id,
-            cursor: None,
+            cursor: plenora_runtime_chains::ReportCursor {
+                index: 0,
+                offset: 0,
+            },
         })
         .await?;
     assert_eq!(reports.error, None);
-    assert_eq!(reports.value.as_array().ok_or("reports")?.len(), 2);
+    assert_eq!(reports.value["total_reports"], 2);
     rejected_task.abort();
     assert!(rejected_task.await.is_err_and(|error| error.is_cancelled()));
     Ok(())

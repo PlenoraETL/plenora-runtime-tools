@@ -55,7 +55,7 @@ pub(crate) fn elapsed(intent: &crate::journal::Intent, event: &[u8]) -> Result<u
         .timestamp_millis();
     u64::try_from(ms)
         .map_err(|_| Error::Invalid)?
-        .checked_sub(intent.first_started.unwrap_or(intent.started))
+        .checked_sub(intent.first_started)
         .ok_or(Error::Invalid)
 }
 

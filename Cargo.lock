@@ -2579,18 +2579,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "plenora-example-capability-adapter"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "plenora-runtime-capabilities",
- "plenora-runtime-core",
- "plenora-runtime-messaging",
- "plenora-runtime-worker",
- "tokio",
-]
-
-[[package]]
 name = "plenora-example-http-service"
 version = "0.1.0"
 dependencies = [
@@ -3061,7 +3049,6 @@ dependencies = [
  "plenora-runtime-chains",
  "plenora-runtime-core",
  "plenora-runtime-messaging",
- "plenora-runtime-outbox",
  "plenora-runtime-testkit",
  "serde_json",
  "sha2 0.10.9",

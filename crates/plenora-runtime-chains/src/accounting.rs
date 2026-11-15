@@ -110,22 +110,20 @@ fn fields(j: &Journal, reserved: bool) -> Result<Vec<(&'static str, usize)>, Err
             retry_due,
             waiting_recovery
         );
-        if allocation.is_some() {
-            actual!(allocation);
-        }
+        actual!(allocation);
         return Ok(result);
     }
-    let a = allocation.as_ref().ok_or(Error::Invalid)?;
+    let a = allocation;
     let maximum = u64::MAX;
     let id = "ffffffff-ffff-ffff-ffff-ffffffffffff".to_owned();
     let intent = Intent {
-        result_limit: Some(u64::MAX),
+        result_limit: u64::MAX,
         index: usize::MAX,
         message_id: id.clone(),
         started: maximum,
         deadline: maximum,
         prior: vec![],
-        first_started: Some(maximum),
+        first_started: maximum,
         causation: Some(id.clone()),
     };
     let all_progress: BTreeMap<_, _> = parse_plan(plan)?
@@ -189,9 +187,9 @@ impl Journal {
     pub fn encoded_size(&self) -> Result<usize, Error> {
         size(self)
     }
-    /// Reserved peak bytes for all preallocated journal slots; legacy state has no reservation.
+    /// Reserved peak bytes for all preallocated journal slots.
     /// # Errors
-    /// Rejects missing allocation or arithmetic overflow.
+    /// Rejects arithmetic overflow.
     pub fn reserved_bytes(&self) -> Result<usize, Error> {
         total(&fields(self, true)?)
     }
@@ -201,9 +199,7 @@ impl Journal {
         if measured > JOURNAL_BYTES {
             return Err(Error::ResourceLimit);
         }
-        let Some(a) = &self.allocation else {
-            return Ok(());
-        };
+        let a = &self.allocation;
         if a.limit == 0
             || a.limit > JOURNAL_BYTES
             || a.events > EVENTS
@@ -311,10 +307,7 @@ impl Journal {
             .checked_add(6)
             .filter(|n| *n <= 9_007_199_254_740_991)
             .ok_or(Error::ResourceLimit)?;
-        let mut a = self
-            .allocation
-            .clone()
-            .unwrap_or(Allocation::new(JOURNAL_BYTES)?);
+        let mut a = self.allocation.clone();
         a.events = a.events.max(
             self.events
                 .len()
@@ -327,7 +320,7 @@ impl Journal {
                 .checked_add(1)
                 .ok_or(Error::ResourceLimit)?,
         );
-        let old = self.allocation.replace(a);
+        let old = std::mem::replace(&mut self.allocation, a);
         if let Err(error) = self.check_allocation() {
             self.allocation = old;
             return Err(error);

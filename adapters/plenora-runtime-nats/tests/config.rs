@@ -14,7 +14,7 @@ use plenora_runtime_nats::{
 fn defaults_require_tls_and_external_provisioning() -> Result<(), Box<dyn Error>> {
     let connection = NatsConfig::default();
     assert_eq!(connection.tls.mode, TlsMode::Required);
-    assert_eq!(connection.max_reconnects, Some(10));
+    assert_eq!(connection.max_reconnects, 10);
     let consumer = consumer_config()?;
     assert_eq!(consumer.infrastructure, InfrastructureMode::BindExisting);
     Ok(())
@@ -49,20 +49,20 @@ fn explicit_provisioning_requires_subjects() -> Result<(), Box<dyn Error>> {
 fn consumer_requires_finite_delivery_pending_ack_and_payload_bounds() -> Result<(), Box<dyn Error>>
 {
     let mut config = consumer_config()?;
-    config.max_deliver = None;
+    config.max_deliver = 0;
     assert_eq!(
         config.validate().err().map(|error| error.field()),
         Some("max_deliver")
     );
 
-    config.max_deliver = Some(5);
-    config.max_ack_pending = None;
+    config.max_deliver = 5;
+    config.max_ack_pending = 0;
     assert_eq!(
         config.validate().err().map(|error| error.field()),
         Some("max_ack_pending")
     );
 
-    config.max_ack_pending = Some(128);
+    config.max_ack_pending = 128;
     config.max_payload_bytes = 0;
     assert_eq!(
         config.validate().err().map(|error| error.field()),
@@ -205,10 +205,10 @@ fn every_consumer_bound_and_provisioning_failure_is_rejected() -> Result<(), Box
         consumer_mutated(&base, |config| {
             config.heartbeat = Some(overflow_heartbeat);
         }),
-        consumer_mutated(&base, |config| config.max_deliver = Some(0)),
-        consumer_mutated(&base, |config| config.max_ack_pending = Some(0)),
+        consumer_mutated(&base, |config| config.max_deliver = 0),
+        consumer_mutated(&base, |config| config.max_ack_pending = 0),
         consumer_mutated(&base, |config| {
-            config.max_ack_pending = Some(excessive_pending);
+            config.max_ack_pending = excessive_pending;
         }),
         consumer_mutated(&base, |config| {
             config.infrastructure = InfrastructureMode::CreateIfMissing {
@@ -305,8 +305,8 @@ fn consumer_config() -> Result<JetStreamConsumerConfig, Box<dyn Error>> {
         filter_subject: Arc::from("events.>"),
         ack_wait: Duration::from_secs(30),
         heartbeat: Some(DeliveryHeartbeatConfig::new(Duration::from_secs(5), 3)?),
-        max_deliver: Some(5),
-        max_ack_pending: Some(128),
+        max_deliver: 5,
+        max_ack_pending: 128,
         max_payload_bytes: 64 * 1024,
         shutdown_nak_delay: Duration::from_secs(2),
         infrastructure: InfrastructureMode::BindExisting,
@@ -321,8 +321,8 @@ fn replay_config() -> Result<ReplayConsumerConfig, Box<dyn Error>> {
         filter_subject: Arc::from("events.>"),
         ack_wait: Duration::from_secs(30),
         heartbeat: Some(DeliveryHeartbeatConfig::new(Duration::from_secs(5), 3)?),
-        max_deliver: Some(5),
-        max_ack_pending: Some(128),
+        max_deliver: 5,
+        max_ack_pending: 128,
         max_payload_bytes: 64 * 1024,
         shutdown_nak_delay: Duration::from_secs(2),
         infrastructure: InfrastructureMode::BindExisting,
@@ -331,18 +331,11 @@ fn replay_config() -> Result<ReplayConsumerConfig, Box<dyn Error>> {
 
 #[test]
 fn connection_requires_a_finite_positive_reconnect_bound() {
-    // Both `None` and zero are converted into an unlimited reconnect loop by the client library,
-    // so validation must reject them to keep the documented finite reconnect bound honest.
-    let unbounded = NatsConfig {
-        max_reconnects: None,
-        ..NatsConfig::default()
-    };
     let zero = NatsConfig {
-        max_reconnects: Some(0),
+        max_reconnects: 0,
         ..NatsConfig::default()
     };
 
-    assert!(unbounded.validate().is_err());
     assert!(zero.validate().is_err());
     assert!(NatsConfig::default().validate().is_ok());
 }

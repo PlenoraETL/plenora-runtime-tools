@@ -3,11 +3,11 @@
   "component": "plenora-runtime-tools",
   "contracts_source": {
     "repository": "https://github.com/PlenoraETL/plenora-contracts.git",
-    "revision": "3aec9f724f5a0ad21366f293895b4d0dbcd0aad1"
+    "revision": "38d68b402389855edbcecb7ce57c31e91282cb4e"
   },
   "profile": "plenora-runtime-tools-profile-v1",
   "catalog": null,
-  "catalog_policy": "plenora-public-catalog-v2 applicato al consumer; nessun catalogo runtime-tools esiste in 3aec9f7. I cataloghi di dominio restano quelli pubblicati.",
+  "catalog_policy": "plenora-public-catalog-v2 applicato al consumer; nessun catalogo runtime-tools esiste in 38d68b4. I cataloghi di dominio restano quelli pubblicati.",
   "contracts": [
     {
       "id": "plenora-runtime-binding-v1",
@@ -328,6 +328,34 @@
       "status": "implemented",
       "scope": "discovery con versioni simultanee",
       "evidence": "Rientrata il 2026-10-20: operazioni indicizzate per coppia nome/versione, lookup pubblici e dispatch esplicitamente versionati; duplicati della stessa coppia rifiutati. Prove: rest_discovery.rs e registry_dispatch.rs, catalogo data-tools-v3 e fixture sintetica runtime."
+    },
+    {
+      "rule": "IO-PY-001",
+      "status": "not_applicable",
+      "scope": "SDK IO upstream, non SDK runtime",
+      "evidence": "Il catalogo IO ora include python_sdk conditional; runtime usa la discovery della libreria Rust pinnata e non rivendica la superficie plenora_io."
+    },
+    {
+      "rule": "IO-ARROW-001",
+      "status": "deviation",
+      "scope": "adapter IO del prodotto catene, cinque facciate",
+      "evidence": "Il profilo locale ammette solo artefatti Arrow contrattuali con schema/digest verificati; Arrow esterno senza metadata Plenora non e un ingresso offerto.",
+      "hazard": "Il profilo runtime e piu ristretto delle operazioni IO upstream che devono accettare anche Arrow esterno.",
+      "closure": "Qualificare un ingresso Arrow esterno con ammissione e risorse esplicite, oppure ratificare il profilo ristretto comune."
+    },
+    {
+      "rule": "PRIM-001..009",
+      "status": "deviation",
+      "scope": "adapter IO/DATA/database del prodotto catene, cinque facciate",
+      "evidence": "Conservazione esatta verificata prima della pubblicazione; i pin IO/DATA possono perdere primary=none e database rifiuta geometria. Nessun claim di conformita completa al contratto opzionale.",
+      "hazard": "Rifiuto di input leciti nel contratto comune; combinazioni e formati non qualificati. Il controllo conservativo puo rifiutare riscritture canoniche lecite.",
+      "closure": "Pin provider corretti e corpus Primary Geometry completo su ogni ingresso con cinque superfici e metadati/identita esatti."
+    },
+    {
+      "rule": "FILE-001..007",
+      "status": "not_applicable",
+      "scope": "matrice opzionale storage/IO FILE-INTERCHANGE-1.0",
+      "evidence": "Runtime non espone il descrittore file comune ne adapter storage; gli artefatti catene restano bozza distinta. Nessun claim della matrice opzionale."
     }
   ],
   "runtime": {

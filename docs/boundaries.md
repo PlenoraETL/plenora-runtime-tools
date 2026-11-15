@@ -76,8 +76,7 @@ Classificazione delle superfici inventariate in `boundary-api.txt`:
   DeliveryJournal: SPI PostgreSQL e riduttore con CAS; nessuna autorita di
   dominio nasce da una lettura. PreparedResult e StoredMessage sono codec
   persistiti, validati dal riduttore, non ingressi alternativi al dispatcher.
-- PostgresStore record_evidence/evidence_report: primitive legacy fenced;
-  schema v2 impedisce doppia autorita tra legacy e nuova facciata.
+- PostgresStore: una sola autorita durevole attraverso DurableExecutionStore.
 
 I probe locali e reali ignorati sono in `tests/integration/tests/chain_delivery.rs`.
 L'inventario classifica API, non attesta qualifica remota. Scope e condizioni

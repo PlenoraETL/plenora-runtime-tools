@@ -571,11 +571,11 @@ jobs:
             psql -h 127.0.0.1 -U postgres -d chain_store -v ON_ERROR_STOP=1 -Atqc 'SELECT 1' >/dev/null
           port=$(docker port "$POSTGRES_CONTAINER" 5432/tcp | cut -d: -f2)
           echo "PLENORA_POSTGRES_URL=host=127.0.0.1 port=$port user=postgres password=ephemeral-ci-only dbname=chain_store" >> "$GITHUB_ENV"
-      - name: Validate all migrations on empty upgraded and already migrated databases
+      - name: Validate current bootstrap reopen and unexpected-schema rejection
         id: campaign_05
         if: always()
         continue-on-error: true
-        run: python scripts/run_confirmation_tests.py --label campaign_05 -- cargo test --no-fail-fast -p plenora-runtime-chain-store --locked postgres_migrations -- --ignored --nocapture --test-threads=1
+        run: python scripts/run_confirmation_tests.py --label campaign_05 -- cargo test --no-fail-fast -p plenora-runtime-chain-store --locked postgres_bootstrap -- --ignored --nocapture --test-threads=1
       - name: Run real race crash restart retention and authority tests
         id: campaign_06
         if: always()
@@ -830,11 +830,11 @@ jobs:
           PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
         run: python scripts/run_confirmation_tests.py --label campaign_10 -- cargo llvm-cov --no-fail-fast -p plenora-runtime-integration-tests --test nats_capability_e2e --locked --no-report -- --ignored --nocapture
 
-      - name: Validate and collect all migration paths
+      - name: Validate and collect current bootstrap paths
         id: campaign_11
         if: always()
         continue-on-error: true
-        run: python scripts/run_confirmation_tests.py --label campaign_11 -- cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-store --locked --no-report -- postgres_migrations --ignored --nocapture --test-threads=1
+        run: python scripts/run_confirmation_tests.py --label campaign_11 -- cargo llvm-cov --no-fail-fast -p plenora-runtime-chain-store --locked --no-report -- postgres_bootstrap --ignored --nocapture --test-threads=1
 
       - name: Collect real PostgreSQL store coverage
         id: campaign_12

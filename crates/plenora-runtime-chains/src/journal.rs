@@ -47,15 +47,13 @@ pub struct RunHandle {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Intent {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub result_limit: Option<u64>,
+    pub result_limit: u64,
     pub index: usize,
     pub message_id: String,
     pub started: u64,
     pub deadline: u64,
     pub prior: Vec<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub first_started: Option<u64>,
+    pub first_started: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub causation: Option<String>,
 }
@@ -70,8 +68,7 @@ pub(crate) struct StepProgress {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Journal {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) allocation: Option<crate::accounting::Allocation>,
+    pub(crate) allocation: crate::accounting::Allocation,
     pub(crate) version: u8,
     pub(crate) tenant: String,
     pub(crate) options: RunOptions,
@@ -87,11 +84,9 @@ pub struct Journal {
     pub(crate) events: Vec<Vec<u8>>,
     pub(crate) history: Vec<Vec<u8>>,
     pub(crate) evidence: Option<Vec<u8>>,
-    #[serde(default)]
     pub(crate) progress: std::collections::BTreeMap<String, StepProgress>,
     #[serde(default)]
     pub(crate) retry_due: Option<u64>,
-    #[serde(default)]
     pub(crate) waiting_recovery: bool,
 }
 impl std::fmt::Debug for Journal {
@@ -173,11 +168,10 @@ impl Journal {
     pub fn validate_successor(&self, next: &Self) -> Result<(), Error> {
         self.validate()?;
         next.validate()?;
-        if self.allocation.as_ref().is_some_and(|a| {
-            next.allocation
-                .as_ref()
-                .is_none_or(|b| a.limit != b.limit || b.events < a.events || b.history < a.history)
-        }) {
+        if self.allocation.limit != next.allocation.limit
+            || next.allocation.events < self.allocation.events
+            || next.allocation.history < self.allocation.history
+        {
             return Err(Error::Conflict);
         }
         if !self.same_submission(next)
@@ -200,8 +194,9 @@ impl Journal {
         }) {
             return Err(Error::Conflict);
         }
-        if let Some(old) = &self.allocation {
-            let new = next.allocation.as_ref().ok_or(Error::Conflict)?;
+        {
+            let old = &self.allocation;
+            let new = &next.allocation;
             if old.recovery.is_some()
                 && new.recovery.is_some()
                 && (old.recovery != new.recovery || old.recovery_limit != new.recovery_limit)
@@ -254,9 +249,7 @@ impl Journal {
         if starting {
             let intent = next.active.as_ref().ok_or(Error::Conflict)?;
             if intent.result_limit
-                != Some(
-                    self.report_limit(&plan.steps.get(intent.index).ok_or(Error::Conflict)?.id)?,
-                )
+                != self.report_limit(&plan.steps.get(intent.index).ok_or(Error::Conflict)?.id)?
             {
                 return Err(Error::Conflict);
             }
@@ -393,7 +386,7 @@ impl Journal {
             return Err(Error::ResourceLimit);
         }
         let j: Self = serde_json::from_slice(bytes).map_err(|_| Error::Storage)?;
-        if j.allocation.as_ref().is_some_and(|a| bytes.len() > a.limit) {
+        if bytes.len() > j.allocation.limit {
             return Err(Error::ResourceLimit);
         }
         j.validate()?;
@@ -426,6 +419,7 @@ impl Journal {
         }
         if let Some(active) = &self.active
             && (self.terminal
+                || active.result_limit == 0
                 || active.index >= plan.steps.len()
                 || !crate::uuid(&active.message_id)
                 || active.started < self.created
@@ -468,7 +462,8 @@ impl Journal {
             }
         }
         if let Some(active) = &self.active {
-            if let Some(first) = active.first_started {
+            {
+                let first = active.first_started;
                 let id = &plan.steps.get(active.index).ok_or(Error::Invalid)?.id;
                 let progress = self.progress.get(id).ok_or(Error::Invalid)?;
                 if progress.started != first

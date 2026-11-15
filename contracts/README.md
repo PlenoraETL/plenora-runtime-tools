@@ -1,6 +1,6 @@
 # Contratti pubblici fissati
 
-`source.json` fissa `3aec9f724f5a0ad21366f293895b4d0dbcd0aad1` e registra
+`source.json` fissa `38d68b402389855edbcecb7ce57c31e91282cb4e` e registra
 per ogni copia percorso upstream e SHA-256. Le copie sono identiche ai byte
 del worktree locale dei contratti, senza normalizzazione dei terminatori.
 

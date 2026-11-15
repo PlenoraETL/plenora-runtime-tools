@@ -1,5 +1,7 @@
 //! Public Rust coordinator probes with explicitly scripted adapters and storage.
 #![allow(clippy::wildcard_imports, reason = "Public contract API probes")]
+#[path = "support/reports.rs"]
+mod reports;
 use async_trait::async_trait;
 use plenora_runtime_chains::{
     Adapter, ChainEngine, Error, Invocation, Journal, RunOptions, Store, contracts::*,
@@ -274,7 +276,7 @@ async fn complete_out_of_budget_evidence_remains_retrievable() -> Result<(), Box
     )?;
     let h = engine.submit(&plan()?, options()).await?;
     assert_eq!(engine.advance(&h.run_id).await, Err(Error::Recovery));
-    let reports = engine.report(&h.run_id).await?;
+    let reports = reports::collect(&engine, &h.run_id).await?;
     assert_eq!(reports.len(), 1);
     let evidence: serde_json::Value = serde_json::from_slice(&reports[0])?;
     assert_eq!(evidence["counters"]["rows_read"], 100_001);
@@ -769,7 +771,7 @@ async fn journal_reservation_rejects_before_effect_and_preserves_reports()
     assert_eq!(restarted.advance(&limited.run_id).await?, rejected);
     // The original run has a full allocation; complete raw receipts remain retrievable.
     restarted.advance(&accepted.run_id).await?;
-    let raw = restarted.report(&accepted.run_id).await?;
+    let raw = reports::collect(&restarted, &accepted.run_id).await?;
     assert_eq!(raw.len(), 1);
     assert_eq!(parse_step_result(&raw[0])?.step_id, "read");
     let stored = Store::load(store.as_ref(), "tenant", &accepted.run_id).await?;
@@ -803,7 +805,7 @@ async fn confirmed_empty_recovery_allows_a_new_reserved_inquiry() -> Result<(), 
     engine.resume(&accepted.run_id, status.revision).await?;
     assert_eq!(adapter.calls.load(Ordering::SeqCst), 1);
     assert_eq!(adapter.recoveries.load(Ordering::SeqCst), 2);
-    assert_eq!(engine.report(&accepted.run_id).await?.len(), 1);
+    assert_eq!(reports::collect(&engine, &accepted.run_id).await?.len(), 1);
     Ok(())
 }
 #[tokio::test]
@@ -827,7 +829,7 @@ async fn recovery_growth_stops_before_inquiry_and_keeps_every_original_report()
         engine.run(&plan()?, options.clone()).await?.state,
         "requires_recovery"
     );
-    let original = engine.report(&options.run_id).await?;
+    let original = reports::collect(&engine, &options.run_id).await?;
     let mut exhausted = false;
     for _ in 0..20 {
         let status = engine.status(&options.run_id).await?;
@@ -844,7 +846,7 @@ async fn recovery_growth_stops_before_inquiry_and_keeps_every_original_report()
     }
     assert!(exhausted);
     assert_eq!(adapter.calls.load(Ordering::SeqCst), 3);
-    let reports = engine.report(&options.run_id).await?;
+    let reports = reports::collect(&engine, &options.run_id).await?;
     assert!(reports.starts_with(&original));
     assert_eq!(
         reports.len(),
@@ -880,7 +882,7 @@ async fn denied_recovery_can_be_reauthorized_without_reinvoking_the_original()
     Ok(())
 }
 #[tokio::test]
-async fn legacy_unreserved_intention_never_starts_a_new_receipt() -> Result<(), Box<dyn StdError>> {
+async fn unreserved_journal_is_rejected_before_restore() -> Result<(), Box<dyn StdError>> {
     let store = Arc::new(ScriptStore::default());
     store.3.advance(Duration::from_hours(498_492))?;
     let adapter = adapter(false, true)?;
@@ -905,11 +907,9 @@ async fn legacy_unreserved_intention_never_starts_a_new_receipt() -> Result<(), 
             .as_object_mut()
             .ok_or("intent")?
             .remove("result_limit");
-        *old = Journal::from_json(&serde_json::to_vec(&value)?)?;
+        assert!(Journal::from_json(&serde_json::to_vec(&value)?).is_err());
+        assert!(serde_json::from_value::<Journal>(value).is_err());
     }
-    engine
-        .work_once(&uuid::Uuid::new_v4().to_string(), 30_000)
-        .await?;
     assert_eq!(adapter.calls.load(Ordering::SeqCst), 0);
     assert!(store.1.lock().map_err(|_| "receipts")?.is_empty());
     Ok(())
@@ -1011,7 +1011,7 @@ async fn finalization_read_crossing_deadline_preserves_known_commit_without_reco
     );
     assert_eq!(result.counters.elapsed_ms, 100_001);
     assert_eq!(adapter.calls.load(Ordering::SeqCst), 3);
-    let reports = engine.report(&run.run_id).await?;
+    let reports = reports::collect(&engine, &run.run_id).await?;
     assert_eq!(reports.len(), 3);
     assert_eq!(
         parse_step_result(reports.last().ok_or("raw evidence")?)?.state,

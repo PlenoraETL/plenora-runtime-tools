@@ -1,3 +1,4 @@
+//! PRIM-001..009: restricted profile; provider gaps and closure in docs/contract-alignment.md.
 //! Discovery from the candidate Rust runtime binding, with explicit host ports.
 use crate::{Error, digest, encode};
 use plenora_runtime_chains::contracts::{

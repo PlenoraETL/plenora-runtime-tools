@@ -4,7 +4,8 @@ mod cases {
     use super::super::*;
     use async_trait::async_trait;
     use plenora_runtime_chains::{
-        Adapter, ChainEngine, Invocation, OwnedResource, ResourceRequest, RunOptions, Store,
+        Adapter, ChainEngine, Invocation, OwnedResource, ReportCursor, ResourceRequest, RunOptions,
+        Store,
         contracts::{StepResult, parse_plan, parse_registry, parse_result},
     };
     use sha2::Digest;
@@ -183,7 +184,12 @@ mod cases {
             restarted.load(&tenant, &run.run_id).await?.to_json()?,
             before
         );
-        assert_eq!(engine.report(&run.run_id).await?.len(), 1);
+        let first = ReportCursor {
+            index: 0,
+            offset: 0,
+        };
+        let page = engine.report_page(&run.run_id, first).await?;
+        assert_eq!(page.total_reports, 1);
         client
             .execute(
                 "UPDATE plenora_chain_runs SET journal=NULL WHERE tenant=$1 AND run_id=$2",

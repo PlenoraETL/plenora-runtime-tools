@@ -14,10 +14,6 @@ fuzz_target!(|data: &[u8]| {
     let number = read_u64(data, 0);
     let count = usize::try_from(number).unwrap_or(usize::MAX);
     let duration = Duration::from_nanos(read_u64(data, 8));
-    let optional_count = data
-        .get(16)
-        .is_some_and(|value| value & 1 == 1)
-        .then_some(count);
     let heartbeat = DeliveryHeartbeatConfig::new(duration, read_u32(data, 17)).ok();
     let infrastructure = if data.get(21).is_some_and(|value| value & 1 == 1) {
         InfrastructureMode::CreateIfMissing {
@@ -36,6 +32,7 @@ fuzz_target!(|data: &[u8]| {
     connection.connect_timeout = duration;
     connection.request_timeout = Duration::from_nanos(read_u64(data, 22));
     connection.client_capacity = count;
+    connection.max_reconnects = count;
     connection.subscription_capacity = usize::try_from(read_u64(data, 30)).unwrap_or(usize::MAX);
     connection.health_component = Arc::from(text.clone());
     let _ = connection.validate();
@@ -56,11 +53,8 @@ fuzz_target!(|data: &[u8]| {
         filter_subject: Arc::from(text.clone()),
         ack_wait: duration,
         heartbeat,
-        max_deliver: data
-            .get(39)
-            .is_some_and(|value| value & 1 == 1)
-            .then_some(read_u32(data, 40)),
-        max_ack_pending: optional_count,
+        max_deliver: read_u32(data, 40),
+        max_ack_pending: count,
         max_payload_bytes: count,
         shutdown_nak_delay: duration,
         infrastructure: infrastructure.clone(),
@@ -78,8 +72,8 @@ fuzz_target!(|data: &[u8]| {
         filter_subject: Arc::from(text),
         ack_wait: duration,
         heartbeat,
-        max_deliver: Some(read_u32(data, 45)),
-        max_ack_pending: optional_count,
+        max_deliver: read_u32(data, 45),
+        max_ack_pending: count,
         max_payload_bytes: count,
         shutdown_nak_delay: duration,
         infrastructure,

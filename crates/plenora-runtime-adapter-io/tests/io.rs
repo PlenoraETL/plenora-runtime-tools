@@ -3,6 +3,8 @@
 mod fixture;
 #[path = "../../plenora-runtime-chains/tests/support/primary.rs"]
 mod primary;
+#[path = "../../plenora-runtime-chains/tests/support/reports.rs"]
+mod reports;
 use plenora_runtime_adapter_io::{IoAdapter, registry};
 use plenora_runtime_chains::{ChainEngine, RunOptions};
 use plenora_runtime_testkit::ManualClock;
@@ -100,7 +102,11 @@ async fn real_conflict_keeps_original_bundle_and_input_counter() -> TestResult {
         b"untouched"
     );
     assert!(!root.path().join("bundle/data.ipc").exists());
-    assert!(!engine.report(&options().run_id).await?.is_empty());
+    assert!(
+        !reports::collect(&engine, &options().run_id)
+            .await?
+            .is_empty()
+    );
     Ok(())
 }
 #[tokio::test]
@@ -137,8 +143,7 @@ async fn real_loss_is_reported_and_never_granted_by_reported_policy() -> TestRes
         assert_eq!(raw["write_loss"]["lossless"], false);
         assert!(result.reports_complete);
         assert!(
-            engine
-                .report(&options().run_id)
+            reports::collect(&engine, &options().run_id)
                 .await?
                 .iter()
                 .any(|b| String::from_utf8_lossy(b).contains(&doc.artifact_ref))

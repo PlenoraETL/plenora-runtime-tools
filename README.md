@@ -108,8 +108,7 @@ registro generico di capability congelato tramite Apalis, con task di handler am
 dinamicamente, concorrenza massima esplicita, configurazione che non espone segreti, TLS,
 ACK/NAK, instradamento dead-letter confermato, health/readiness HTTP e un unico percorso di drain
 coordinato;
-`capability-adapter` è un modello verificato in compilazione per collegare qualunque libreria Rust
-di proprietà dell'applicazione; `scheduler-basic` mostra il dispatch programmato limitato e
+`scheduler-basic` mostra il dispatch programmato limitato e
 l'identità deterministica delle occorrenze; `runtime-benchmark` emette JSON riproducibile per il
 coordinamento limitato di worker e scheduler;
 `http-service` e `http-worker` mostrano composizioni più piccole solo HTTP. Un

@@ -34,9 +34,9 @@ CASES = {
     "result": {"run_id": "bad"},
     "events": {"run_id": "bad", "cursor": 0, "limit": 1},
     "cancel": {"run_id": "bad", "revision": 1},
-    "resume": {"run_id": "bad", "revision": 1},
+    "resume": {"run_id": "bad", "revision": 1, "recovery": "reconcile"},
     "artifact": {"reference": "file:forbidden"},
-    "report": {"run_id": "bad"},
+    "report": {"run_id": "bad", "cursor": {"index": 0, "offset": 0}},
 }
 
 
@@ -195,9 +195,9 @@ class Installed(unittest.IsolatedAsyncioTestCase):
             "result": ["chain", "result", "--run", "bad"],
             "events": ["chain", "events", "--run", "bad", "--cursor", "0"],
             "cancel": ["chain", "cancel", "--run", "bad", "--revision", "1"],
-            "resume": ["chain", "resume", "--run", "bad", "--revision", "1"],
+            "resume": ["chain", "resume", "--run", "bad", "--revision", "1", "--recovery", "reconcile"],
             "artifact": ["artifact", "get", "--ref", "file:forbidden"],
-            "report": ["report", "get", "--run", "bad"],
+            "report": ["report", "get", "--run", "bad", "--report-index", "0", "--offset", "0"],
         }
         self.assertEqual(set(commands), set(FUNCTIONS))
         try:
@@ -226,9 +226,9 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
         sync = await asyncio.to_thread(Client, config)
         cancelled = await asyncio.to_thread(sync.cancel, run_id=receipt["run_id"], revision=receipt["revision"])
         with self.assertRaises(ChainError) as stale:
-            await client.resume(run_id=receipt["run_id"], revision=receipt["revision"])
+            await client.resume(run_id=receipt["run_id"], revision=receipt["revision"], recovery="reconcile")
         self.assertEqual(stale.exception.code, "conflict")
-        final = await client.resume(run_id=receipt["run_id"], revision=cancelled["revision"])
+        final = await client.resume(run_id=receipt["run_id"], revision=cancelled["revision"], recovery="reconcile")
         self.assertEqual(final["state"], "cancelled")
         expected = await client.result(run_id=receipt["run_id"])
         self.assertEqual(await asyncio.to_thread(sync.result, run_id=receipt["run_id"]), expected)
@@ -249,7 +249,7 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
         try:
             started = await binary("chain", "submit", "--plan", str(plan_path), "--run", str(uuid.uuid4()))
             stopped = await binary("chain", "cancel", "--run", started["run_id"], "--revision", str(started["revision"]))
-            finished = await binary("chain", "resume", "--run", started["run_id"], "--revision", str(stopped["revision"]))
+            finished = await binary("chain", "resume", "--run", started["run_id"], "--revision", str(stopped["revision"]), "--recovery", "reconcile")
             self.assertEqual(finished["state"], "cancelled")
             actual = await binary("chain", "events", "--run", started["run_id"], "--cursor", "0", "--limit", "1", lines=True)
             self.assertEqual(actual, [e async for e in client.iter_events(started["run_id"])])
@@ -292,8 +292,8 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(reference.startswith("ref:owned-" + result["run_id"] + "-"))
             self.assertEqual(await client.artifact(reference=reference), config["artifacts"]["ref:transform"])
             self.assertEqual(await asyncio.to_thread(sync.artifact, reference=reference), config["artifacts"]["ref:transform"])
-            reports = await client.report(run_id=result["run_id"])
-            self.assertEqual(len(reports), 2)
+            reports = await client.report(run_id=result["run_id"], cursor={"index": 0, "offset": 0})
+            self.assertEqual(reports["total_reports"], 2)
 
     async def test_journal_budget_rejects_on_installed_surfaces(self):
         config = dict(CONFIG, tenant="journal-" + str(uuid.uuid4()), journal_bytes=1)
@@ -372,8 +372,8 @@ class InstalledPostgres(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(reference.startswith("ref:owned-" + result["run_id"] + "-"))
             self.assertEqual(await client.artifact(reference=reference), config["artifacts"]["ref:transform"])
             self.assertEqual(await asyncio.to_thread(sync.artifact, reference=reference), config["artifacts"]["ref:transform"])
-            reports = await client.report(run_id=result["run_id"])
-            self.assertEqual(len(reports), 4)
+            reports = await client.report(run_id=result["run_id"], cursor={"index": 0, "offset": 0})
+            self.assertEqual(reports["total_reports"], 4)
 
 if __name__ == "__main__":
     unittest.main()

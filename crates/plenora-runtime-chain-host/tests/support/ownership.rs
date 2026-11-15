@@ -272,13 +272,13 @@ async fn failed_and_unknown_steps_keep_distinct_cleanup_authority_and_recovery_i
         assert_eq!(
             h.execute(Request::Report {
                 run_id: id,
-                cursor: None
+                cursor: plenora_runtime_chains::ReportCursor {
+                    index: 0,
+                    offset: 0
+                }
             })
             .await
-            .value
-            .as_array()
-            .ok_or("reports")?
-            .len(),
+            .value["total_reports"],
             2
         );
     }

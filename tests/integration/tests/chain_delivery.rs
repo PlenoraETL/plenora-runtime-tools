@@ -1085,8 +1085,8 @@ async fn real_broker<S: DurableExecutionStore>(store: Arc<S>) -> TestResult {
         filter_subject: subject,
         ack_wait: Duration::from_secs(1),
         heartbeat: None,
-        max_deliver: Some(10),
-        max_ack_pending: Some(8),
+        max_deliver: 10,
+        max_ack_pending: 8,
         max_payload_bytes: 64 * 1024,
         shutdown_nak_delay: Duration::from_millis(25),
         infrastructure: InfrastructureMode::CreateIfMissing {

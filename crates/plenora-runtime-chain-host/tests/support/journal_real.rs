@@ -1,4 +1,6 @@
 //! Real primary/broker with an explicitly defective adapter, plus installed-surface handoff.
+#[path = "../../../plenora-runtime-chains/tests/support/reports.rs"]
+mod reports;
 use plenora_runtime_chain_host::{RemoteClient, ScriptedConfig, ScriptedHost};
 use plenora_runtime_chain_store::PostgresStore;
 use plenora_runtime_chains::{
@@ -49,7 +51,10 @@ async fn oversized_journal_report_survives_real_primary_restart_and_broker()
         .await?;
     assert_eq!(engine.advance(&handle.run_id).await, Err(Error::Recovery));
     let expected = serde_json::to_vec(&large_report::outcome()?)?;
-    assert_eq!(engine.report(&handle.run_id).await?, vec![expected.clone()]);
+    assert_eq!(
+        reports::collect(&engine, &handle.run_id).await?,
+        vec![expected.clone()]
+    );
     drop(engine);
     let server = std::env::var("PLENORA_NATS_URL")?;
     let subject = format!("journal.{}", uuid::Uuid::new_v4().simple());
@@ -70,7 +75,7 @@ async fn oversized_journal_report_survives_real_primary_restart_and_broker()
         let reply = client
             .exchange(Request::Report {
                 run_id: handle.run_id.clone(),
-                cursor: Some(at),
+                cursor: at,
             })
             .await?;
         assert_eq!(reply.error, None);

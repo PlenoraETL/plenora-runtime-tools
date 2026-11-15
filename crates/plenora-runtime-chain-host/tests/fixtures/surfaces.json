@@ -33069,7 +33069,11 @@
       "requests": [
         {
           "function": "report",
-          "run_id": "bad"
+          "run_id": "bad",
+          "cursor": {
+            "index": 0,
+            "offset": 0
+          }
         }
       ],
       "errors": [

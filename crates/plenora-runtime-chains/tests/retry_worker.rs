@@ -1,4 +1,6 @@
 //! Deterministic retry and worker probes with a declared primary fake and scripted adapter.
+#[path = "support/reports.rs"]
+mod reports;
 use async_trait::async_trait;
 use plenora_runtime_chains::{
     Adapter, ChainEngine, Error, Invocation, RunOptions, Store, contracts::*,
@@ -227,7 +229,7 @@ async fn selective_resume_preserves_success_and_all_attempt_counters_across_rest
             ("write".into(), 1)
         ]
     );
-    assert_eq!(restarted.report(&h.run_id).await?.len(), 4);
+    assert_eq!(reports::collect(&restarted, &h.run_id).await?.len(), 4);
     Ok(())
 }
 #[tokio::test]
@@ -374,7 +376,7 @@ async fn renewal_keeps_fence_and_lost_confirmation_drains_the_same_receipt() -> 
             assert_eq!(result, Ok(true));
         }
         assert_eq!(script.calls.lock().map_err(|_| "calls")?.len(), 1);
-        assert_eq!(engine.report(&handle.run_id).await?.len(), 1);
+        assert_eq!(reports::collect(&engine, &handle.run_id).await?.len(), 1);
     }
     Ok(())
 }

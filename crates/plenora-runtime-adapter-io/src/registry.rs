@@ -1,3 +1,5 @@
+//! IO-ARROW-001: contract-bearing artifacts only; external Arrow admission is outside this profile.
+//! PRIM-001..009: restricted profile; provider gaps and closure in docs/contract-alignment.md.
 //! Registry restricted to the real compiled discovery and the host's Arrow profile.
 use crate::{Error, digest, encode};
 use plenora_runtime_chains::contracts::{

@@ -101,7 +101,7 @@ Apalis prima di applicare `cargo llvm-cov report --fail-under-lines 90`. Il job 
 ogni corpus con la toolchain pinnata `nightly-2026-08-01`. Vedi [`testing.md`](testing.md) per
 ambito e comandi locali.
 
-## Adozione 3aec9f7: gate aperti
+## Adozione 38d68b4: gate aperti
 
 - Regola RT-007; ambito runtime; hazard: Retry di mutazioni senza prova di deduplicazione. Rientro: Qualificare adapter e almeno-un-solo-avvio per identita senza chiave.
 - Regola RT-010; ambito runtime; hazard: Caller senza risultato terminale. Rientro: Collegare error sink dopo esaurimento retry con pubblicazione confermata.
@@ -420,8 +420,8 @@ I job NATS, PostgreSQL e coverage tentano ogni passo; ogni comando test usa
 no-fail-fast, i comandi indipendenti hanno passi distinti. Il riepilogo finale
 legge outcome originale (non conclusion ammorbidita), include setup/install e
 cleanup, e rifiuta anche skipped/cancelled/missing. Test negativi verificano
-inventario e fallimento in ciascun passo. La migrazione prova ogni prefisso del
-catalogo senza arrestare la raccolta al primo database fallito.
+inventario e fallimento in ciascun passo. Il bootstrap prova database vuoto, riapertura e rifiuto di schemi inattesi;
+nessun percorso di upgrade resta nella campagna.
 
 La CI di e4979ef si e fermata prima delle altre prove reali: queste non sono
 qualificate da quella esecuzione. La chiusura richiede la nuova campagna intera
@@ -625,3 +625,38 @@ pubblicazione ignota, errore adapter e risultato non classificabile. Chiusura:
 rerun della matrice con case completo, assi redatti e stage operativi, quindi
 correzione della causa provata e nuova campagna verde. La diagnostica non chiude
 il gate e non modifica deadline, effetti o risultati.
+
+
+## Pulizia compatibilita e adozione 38d68b4 (15 novembre 2026)
+
+Regola: una sola implementazione corrente, nessuna compatibilita con release
+Plenora precedenti. Bootstrap diretto dello schema finale 3, journal con riserve obbligatorie,
+protocollo resume/report esplicito e unica autorita DurableExecutionStore.
+La qualifica richiede ancora PostgreSQL/NATS reali e CI Linux/Windows sullo
+SHA finale; i test locali non attestano questi gate. Le vecchie prove sulle
+primitive rimosse non costituiscono evidenza del nuovo percorso.
+
+Il delta effettivo dal precedente pin cambia catalogo/profilo IO: python_sdk
+conditional e IO-PY-001, applicabili al pacchetto upstream plenora_io, non
+allo SDK runtime. SB-001 aggiunge il nome di quel pacchetto; le operazioni
+runtime e il binding 2.0 non cambiano. Le copie sono byte esatti dal commit.
+ADOPTION-v4 resta aperta: questo e un registro sorgente senza artefatti di release.
+
+| Regola | Ambito, differenza e rischio | Condizione di chiusura |
+|---|---|---|
+| IO-ARROW-001 | Adapter IO catene: solo Arrow contrattuale, nessun ingresso Arrow esterno senza metadata. Rifiuto di input validi upstream, profilo deliberatamente piu ristretto. | Ingresso esterno qualificato o profilo ristretto comune ratificato. |
+| PRIM-001..009 | Adapter IO/DATA/database, cinque facciate: barriere conservative sui metadata; primary=none puo andare perso nei provider, database geometrico rifiutato. Nessuna conformita opzionale completa; possibili rifiuti di canonicalizzazioni lecite. | Provider corretti, corpus completo e prove sulle cinque superfici. |
+| FILE-001..007 | Matrice opzionale storage/IO non offerta; artefatti catene non equiparati ai descrittori comuni. | Adozione esplicita del descrittore e adapter storage con qualifica della matrice. |
+
+RUNTIME-02 resta coordinata con il contratto di famiglia: il pin richiesto
+contiene ancora Binding 1/2 e downgrade. RUNTIME-07 e chiusa per il pin dei
+contratti; i pin provider DATA/IO restano invariati fino al set coordinato
+con i rispettivi produttori e interop. Nessuna release o ricevuta viene
+rinominata per simulare quella qualifica.
+
+
+Gate PR23 regressione bootstrap (15 novembre 2026): confronto cataloghi reali
+baseline a973b6e / bootstrap, riapertura e rifiuti; poi interop-real, remote-real,
+host-adapters-real e installed. Rischio: gli unit test non eseguono SQL.
+Chiusura: `CI25_COMPAT_ONLY=1 bash target/ci25/VM.sh` verde su VM PostgreSQL/NATS.
+La corsa locale senza servizi non chiude questo gate.

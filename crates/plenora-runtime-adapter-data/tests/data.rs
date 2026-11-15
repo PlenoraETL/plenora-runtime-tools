@@ -4,6 +4,8 @@
 mod fixture;
 #[path = "../../plenora-runtime-chains/tests/support/primary.rs"]
 mod primary;
+#[path = "../../plenora-runtime-chains/tests/support/reports.rs"]
+mod reports;
 use plenora_runtime_adapter_data::{Config, DataAdapter, registry};
 use plenora_runtime_chains::{
     ChainEngine, RunOptions,
@@ -64,7 +66,7 @@ async fn real_sort_preserves_null_empty_and_separate_c01_documents() -> TestResu
     let effects: Value = serde_json::from_slice(&engine.artifact(&document.artifact_ref).await?)?;
     assert_eq!(effects["steps"][0]["op"], "table.sort");
     assert!(
-        String::from_utf8(engine.report(&options().run_id).await?.concat())?
+        String::from_utf8(reports::collect(&engine, &options().run_id).await?.concat())?
             .contains(&document.artifact_ref)
     );
     assert_eq!(engine.run(&plan, options()).await?, result);
