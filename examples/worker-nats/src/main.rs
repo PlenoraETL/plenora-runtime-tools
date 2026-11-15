@@ -343,8 +343,8 @@ fn consumer_config_from_environment(
         filter_subject,
         ack_wait: Duration::from_secs(30),
         heartbeat: Some(DeliveryHeartbeatConfig::new(Duration::from_secs(5), 3)?),
-        max_deliver: Some(5),
-        max_ack_pending: Some(max_workers),
+        max_deliver: 5,
+        max_ack_pending: max_workers,
         max_payload_bytes: MAX_PAYLOAD_BYTES,
         shutdown_nak_delay: Duration::from_secs(1),
         infrastructure: InfrastructureMode::BindExisting,
@@ -441,7 +441,7 @@ fn nats_config_from_environment() -> Result<NatsConfig, Box<dyn Error>> {
         servers,
         credentials,
         tls,
-        max_reconnects: Some(10),
+        max_reconnects: 10,
         retry_on_initial_connect: false,
         ..NatsConfig::default()
     };

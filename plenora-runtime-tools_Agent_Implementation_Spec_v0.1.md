@@ -765,8 +765,8 @@ pub struct JetStreamConsumerConfig {
     pub consumer: String,
     pub filter_subject: Option<String>,
     pub ack_wait: Duration,
-    pub max_deliver: Option<u32>,
-    pub max_ack_pending: Option<usize>,
+    pub max_deliver: u32,
+    pub max_ack_pending: usize,
 }
 ```
 

@@ -43,4 +43,7 @@ Il budget di osservazione remoto e separato dalla deadline autorizzata del run:
 `RemoteClient::connect_with_timeout(server, subject, N)` in Rust. Default 10000 ms;
 intervallo 1..86400000 ms. Un timeout non cancella, non ripete e non estende il run.
 Il client Rust e l'unica autorita del timeout; il timer implicito NATS e disabilitato.
-I comandi legacy remote-call conservano il default; la sintassi chain espone il parametro.
+Il protocollo richiede sempre recovery per resume e cursor per report.
+CLI: `--recovery reconcile` e `--report-index 0 --offset 0`; SDK:
+`resume(..., recovery="reconcile")` e `report(..., cursor={"index": 0, "offset": 0})`.
+Report restituisce una pagina di byte originali e next, da seguire fino a null.

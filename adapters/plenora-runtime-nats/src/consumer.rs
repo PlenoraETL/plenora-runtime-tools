@@ -137,8 +137,8 @@ struct ConsumerSettings<'a> {
     filter_subject: &'a str,
     ack_wait: Duration,
     heartbeat: Option<DeliveryHeartbeatConfig>,
-    max_deliver: Option<u32>,
-    max_ack_pending: Option<usize>,
+    max_deliver: u32,
+    max_ack_pending: usize,
     max_payload_bytes: usize,
     shutdown_nak_delay: Duration,
     infrastructure: &'a InfrastructureMode,
@@ -149,7 +149,7 @@ async fn open(
     context: &jetstream::Context,
     settings: ConsumerSettings<'_>,
 ) -> Result<JetStreamConsumer, NatsAdapterError> {
-    let max_deliver = finite_max_deliver(settings.max_deliver)?;
+    let max_deliver = i64::from(settings.max_deliver);
     let max_ack_pending = finite_max_ack_pending(settings.max_ack_pending)?;
     let stream = match settings.infrastructure {
         InfrastructureMode::BindExisting => context
@@ -206,14 +206,7 @@ async fn open(
     })
 }
 
-fn finite_max_deliver(value: Option<u32>) -> Result<i64, NatsAdapterError> {
-    value
-        .map(i64::from)
-        .ok_or_else(missing_finite_consumer_bound)
-}
-
-fn finite_max_ack_pending(value: Option<usize>) -> Result<i64, NatsAdapterError> {
-    let value = value.ok_or_else(missing_finite_consumer_bound)?;
+fn finite_max_ack_pending(value: usize) -> Result<i64, NatsAdapterError> {
     i64::try_from(value).map_err(|error| {
         NatsAdapterError::with_source(
             NatsErrorCategory::Configuration,
@@ -224,20 +217,12 @@ fn finite_max_ack_pending(value: Option<usize>) -> Result<i64, NatsAdapterError>
     })
 }
 
-fn missing_finite_consumer_bound() -> NatsAdapterError {
-    NatsAdapterError::new(
-        NatsErrorCategory::Configuration,
-        NatsOperation::Bind,
-        "NATS consumer requires finite delivery and pending-ack bounds",
-    )
-}
-
 fn validate_bound_consumer(
     consumer: &PullConsumer,
     expected: &ConsumerSettings<'_>,
 ) -> Result<(), NatsAdapterError> {
     let actual = &consumer.cached_info().config;
-    let expected_max_deliver = finite_max_deliver(expected.max_deliver)?;
+    let expected_max_deliver = i64::from(expected.max_deliver);
     let expected_max_ack_pending = finite_max_ack_pending(expected.max_ack_pending)?;
     if actual.durable_name.as_deref() != Some(expected.durable_name)
         || actual.filter_subject != expected.filter_subject

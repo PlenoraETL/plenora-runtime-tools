@@ -150,9 +150,19 @@ impl DurableExecutionStore for PostgresStore {
             j
         } else {
             if let Some(request_id) = request_identity(key)
-                && tx.query_opt("SELECT result_id FROM plenora_chain_delivery WHERE result_id=$1 OR request_id=$1 UNION ALL SELECT result_id FROM plenora_chain_steps WHERE result_id=$1 OR id=$1",&[&request_id]).await.map_err(failure)?.is_some(){Self::commit(tx).await.map_err(failure)?;return Ok(DeliveryOpen::Conflict);}
+                && tx.query_opt("SELECT result_id FROM plenora_chain_delivery WHERE result_id=$1 OR request_id=$1",&[&request_id]).await.map_err(failure)?.is_some(){Self::commit(tx).await.map_err(failure)?;return Ok(DeliveryOpen::Conflict);}
             let mut j = DeliveryJournal::new(key, binding, plan.clone(), now, delivery, reports)?;
-            while tx.query_opt("SELECT id FROM plenora_chain_acceptance WHERE id=$1 UNION ALL SELECT result_id FROM plenora_chain_steps WHERE result_id=$1",&[&j.result_id()]).await.map_err(failure)?.is_some(){j=DeliveryJournal::new(key,binding,plan.clone(),now,delivery,reports)?;}
+            while tx
+                .query_opt(
+                    "SELECT id FROM plenora_chain_acceptance WHERE id=$1",
+                    &[&j.result_id()],
+                )
+                .await
+                .map_err(failure)?
+                .is_some()
+            {
+                j = DeliveryJournal::new(key, binding, plan.clone(), now, delivery, reports)?;
+            }
             // This is a new response identity with the host's explicit v2 emission policy,
             // not reconstructed forwarding context from the rejected request.
             tx.execute("INSERT INTO plenora_chain_acceptance(id,requires,downgrade,accepted_at,expires_at) SELECT $1,'plenora-runtime-binding-v2',false,clock_timestamp(),clock_timestamp()+delivery_seconds*interval '1 second' FROM plenora_chain_schema WHERE singleton",&[&j.result_id()]).await.map_err(failure)?;

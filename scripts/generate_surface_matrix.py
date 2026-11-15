@@ -117,7 +117,7 @@ def generate():
         'cancel': {'function':'cancel','run_id':'bad','revision':1},
         'resume': {'function':'resume','run_id':'bad','revision':1,'recovery':'observe'},
         'artifact': {'function':'artifact','reference':'file:forbidden'},
-        'report': {'function':'report','run_id':'bad'},
+        'report': {'function':'report','run_id':'bad','cursor':{'index':0,'offset':0}},
     }
     rows += [case(f'control:{name}', [controls[name]], [None if name == 'capabilities' else 'invalid']) for name in functions]
     cells=[{'item':item,'surface':surface,'case':item} for item in [*sorted(operations()),*[r['id'] for r in rows]] for surface in SURFACES]

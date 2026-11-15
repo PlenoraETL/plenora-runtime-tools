@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/PlenoraETL/plenora-contracts.git",
-  "revision": "3aec9f724f5a0ad21366f293895b4d0dbcd0aad1",
+  "revision": "38d68b402389855edbcecb7ce57c31e91282cb4e",
   "contracts": [
     "plenora-runtime-binding-v1",
     "plenora-runtime-vector-v1",
@@ -115,11 +115,11 @@
     },
     "upstream/catalogs/io-tools-v3.json": {
       "source": "catalogs/io-tools-v3.json",
-      "sha256": "61e41a49b3185fd8372366cb1d2053527afdbc7b1d8474816c1cd76c4301c984"
+      "sha256": "b7f0ee9cf42b903689d6266435214f2f3ab3fde6b8f914681de3def2cdfdc693"
     },
     "upstream/CHANGELOG.md": {
       "source": "CHANGELOG.md",
-      "sha256": "3cdeb4cc470fc090ac1382d2703a9d75d911dce3f76f7542a9a5070503e790e6"
+      "sha256": "1fa2eb1c7dbed20ebaacb8919428247b173ca3eb5a2dc6179c483521a9a43f56"
     },
     "upstream/COMPATIBILITY.md": {
       "source": "COMPATIBILITY.md",
@@ -135,7 +135,7 @@
     },
     "upstream/profiles/io-tools-v3.md": {
       "source": "profiles/io-tools-v3.md",
-      "sha256": "16d39266b43d65d49dc4c0c31afe8a2d6e00a4e2ec41d71813a6b48aa49ddea8"
+      "sha256": "bbac65ca03d2c2c189ffd476d69ae1dfd659921735fc6a83fbd3f979102a84cd"
     },
     "upstream/profiles/runtime-tools.md": {
       "source": "profiles/runtime-tools.md",
@@ -219,7 +219,7 @@
     },
     "upstream/schemas/README.md": {
       "source": "schemas/README.md",
-      "sha256": "ef9624d613653da32cddf7f2715e92650720ff2aed8730a887484267063ff2f5"
+      "sha256": "8ab51a5dcd55d9e345757f936201696f1e3150347e660e9fa0fa855d16414fa5"
     },
     "upstream/schemas/rest-arrow-adapter-v1.schema.json": {
       "source": "schemas/rest-arrow-adapter-v1.schema.json",
@@ -287,7 +287,7 @@
     },
     "upstream/specs/surfaces/SURFACE-BINDINGS-1.0.md": {
       "source": "specs/surfaces/SURFACE-BINDINGS-1.0.md",
-      "sha256": "3d888a10f13f3b2ca41316f74cf94a1c52625565badd709ab353d19bd64c286f"
+      "sha256": "b177da98d1a49ad77a55816111f55b72bbd9836c010a67b951ccf6c5e57d9b47"
     },
     "capabilities-v2/rest-tools-v1.json": {
       "source": "examples/valid/capabilities-rest-v2.json",
@@ -608,6 +608,22 @@
     "upstream/profiles/rest-tools.md": {
       "source": "profiles/rest-tools.md",
       "sha256": "e0b2c8e9114fd79427de7cf489647527e1465fa64639f55b573ca249ed680680"
+    },
+    "upstream/specs/data/ARROW-PRIMARY-GEOMETRY-1.0.md": {
+      "source": "specs/data/ARROW-PRIMARY-GEOMETRY-1.0.md",
+      "sha256": "9b949e304219beed8e54792358d554570134590d5e93abd1e50ed802162dc941"
+    },
+    "upstream/specs/composition/FILE-INTERCHANGE-1.0.md": {
+      "source": "specs/composition/FILE-INTERCHANGE-1.0.md",
+      "sha256": "9b9527724833c9821b59211894d6d749fcc02808a4e01b039c8f316e244ba6fd"
+    },
+    "upstream/decisions/0022-field-id-across-operations-and-the-mixed-form.md": {
+      "source": "decisions/0022-field-id-across-operations-and-the-mixed-form.md",
+      "sha256": "c952c5a4fd6351b6e003c5989963ff22e21d30803b36f4c9f47e86ae51c75c72"
+    },
+    "upstream/decisions/0023-primary-geometry-across-components.md": {
+      "source": "decisions/0023-primary-geometry-across-components.md",
+      "sha256": "1708aa0bf24d800b97eb7b71026b8034eadba736b00518965dae54da63f2d70d"
     }
   }
 }

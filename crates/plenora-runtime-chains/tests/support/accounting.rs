@@ -26,13 +26,13 @@ fn journal() -> Journal {
         progress: BTreeMap::new(),
         retry_due: None,
         waiting_recovery: false,
-        allocation: Some(Allocation {
+        allocation: Allocation {
             limit: JOURNAL_BYTES,
             events: 8,
             history: 2,
             recovery: None,
             recovery_limit: None,
-        }),
+        },
     }
 }
 #[test]
@@ -45,13 +45,13 @@ fn every_serialized_field_is_enumerated_and_matches_the_serializer_oracle()
     j.revision = u64::MAX;
     j.view = (0..=255).collect();
     j.active = Some(Intent {
-        result_limit: Some(u64::MAX),
+        result_limit: u64::MAX,
         index: usize::MAX,
         message_id: "f".repeat(36),
         started: u64::MAX,
         deadline: u64::MAX,
         prior: j.view.clone(),
-        first_started: Some(u64::MAX),
+        first_started: u64::MAX,
         causation: Some("c".repeat(36)),
     });
     j.events = vec![vec![], j.view.clone()];
@@ -88,9 +88,6 @@ fn every_serialized_field_is_enumerated_and_matches_the_serializer_oracle()
     for (name, bytes) in parts {
         assert_eq!(bytes, serde_json::to_vec(&value[name])?.len(), "{name}");
     }
-    j.allocation = None;
-    assert_eq!(fields(&j, false)?.len(), 18);
-    assert_eq!(total(&fields(&j, false)?)?, serde_json::to_vec(&j)?.len());
     Ok(())
 }
 #[test]
@@ -104,13 +101,13 @@ fn byte_array_expansion_and_every_slot_limit_are_enforced() -> Result<(), Box<dy
     assert_eq!(size(&j.view)?, 4 * DOCUMENT + 1);
     assert!(j.encoded_size()? <= j.reserved_bytes()?);
     let limit = j.reserved_bytes()?;
-    j.allocation.as_mut().ok_or("allocation")?.limit = limit;
+    j.allocation.limit = limit;
     // Reducing the decimal width of the quota cannot increase the reservation.
     j.check_allocation()?;
     let exact = j.reserved_bytes()?;
-    j.allocation.as_mut().ok_or("allocation")?.limit = exact - 1;
+    j.allocation.limit = exact - 1;
     assert_eq!(j.check_allocation(), Err(Error::ResourceLimit));
-    j.allocation.as_mut().ok_or("allocation")?.limit = JOURNAL_BYTES;
+    j.allocation.limit = JOURNAL_BYTES;
     for kind in [
         "view",
         "evidence",
@@ -130,13 +127,13 @@ fn byte_array_expansion_and_every_slot_limit_are_enforced() -> Result<(), Box<dy
             "event_count" => bad.events.push(vec![]),
             _ => {
                 bad.active = Some(Intent {
-                    result_limit: None,
+                    result_limit: 1,
                     index: 0,
                     message_id: "x".repeat(36),
                     started: 1,
                     deadline: 2,
                     prior: vec![0; DOCUMENT + 1],
-                    first_started: None,
+                    first_started: 1,
                     causation: None,
                 });
             }
@@ -158,5 +155,44 @@ fn revision_tail_respects_the_contract_integer_ceiling_before_reserving()
     assert_eq!(serde_json::to_vec(&j)?, before);
     j.revision -= 1;
     j.reserve_effect()?;
+    Ok(())
+}
+
+#[test]
+fn persisted_journal_has_no_unreserved_or_pre_progress_shape() -> Result<(), Box<dyn StdError>> {
+    let mut j = journal();
+    j.active = Some(Intent {
+        result_limit: 1,
+        index: 0,
+        message_id: "id".into(),
+        started: 1,
+        deadline: 2,
+        prior: vec![],
+        first_started: 1,
+        causation: None,
+    });
+    let current = serde_json::to_value(j)?;
+    for field in ["allocation", "progress", "waiting_recovery"] {
+        for null in [false, true] {
+            let mut raw = current.clone();
+            if null {
+                raw[field] = serde_json::Value::Null;
+            } else {
+                raw.as_object_mut().ok_or("object")?.remove(field);
+            }
+            assert!(serde_json::from_value::<Journal>(raw).is_err());
+        }
+    }
+    for field in ["result_limit", "first_started"] {
+        for null in [false, true] {
+            let mut raw = current.clone();
+            if null {
+                raw["active"][field] = serde_json::Value::Null;
+            } else {
+                raw["active"].as_object_mut().ok_or("object")?.remove(field);
+            }
+            assert!(serde_json::from_value::<Journal>(raw).is_err());
+        }
+    }
     Ok(())
 }

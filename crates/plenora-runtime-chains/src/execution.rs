@@ -323,7 +323,8 @@ impl<S: DurableExecutionStore> StepExecutor<S> {
         let step = plan.steps.get(intent.index).ok_or(Error::Invalid)?;
         let mut carrier_intent = intent.clone();
         if matches!(mode, Mode::Recover) {
-            carrier_intent.result_limit = j.allocation.as_ref().and_then(|a| a.recovery_limit);
+            carrier_intent.result_limit =
+                j.allocation.recovery_limit.ok_or(Error::ResourceLimit)?;
         }
         let wire = Wire {
             tenant: j.tenant.clone(),
@@ -352,10 +353,7 @@ impl<S: DurableExecutionStore> StepExecutor<S> {
         let identity = if matches!(mode, Mode::Invoke) {
             intent.message_id.clone()
         } else if matches!(mode, Mode::Recover) {
-            j.allocation
-                .as_ref()
-                .and_then(|a| a.recovery.clone())
-                .ok_or(Error::ResourceLimit)?
+            j.allocation.recovery.clone().ok_or(Error::ResourceLimit)?
         } else {
             uuid::Uuid::new_v4().to_string()
         };
@@ -425,18 +423,6 @@ impl<S: DurableExecutionStore> StepExecutor<S> {
         Ok(prepared.report()["remote_effect"] == "unknown")
     }
     pub(crate) async fn invoke(&self, j: &Journal) -> Result<StepResult, Error> {
-        if j.active.as_ref().is_some_and(|i| i.result_limit.is_none()) {
-            // Legacy carriers are immutable: without their own report reservation
-            // they can only consume proof of an invocation already started.
-            let (stage, attempt) = self
-                .runtime
-                .receipt_state(&Self::message(j, Mode::Invoke)?)
-                .await
-                .map_err(|_| Error::Recovery)?;
-            if attempt == 0 || stage == plenora_runtime_boundary::DeliveryStage::Ready {
-                return Err(Error::ResourceLimit);
-            }
-        }
         self.execute(&Self::message(j, Mode::Invoke)?)
             .await?
             .ok_or(Error::Recovery)
@@ -445,7 +431,7 @@ impl<S: DurableExecutionStore> StepExecutor<S> {
         Ok(self.original_evidence(j).await?.is_none())
     }
     pub(crate) async fn inquiry_rejected(&self, j: &Journal) -> Result<bool, Error> {
-        if j.allocation.as_ref().is_none_or(|a| a.recovery.is_none()) {
+        if j.allocation.recovery.is_none() {
             return Ok(false);
         }
         let message = Self::message(j, Mode::Recover)?;

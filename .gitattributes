@@ -15,3 +15,6 @@ contracts/runtime-v2/** -text
 contracts/runtime-negotiation-v1/** -text
 contracts/runtime-probes-v1/** -text
 contracts/capabilities-v2/** -text
+
+# Bootstrap identity is exact across Linux and Windows; no runtime normalization.
+*.sql text eol=lf

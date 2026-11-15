@@ -154,6 +154,7 @@ impl<'de> Deserialize<'de> for Response {
         struct Wire {
             value: Value,
             error: Option<Error>,
+            #[serde(deserialize_with = "Option::<Failure>::deserialize")]
             failure: Option<Failure>,
         }
         let wire = Wire::deserialize(deserializer)?;
@@ -161,8 +162,7 @@ impl<'de> Deserialize<'de> for Response {
             value: wire.value,
             error: wire.error,
         };
-        // Older durable receipts omit this redundant projection; derive it from their retained axes.
-        if wire.failure.is_some() && response.failure() != wire.failure {
+        if response.failure() != wire.failure {
             return Err(serde::de::Error::custom("inconsistent failure axes"));
         }
         Ok(response)
@@ -172,6 +172,19 @@ impl<'de> Deserialize<'de> for Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn successful_response_still_requires_explicit_null_failure()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let response = Response {
+            value: Value::Null,
+            error: None,
+        };
+        let mut wire = serde_json::to_value(response)?;
+        assert!(serde_json::from_value::<Response>(wire.clone()).is_ok());
+        wire.as_object_mut().ok_or("object")?.remove("failure");
+        assert!(serde_json::from_value::<Response>(wire).is_err());
+        Ok(())
+    }
     #[test]
     fn every_coordination_error_roundtrips_with_complete_safe_axes()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -205,10 +218,7 @@ mod tests {
             );
             let mut legacy = encoded.clone();
             legacy.as_object_mut().ok_or("object")?.remove("failure");
-            assert_eq!(
-                serde_json::from_value::<Response>(legacy)?.failure(),
-                response.failure()
-            );
+            assert!(serde_json::from_value::<Response>(legacy).is_err());
             let mut forged = encoded;
             forged["failure"]["remote_effect"] = json!("invented");
             assert!(serde_json::from_value::<Response>(forged).is_err());

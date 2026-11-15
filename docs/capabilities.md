@@ -33,9 +33,9 @@ comunque ammesse solo fino al limite `max_in_flight` del worker.
 Le librerie concrete non implementano il trait del runtime e non dipendono da runtime-tools. Il
 consumer possiede il wrapper di traduzione:
 
-Per un esempio completo, compilato e provato insieme al workspace, usare
-[`examples/capability-adapter`](../examples/capability-adapter/README.md). Il frammento abbreviato
-che segue illustra solo la proprietà:
+La composizione durevole e provata in
+[chain_delivery.rs](../tests/integration/tests/chain_delivery.rs).
+Il frammento seguente illustra solo la proprieta del collegamento alla libreria:
 
 ```rust,ignore
 struct DataToolsAdapter {

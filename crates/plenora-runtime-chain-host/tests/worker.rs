@@ -124,11 +124,14 @@ async fn postgres_nats_real_worker_restarts_and_retries_persisted_runs()
     let reports = client
         .exchange(Request::Report {
             run_id: id.clone(),
-            cursor: None,
+            cursor: plenora_runtime_chains::ReportCursor {
+                index: 0,
+                offset: 0,
+            },
         })
         .await?;
     assert_eq!(reports.error, None);
-    assert_eq!(reports.value.as_array().ok_or("reports")?.len(), 4);
+    assert_eq!(reports.value["total_reports"], 4);
     assert!(
         !Store::load(&primary, &tenant, &id)
             .await?

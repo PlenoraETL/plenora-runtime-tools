@@ -19,13 +19,12 @@ pub const FUNCTIONS: &[&str] = &[
 ];
 
 /// Explicit recovery authority: observation never drives work; continuation rejects active intents.
-#[derive(Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Recovery {
     /// Query the current revision/state without invoking or reconciling any provider.
     Observe,
     /// Reconcile only through trusted provider evidence, then follow the persisted policy.
-    #[default]
     Reconcile,
     /// Advance known stopped work only; unknown or active work is rejected.
     Continue,
@@ -88,8 +87,7 @@ pub enum Request {
         run_id: String,
         /// Exact state revision.
         revision: u64,
-        /// Explicit provider reconciliation policy; omitted means reconcile for compatibility.
-        #[serde(default)]
+        /// Explicit provider reconciliation policy.
         recovery: Recovery,
     },
     /// Bounded authorized artifact retrieval.
@@ -101,9 +99,8 @@ pub enum Request {
     Report {
         /// Canonical run UUID.
         run_id: String,
-        /// Optional bounded byte cursor; absence preserves the complete legacy response.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        cursor: Option<crate::ReportCursor>,
+        /// Required bounded byte cursor.
+        cursor: crate::ReportCursor,
     },
 }
 /// Identical facade envelope; failed runs retain the complete domain result in `value`.
@@ -231,10 +228,9 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             Request::Artifact { reference } => {
                 serde_json::to_value(self.artifact(&reference).await?)
             }
-            Request::Report { run_id, cursor } => match cursor {
-                Some(cursor) => serde_json::to_value(self.report_page(&run_id, cursor).await?),
-                None => serde_json::to_value(self.report(&run_id).await?),
-            },
+            Request::Report { run_id, cursor } => {
+                serde_json::to_value(self.report_page(&run_id, cursor).await?)
+            }
         };
         value.map_err(|_| Error::Invalid)
     }
@@ -254,6 +250,26 @@ fn terminal_error(state: &str) -> Option<Error> {
 #[cfg(test)]
 mod terminal_tests {
     use super::*;
+    #[test]
+    fn control_requests_require_explicit_current_parameters()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for request in [
+            json!({"function":"resume","run_id":"id","revision":1}),
+            json!({"function":"resume","run_id":"id","revision":1,"recovery":null}),
+            json!({"function":"report","run_id":"id"}),
+            json!({"function":"report","run_id":"id","cursor":null}),
+        ] {
+            assert!(serde_json::from_value::<Request>(request).is_err());
+        }
+        for request in [
+            json!({"function":"resume","run_id":"id","revision":1,"recovery":"observe"}),
+            json!({"function":"report","run_id":"id","cursor":{"index":0,"offset":0}}),
+        ] {
+            let parsed: Request = serde_json::from_value(request.clone())?;
+            assert_eq!(serde_json::to_value(parsed)?, request);
+        }
+        Ok(())
+    }
     #[test]
     fn enumerate_contract_states_and_transport_projection() -> Result<(), Box<dyn std::error::Error>>
     {

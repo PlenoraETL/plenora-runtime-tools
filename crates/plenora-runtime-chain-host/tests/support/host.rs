@@ -1,4 +1,6 @@
 //! End-to-end host probes using a declared primary fake and the real durable dispatcher.
+#[path = "../../../plenora-runtime-chains/tests/support/reports.rs"]
+mod reports;
 use super::*;
 use plenora_runtime_boundary::DeliveryStage;
 use plenora_runtime_capabilities::{IDEMPOTENCY_KEY_METADATA_KEY, OUTPUT_CONTRACT_METADATA_KEY};
@@ -434,7 +436,7 @@ async fn oversized_fault_report_is_fully_recoverable_through_bounded_host_pages(
     let expected = serde_json::to_vec(&large_report::outcome()?)?;
     assert!(expected.len() > 400 * 1024 && expected.len() < 1024 * 1024);
     assert_eq!(
-        engine.report(&accepted.run_id).await?,
+        reports::collect(&engine, &accepted.run_id).await?,
         vec![expected.clone()]
     );
     let mut legacy = config("large")?;
@@ -455,7 +457,7 @@ async fn oversized_fault_report_is_fully_recoverable_through_bounded_host_pages(
         let response = host
             .execute(Request::Report {
                 run_id: accepted.run_id.clone(),
-                cursor: Some(at),
+                cursor: at,
             })
             .await;
         assert_eq!(response.error, None);
@@ -471,10 +473,10 @@ async fn oversized_fault_report_is_fully_recoverable_through_bounded_host_pages(
     assert_eq!(
         host.execute(Request::Report {
             run_id: accepted.run_id,
-            cursor: Some(plenora_runtime_chains::ReportCursor {
+            cursor: plenora_runtime_chains::ReportCursor {
                 index: 0,
                 offset: usize::MAX
-            })
+            }
         })
         .await
         .error,

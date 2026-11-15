@@ -69,7 +69,7 @@
 - [ ] Approvazione del responsabile della sicurezza registrata fuori dal repository, attraverso il
   canale interno approvato.
 
-## Adozione 3aec9f7: gate aperti
+## Adozione 38d68b4: gate aperti
 
 - Regola RT-007; ambito runtime; hazard: Retry di mutazioni senza prova di deduplicazione. Rientro: Qualificare adapter e almeno-un-solo-avvio per identita senza chiave.
 - Regola RT-010; ambito runtime; hazard: Caller senza risultato terminale. Rientro: Collegare error sink dopo esaurimento retry con pubblicazione confermata.
@@ -230,8 +230,7 @@ The finite quota covers serialized run state, including original raw evidence,
 not PostgreSQL physical/WAL storage or total process RSS. A defective adapter's
 oversized but structurally accepted receipt is retained in a separately reserved
 slot and recoverable through bounded native report pages; it cannot be declared
-successful merely by understating counters. Legacy intents without a proven
-report reservation cannot start new work. Real provider containment, resource
+successful merely by understating counters. Unreserved journal and carrier shapes are rejected before restoration. Real provider containment, resource
 leases and cleanup remain open. Closure of those risks requires their separate
 qualification; no library artifact is attested by the scripted profile.
 
@@ -338,17 +337,6 @@ sullo stesso SHA con wheel/binario installati e container effimeri; adozione
 librerie reali resta successiva. Il cablaggio e compilato localmente, i test
 infrastrutturali restano ignorati dove mancano i servizi. I criteri 1-6 sono
 riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.
-
-
-## Retention delivery V3: disponibilita durante upgrade
-
-Ambito: backfill atomico dei metadati di selezione dei journal PostgreSQL. La
-manutenzione ordinaria limita i candidati e valida prima del purge; la migrazione
-iniziale deve ancora leggere tutti i documenti sotto il timeout SQL. Rischio
-residuo: rifiuto sicuro dell'upgrade per timeout su database grandi, senza commit
-parziale. Condizione di chiusura: qualifica del backfill alla dimensione operativa
-e campagne PostgreSQL/NATS verdi sul medesimo SHA. La responsabilita di questo
-costo nei fallimenti ci23c non e ancora provata; i gate restano aperti.
 
 
 ## Evidenza integrata P2.5
@@ -475,3 +463,40 @@ esecuzione e finalizzazione durevole, revisione del contenimento e campagna real
 Questo percorso non e dimostrato come causa del fallimento S4 vm-1: un semplice
 intent attivo senza evidenza normalmente resta running, mentre il log mostra
 requires_recovery. Non si dichiara contenimento o settlement confermato.
+
+
+## Pulizia compatibilita e adozione 38d68b4 (15 novembre 2026)
+
+Regola: una sola implementazione corrente, nessuna compatibilita con release
+Plenora precedenti. Bootstrap diretto dello schema finale 3, journal con riserve obbligatorie,
+protocollo resume/report esplicito e unica autorita DurableExecutionStore.
+La qualifica richiede ancora PostgreSQL/NATS reali e CI Linux/Windows sullo
+SHA finale; i test locali non attestano questi gate. Le vecchie prove sulle
+primitive rimosse non costituiscono evidenza del nuovo percorso.
+
+Il delta effettivo dal precedente pin cambia catalogo/profilo IO: python_sdk
+conditional e IO-PY-001, applicabili al pacchetto upstream plenora_io, non
+allo SDK runtime. SB-001 aggiunge il nome di quel pacchetto; le operazioni
+runtime e il binding 2.0 non cambiano. Le copie sono byte esatti dal commit.
+ADOPTION-v4 resta aperta: questo e un registro sorgente senza artefatti di release.
+
+| Regola | Ambito, differenza e rischio | Condizione di chiusura |
+|---|---|---|
+| IO-ARROW-001 | Adapter IO catene: solo Arrow contrattuale, nessun ingresso Arrow esterno senza metadata. Rifiuto di input validi upstream, profilo deliberatamente piu ristretto. | Ingresso esterno qualificato o profilo ristretto comune ratificato. |
+| PRIM-001..009 | Adapter IO/DATA/database, cinque facciate: barriere conservative sui metadata; primary=none puo andare perso nei provider, database geometrico rifiutato. Nessuna conformita opzionale completa; possibili rifiuti di canonicalizzazioni lecite. | Provider corretti, corpus completo e prove sulle cinque superfici. |
+| FILE-001..007 | Matrice opzionale storage/IO non offerta; artefatti catene non equiparati ai descrittori comuni. | Adozione esplicita del descrittore e adapter storage con qualifica della matrice. |
+
+RUNTIME-02 resta coordinata con il contratto di famiglia: il pin richiesto
+contiene ancora Binding 1/2 e downgrade. RUNTIME-07 e chiusa per il pin dei
+contratti; i pin provider DATA/IO restano invariati fino al set coordinato
+con i rispettivi produttori e interop. Nessuna release o ricevuta viene
+rinominata per simulare quella qualifica.
+
+
+Schema corrente (PR23): inventario tipizzato di layout, search_path public fisso,
+riapertura senza riparazioni. Ambito/rischio: primario e amministratore fidati;
+definizioni alterate mantenendo gli stessi nomi di vincoli/indici non sono attestate
+in produzione. Garanzia indebolita rispetto al digest previsto (mai funzionante
+sulla VM: SQLSTATE 42725). Il confronto completo dei cataloghi e delle ACL e nel
+test PostgreSQL contro il finale a973b6e. Chiusura: qualifica reale del catalogo
+prima di adottare DDL e controlli amministrativi sul primario; nessun upgrade automatico.

@@ -154,10 +154,8 @@ pub struct NatsConfig {
     /// Request timeout.
     pub request_timeout: Duration,
     /// Finite maximum reconnect attempts.
-    ///
-    /// `None` is retained for source compatibility but is rejected by validation, and so is
-    /// `Some(0)`: the client library treats both as an unlimited reconnect loop.
-    pub max_reconnects: Option<usize>,
+    /// Zero is rejected because the client interprets it as unlimited.
+    pub max_reconnects: usize,
     /// Retry the initial connection.
     pub retry_on_initial_connect: bool,
     /// Client command-channel capacity.
@@ -176,7 +174,7 @@ impl Default for NatsConfig {
             tls: NatsTlsConfig::default(),
             connect_timeout: Duration::from_secs(5),
             request_timeout: Duration::from_secs(5),
-            max_reconnects: Some(10),
+            max_reconnects: 10,
             retry_on_initial_connect: false,
             client_capacity: 128,
             subscription_capacity: 128,
@@ -219,13 +217,7 @@ impl NatsConfig {
         if self.servers.iter().any(|server| server.trim().is_empty()) {
             return Err(NatsConfigError::new("servers", "contains an empty URL"));
         }
-        let Some(max_reconnects) = self.max_reconnects else {
-            return Err(NatsConfigError::new(
-                "max_reconnects",
-                "must be a finite positive attempt count",
-            ));
-        };
-        nonzero("max_reconnects", max_reconnects)?;
+        nonzero("max_reconnects", self.max_reconnects)?;
         Ok(())
     }
 }
@@ -277,10 +269,10 @@ pub struct JetStreamConsumerConfig {
     pub ack_wait: Duration,
     /// Optional lease-renewal policy attached to each operational delivery.
     pub heartbeat: Option<DeliveryHeartbeatConfig>,
-    /// Finite delivery limit. `None` is retained for source compatibility but is rejected.
-    pub max_deliver: Option<u32>,
-    /// Finite unacknowledged-delivery limit. `None` is rejected.
-    pub max_ack_pending: Option<usize>,
+    /// Finite positive delivery limit.
+    pub max_deliver: u32,
+    /// Finite positive unacknowledged-delivery limit.
+    pub max_ack_pending: usize,
     /// Maximum encoded payload bytes admitted to a handler.
     pub max_payload_bytes: usize,
     /// Delay used for shutdown NAKs.
@@ -325,10 +317,10 @@ pub struct ReplayConsumerConfig {
     pub ack_wait: Duration,
     /// Optional lease-renewal policy attached to each replay delivery.
     pub heartbeat: Option<DeliveryHeartbeatConfig>,
-    /// Finite delivery limit. `None` is retained for source compatibility but is rejected.
-    pub max_deliver: Option<u32>,
-    /// Finite unacknowledged-delivery limit. `None` is rejected.
-    pub max_ack_pending: Option<usize>,
+    /// Finite positive delivery limit.
+    pub max_deliver: u32,
+    /// Finite positive unacknowledged-delivery limit.
+    pub max_ack_pending: usize,
     /// Maximum encoded payload bytes admitted to a replay handler.
     pub max_payload_bytes: usize,
     /// Delay used for shutdown NAKs.
@@ -399,8 +391,8 @@ struct ConsumerValidation<'a> {
     filter: &'a str,
     ack_wait: Duration,
     heartbeat: Option<DeliveryHeartbeatConfig>,
-    max_deliver: Option<u32>,
-    max_ack_pending: Option<usize>,
+    max_deliver: u32,
+    max_ack_pending: usize,
     max_payload_bytes: usize,
     infrastructure: &'a InfrastructureMode,
 }
@@ -424,33 +416,15 @@ fn consumer(settings: ConsumerValidation<'_>) -> Result<(), NatsConfigError> {
             ));
         }
     }
-    match settings.max_deliver {
-        Some(value) if value > 0 => {}
-        Some(_) => return Err(NatsConfigError::new("max_deliver", "must be nonzero")),
-        None => {
-            return Err(NatsConfigError::new(
-                "max_deliver",
-                "must be configured with a finite value",
-            ));
-        }
+    if settings.max_deliver == 0 {
+        return Err(NatsConfigError::new("max_deliver", "must be nonzero"));
     }
-    match settings.max_ack_pending {
-        Some(value) if value > 0 && i64::try_from(value).is_ok() => {}
-        Some(0) => {
-            return Err(NatsConfigError::new("max_ack_pending", "must be nonzero"));
-        }
-        Some(_) => {
-            return Err(NatsConfigError::new(
-                "max_ack_pending",
-                "exceeds the JetStream signed integer range",
-            ));
-        }
-        None => {
-            return Err(NatsConfigError::new(
-                "max_ack_pending",
-                "must be configured with a finite value",
-            ));
-        }
+    nonzero("max_ack_pending", settings.max_ack_pending)?;
+    if i64::try_from(settings.max_ack_pending).is_err() {
+        return Err(NatsConfigError::new(
+            "max_ack_pending",
+            "exceeds the JetStream signed integer range",
+        ));
     }
     nonzero("max_payload_bytes", settings.max_payload_bytes)?;
     if let InfrastructureMode::CreateIfMissing { stream_subjects } = settings.infrastructure {

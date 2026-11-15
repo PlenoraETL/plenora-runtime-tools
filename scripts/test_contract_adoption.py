@@ -38,6 +38,18 @@ class AdoptionGateTests(unittest.TestCase):
     def test_valid_source_register(self):
         self.assertEqual(self.run_gate(), 0)
 
+    def test_every_source_manifest_requires_the_one_family_revision(self):
+        for name in ("source.json", "adoption-source.json"):
+            path = self.root / "contracts" / name
+            original = path.read_text(encoding="utf-8")
+            data = json.loads(original)
+            target = data if name == "source.json" else data["contracts_source"]
+            target["revision"] = "0" * 40
+            path.write_text(json.dumps(data), encoding="utf-8")
+            self.assertEqual(self.run_gate(), 1)
+            path.write_text(original, encoding="utf-8")
+        self.assertEqual(self.run_gate(), 0)
+
     def test_deviation_registry_requires_exact_set(self):
         path = self.root / "contracts/adoption-source.json"
         original = path.read_text(encoding="utf-8")

@@ -1,8 +1,8 @@
-//! Migration source checks and real PostgreSQL syntax, upgrade and idempotence qualification.
+//! Current bootstrap source and real PostgreSQL idempotence qualification.
 #[cfg(test)]
 mod cases {
     use crate::{
-        AcceptanceRecord, MIGRATIONS, NegotiationContext, PostgresStore, Retention, StoreError,
+        AcceptanceRecord, BOOTSTRAP, NegotiationContext, PostgresStore, Retention, StoreError,
     };
     use plenora_runtime_capabilities::RuntimeBinding;
     use plenora_runtime_messaging::MessageId;
@@ -12,10 +12,11 @@ mod cases {
 
     fn canonical_source(sql: &str) -> bool {
         !sql.is_empty()
+            && !sql.contains('\r')
             && !sql.contains('\u{feff}')
             && !sql
                 .chars()
-                .any(|c| c.is_control() && !matches!(c, '\t' | '\r' | '\n'))
+                .any(|c| c.is_control() && !matches!(c, '\t' | '\n'))
     }
 
     #[test]
@@ -38,79 +39,57 @@ mod cases {
                 );
             }
         }
-        let listed: BTreeSet<_> = MIGRATIONS
-            .iter()
-            .map(|(_, name, _)| (*name).to_owned())
-            .collect();
-        assert_eq!(listed.len(), MIGRATIONS.len(), "duplicate migration");
-        assert_eq!(files, listed, "every SQL script must run through migrate");
-        for (_, name, sql) in MIGRATIONS {
-            assert_eq!(*sql, fs::read_to_string(source.join(name))?);
-            assert!(canonical_source(sql));
-            // Reproduce the exact failure class without normalizing the input at runtime.
-            assert!(!canonical_source(&format!("\u{feff}{sql}")));
-            assert!(!canonical_source(&format!("{sql}\0")));
-        }
+        assert_eq!(files, BTreeSet::from(["bootstrap.sql".to_owned()]));
+        assert_eq!(BOOTSTRAP, fs::read_to_string(source.join("bootstrap.sql"))?);
+        assert!(canonical_source(BOOTSTRAP));
+        assert!(!canonical_source(&format!("\u{feff}{BOOTSTRAP}")));
+        assert!(!canonical_source(&format!("{BOOTSTRAP}\0")));
         Ok(())
     }
 
     fn expected_tables() -> BTreeSet<String> {
-        MIGRATIONS
-            .iter()
-            .flat_map(|(_, _, sql)| sql.lines())
-            .filter_map(|line| line.strip_prefix("CREATE TABLE IF NOT EXISTS "))
+        BOOTSTRAP
+            .lines()
+            .filter_map(|line| line.strip_prefix("CREATE TABLE "))
             .filter_map(|line| line.split_whitespace().next())
             .map(str::to_owned)
             .collect()
     }
 
     #[test]
-    fn schema_versions_and_tables_follow_the_complete_ordered_catalogue() {
-        let versions: Vec<_> = MIGRATIONS.iter().map(|(v, _, _)| *v as i32).collect();
-        assert!(versions.windows(2).all(|pair| pair[0] <= pair[1]));
-        assert_eq!(versions.last(), Some(&crate::current_version()));
+    fn exactly_one_current_schema_and_no_incremental_scripts() {
+        assert_eq!(crate::current_version(), 3);
         assert_eq!(
-            versions.iter().copied().collect::<BTreeSet<_>>(),
-            crate::supported_versions()
+            BOOTSTRAP
+                .matches("CREATE TABLE plenora_chain_schema (")
+                .count(),
+            1
         );
+        assert!(BOOTSTRAP.contains("version integer NOT NULL CHECK (version IN (1,2,3))"));
+        assert!(!BOOTSTRAP.contains("ALTER TABLE"));
+        assert!(!BOOTSTRAP.contains("UPDATE "));
         assert!(expected_tables().contains("plenora_chain_resources"));
         assert!(expected_tables().contains("plenora_chain_runs"));
-        assert!(!crate::supported_versions().contains(&0));
-        assert!(!crate::supported_versions().contains(&(crate::current_version() + 1)));
+        assert_eq!(expected_tables().len(), 13);
     }
 
-    async fn seed_delivery(client: &Client, prefix: usize) -> Result<(String, bool), StoreError> {
-        let legacy_key = format!("migration:{}", MessageId::random());
-        let legacy = if MIGRATIONS[..prefix]
-            .iter()
-            .any(|(_, name, _)| *name == "delivery-v1.sql")
-        {
-            use plenora_runtime_boundary::{DeliveryJournal, DeliveryPlan};
-            let journal = DeliveryJournal::new(
-                &legacy_key,
-                [4; 32],
-                DeliveryPlan::new("migration-route", 1, 0, 4096, 1024)
-                    .map_err(|_| StoreError::Invalid)?,
-                1,
-                1,
-                2,
-            )
-            .map_err(|_| StoreError::Invalid)?;
-            let bytes = journal.to_json().map_err(|_| StoreError::Invalid)?;
-            client.execute("INSERT INTO plenora_chain_acceptance(id,requires,downgrade,expires_at) VALUES ($1,'plenora-runtime-binding-v2',false,clock_timestamp())", &[&journal.result_id()]).await?;
-            if MIGRATIONS[..prefix]
-                .iter()
-                .any(|(_, name, _)| *name == "delivery-retention-v3.sql")
-            {
-                client.execute("INSERT INTO plenora_chain_delivery(key,result_id,route,stage,journal,created_ms,expired_report) VALUES ($1,$2,'migration-route','ready',$3,1,false)", &[&legacy_key,&journal.result_id(),&bytes]).await?;
-            } else {
-                client.execute("INSERT INTO plenora_chain_delivery(key,result_id,route,stage,journal) VALUES ($1,$2,'migration-route','ready',$3)", &[&legacy_key,&journal.result_id(),&bytes]).await?;
-            }
-            true
-        } else {
-            false
-        };
-        Ok((legacy_key, legacy))
+    #[test]
+    fn baseline_oracle_is_frozen_and_layout_is_complete() -> Result<(), Box<dyn Error>> {
+        use sha2::{Digest, Sha256};
+        let oracle = include_str!("../tests/fixtures/baseline-schema.sql");
+        assert!(canonical_source(oracle));
+        assert_eq!(
+            format!("{:x}", Sha256::digest(oracle.as_bytes())),
+            "deafe93105cbdcb32e6426b1440ef32b57ce7e690f693cac45784961c38bb32f"
+        );
+        let layout: serde_json::Value = serde_json::from_str(include_str!("schema-layout.json"))?;
+        assert_eq!(layout["columns"].as_array().ok_or("columns")?.len(), 72);
+        assert_eq!(
+            layout["constraints"].as_array().ok_or("constraints")?.len(),
+            40
+        );
+        assert_eq!(layout["indexes"].as_array().ok_or("indexes")?.len(), 21);
+        Ok(())
     }
 
     async fn verify_bounded_retention(store: &PostgresStore) -> Result<(), StoreError> {
@@ -147,7 +126,7 @@ mod cases {
         Ok(())
     }
 
-    async fn verify_database(store: &PostgresStore, prefix: usize) -> Result<(), StoreError> {
+    async fn verify_database(store: &PostgresStore) -> Result<(), StoreError> {
         let client = store.connect().await?;
         let tables: i64 = client
             .query_one(
@@ -159,36 +138,8 @@ mod cases {
         if tables != 0 {
             return Err(StoreError::Invalid);
         }
-        if prefix > 0 {
-            for (_, _, sql) in &MIGRATIONS[..prefix] {
-                client.batch_execute(sql).await?;
-            }
-            client
-                .execute(
-                    "INSERT INTO plenora_chain_schema VALUES (true,$1,$2,$3)",
-                    &[
-                        &(MIGRATIONS[prefix - 1].0 as i32),
-                        &Retention::default().delivery,
-                        &Retention::default().reports,
-                    ],
-                )
-                .await?;
-        }
-        let (legacy_key, legacy) = seed_delivery(&client, prefix).await?;
         drop(client);
         store.migrate(Retention::default()).await?;
-        if legacy {
-            let client = store.connect().await?;
-            let row = client.query_one("SELECT created_ms,expired_report,journal FROM plenora_chain_delivery WHERE key=$1", &[&legacy_key]).await?;
-            assert_eq!(row.try_get::<_, i64>(0)?, 1);
-            assert!(row.try_get::<_, bool>(1)?);
-            let j = plenora_runtime_boundary::DeliveryJournal::from_json(
-                &row.try_get::<_, Vec<u8>>(2)?,
-            )
-            .map_err(|_| StoreError::Invalid)?;
-            assert_eq!(j.created_ms(), 1);
-            assert!(j.report_expired());
-        }
         let id = MessageId::random();
         let context = NegotiationContext {
             requires: RuntimeBinding::V2,
@@ -200,7 +151,7 @@ mod cases {
             Retention::reduced(60, 120)?,
             Retention::reduced(60, 120)?,
         ] {
-            // Runs the identical complete script sequence used by production, including ALTER.
+            // Reopening uses the same bootstrap and cannot extend retention.
             store.migrate(policy).await?;
             if !matches!(store.accept_async(id, None).await?, AcceptanceRecord::Existing(c) if c == context)
             {
@@ -229,32 +180,24 @@ mod cases {
                 return Err(StoreError::Invalid);
             }
         }
-        if prefix == 0 {
-            verify_bounded_retention(store).await?;
-        }
+        verify_bounded_retention(store).await?;
         verify_unsupported_versions(store).await
     }
 
     async fn verify_unsupported_versions(store: &PostgresStore) -> Result<(), StoreError> {
         let client = store.connect().await?;
-        for unsupported in [0, crate::current_version() + 1] {
-            // A rejected upgrade must roll back table creation, not only the version row.
-            client
-                .batch_execute("DROP TABLE plenora_chain_resources")
-                .await?;
-            client.batch_execute("ALTER TABLE plenora_chain_schema DROP CONSTRAINT IF EXISTS plenora_chain_schema_version_check").await?;
+        for unsupported in [0, 1, 2, crate::current_version() + 1] {
+            client.batch_execute("ALTER TABLE plenora_chain_schema DROP CONSTRAINT plenora_chain_schema_version_check").await?;
             client
                 .execute(
                     "UPDATE plenora_chain_schema SET version=$1",
                     &[&unsupported],
                 )
                 .await?;
-            if !matches!(
+            assert!(matches!(
                 store.migrate(Retention::reduced(60, 120)?).await,
                 Err(StoreError::Invalid)
-            ) {
-                return Err(StoreError::Conflict);
-            }
+            ));
             let actual: i32 = client
                 .query_one(
                     "SELECT version FROM plenora_chain_schema WHERE singleton",
@@ -262,23 +205,134 @@ mod cases {
                 )
                 .await?
                 .try_get(0)?;
-            let absent: bool = client
-                .query_one(
-                    "SELECT to_regclass('public.plenora_chain_resources') IS NULL",
-                    &[],
-                )
-                .await?
-                .try_get(0)?;
-            if actual != unsupported || !absent {
-                return Err(StoreError::Conflict);
-            }
+            assert_eq!(actual, unsupported);
             client
                 .execute(
                     "UPDATE plenora_chain_schema SET version=$1",
                     &[&crate::current_version()],
                 )
                 .await?;
+            // Restoring the row alone must not hide a missing constraint.
+            assert!(matches!(
+                store.migrate(Retention::reduced(60, 120)?).await,
+                Err(StoreError::Invalid)
+            ));
+            client.batch_execute("ALTER TABLE plenora_chain_schema ADD CONSTRAINT plenora_chain_schema_version_check CHECK (version IN (1,2,3))").await?;
             store.migrate(Retention::reduced(60, 120)?).await?;
+        }
+        // Rename instead of deleting: rejection must preserve the existing rows unchanged.
+        for alteration in [
+            (
+                "CREATE TABLE plenora_chain_extra ()",
+                "DROP TABLE plenora_chain_extra",
+            ),
+            (
+                "ALTER TABLE plenora_chain_runs ENABLE ROW LEVEL SECURITY",
+                "ALTER TABLE plenora_chain_runs DISABLE ROW LEVEL SECURITY",
+            ),
+            (
+                "ALTER TABLE plenora_chain_resources RENAME TO absent_resources",
+                "ALTER TABLE absent_resources RENAME TO plenora_chain_resources",
+            ),
+            (
+                "ALTER INDEX plenora_chain_resources_due RENAME TO absent_index",
+                "ALTER INDEX absent_index RENAME TO plenora_chain_resources_due",
+            ),
+            (
+                "ALTER TABLE plenora_chain_runs ALTER COLUMN work_fence DROP NOT NULL",
+                "ALTER TABLE plenora_chain_runs ALTER COLUMN work_fence SET NOT NULL",
+            ),
+        ] {
+            client.batch_execute(alteration.0).await?;
+            assert!(matches!(
+                store.migrate(Retention::reduced(60, 120)?).await,
+                Err(StoreError::Invalid)
+            ));
+            client.batch_execute(alteration.1).await?;
+            store.migrate(Retention::reduced(60, 120)?).await?;
+        }
+        client.batch_execute("CREATE TEMP TABLE marker_saved AS SELECT * FROM plenora_chain_schema; DELETE FROM plenora_chain_schema").await?;
+        assert!(matches!(
+            store.migrate(Retention::default()).await,
+            Err(StoreError::Invalid)
+        ));
+        client.batch_execute("INSERT INTO plenora_chain_schema SELECT * FROM marker_saved; DROP TABLE marker_saved").await?;
+        client
+            .batch_execute("ALTER TABLE plenora_chain_schema RENAME TO absent_schema")
+            .await?;
+        assert!(matches!(
+            store.migrate(Retention::default()).await,
+            Err(StoreError::Invalid)
+        ));
+        assert!(
+            client
+                .query_one("SELECT to_regclass('plenora_chain_schema') IS NULL", &[])
+                .await?
+                .try_get::<_, bool>(0)?
+        );
+        client
+            .batch_execute("ALTER TABLE absent_schema RENAME TO plenora_chain_schema")
+            .await?;
+        Ok(())
+    }
+
+    async fn catalog(client: &impl tokio_postgres::GenericClient) -> Result<String, StoreError> {
+        client
+            .query_one(include_str!("../tests/fixtures/catalog.sql"), &[])
+            .await?
+            .try_get(0)
+            .map_err(StoreError::from)
+    }
+
+    async fn verify_catalog_equivalence(store: &PostgresStore) -> Result<(), StoreError> {
+        let mut client = store.connect().await?;
+        client.batch_execute("SET search_path = public").await?;
+        // Immutable oracle copied from HEAD a973b6e, including the final Rust DDL/row.
+        // Never called by production: there remains exactly one bootstrap path.
+        client
+            .batch_execute(include_str!("../tests/fixtures/baseline-schema.sql"))
+            .await?;
+        let baseline = catalog(&client).await?;
+        let baseline_row = client
+            .query_one(
+                "SELECT row_to_json(s)::text FROM plenora_chain_schema s",
+                &[],
+            )
+            .await?
+            .try_get::<_, String>(0)?;
+        for table in expected_tables() {
+            client
+                .batch_execute(&format!("DROP TABLE {table} CASCADE"))
+                .await?;
+        }
+        store.migrate(Retention::default()).await?;
+        let actual = catalog(&client).await?;
+        let actual_row: String = client
+            .query_one(
+                "SELECT row_to_json(s)::text FROM plenora_chain_schema s",
+                &[],
+            )
+            .await?
+            .try_get(0)?;
+        if actual != baseline || actual_row != baseline_row {
+            eprintln!("Bootstrap catalog or marker differs from the final baseline");
+            return Err(StoreError::Invalid);
+        }
+        // Prove the oracle observes definitions, not just counts/names.
+        for mutation in [
+            "ALTER TABLE plenora_chain_delivery ALTER COLUMN delivered SET DEFAULT true",
+            "ALTER TABLE plenora_chain_schema DROP CONSTRAINT plenora_chain_schema_version_check; ALTER TABLE plenora_chain_schema ADD CONSTRAINT plenora_chain_schema_version_check CHECK (version=3)",
+            "DROP INDEX plenora_chain_resources_due",
+            "GRANT SELECT ON plenora_chain_delivery TO PUBLIC",
+        ] {
+            let tx = client.transaction().await?;
+            tx.batch_execute(mutation).await?;
+            if catalog(&tx).await? == baseline {
+                tx.rollback().await?;
+                eprintln!("Catalog oracle did not detect a changed definition");
+                return Err(StoreError::Invalid);
+            }
+            tx.rollback().await?;
         }
         Ok(())
     }
@@ -286,7 +340,7 @@ mod cases {
     async fn isolated_database(
         admin: &Client,
         base: &PostgresStore,
-        prefix: usize,
+        equivalence: bool,
     ) -> Result<(), StoreError> {
         // The identifier is generated locally from hex UUID digits, never connection/user data.
         let name = format!("migration_{}", Uuid::new_v4().simple());
@@ -295,8 +349,17 @@ mod cases {
             .await?;
         let mut store = base.clone();
         store.config.dbname(&name);
-        let result = verify_database(&store, prefix).await;
-        // Cleanup runs on both success and failure, including open driver tasks after an error.
+        let result = tokio::spawn(async move {
+            if equivalence {
+                verify_catalog_equivalence(&store).await
+            } else {
+                verify_database(&store).await
+            }
+        })
+        .await
+        .map_err(|_| StoreError::Invalid)
+        .and_then(|result| result);
+        // Cleanup runs on both success and failure, including assertions/panics and open driver tasks after an error.
         let cleanup = admin
             .batch_execute(&format!("DROP DATABASE {name} WITH (FORCE)"))
             .await
@@ -309,20 +372,19 @@ mod cases {
 
     #[tokio::test]
     #[ignore = "requires disposable PostgreSQL with CREATEDB; CI runs this before store/coverage scenarios"]
-    async fn postgres_migrations_empty_upgrade_and_idempotence() -> Result<(), StoreError> {
+    async fn postgres_bootstrap_empty_reopen_and_rejection() -> Result<(), StoreError> {
         let connection = std::env::var("PLENORA_POSTGRES_URL").map_err(|_| StoreError::Invalid)?;
         let base = PostgresStore::new(&connection)?;
         let admin = base.connect().await?;
-        let mut failed = false;
-        for prefix in 0..=MIGRATIONS.len() {
-            if let Err(error) = isolated_database(&admin, &base, prefix).await {
-                eprintln!("Migration prefix {prefix} failed: {error:?}");
-                failed = true;
-            }
-        }
-        if failed {
-            return Err(StoreError::Invalid);
-        }
+        isolated_database(&admin, &base, false).await?;
         Ok(())
+    }
+    #[tokio::test]
+    #[ignore = "requires disposable PostgreSQL with CREATEDB; compares full final baseline catalog"]
+    async fn postgres_bootstrap_matches_baseline_catalog() -> Result<(), StoreError> {
+        let connection = std::env::var("PLENORA_POSTGRES_URL").map_err(|_| StoreError::Invalid)?;
+        let base = PostgresStore::new(&connection)?;
+        let admin = base.connect().await?;
+        isolated_database(&admin, &base, true).await
     }
 }

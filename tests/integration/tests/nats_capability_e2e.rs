@@ -698,8 +698,8 @@ fn consumer_config(
         filter_subject,
         ack_wait: Duration::from_secs(2),
         heartbeat: Some(DeliveryHeartbeatConfig::new(Duration::from_millis(250), 3)?),
-        max_deliver: Some(5),
-        max_ack_pending: Some(8),
+        max_deliver: 5,
+        max_ack_pending: 8,
         max_payload_bytes: 64 * 1024,
         shutdown_nak_delay: Duration::from_millis(25),
         infrastructure,
@@ -726,7 +726,7 @@ fn nats_config(server_url: String, health_component: Arc<str>) -> NatsConfig {
         },
         connect_timeout: Duration::from_secs(5),
         request_timeout: Duration::from_secs(1),
-        max_reconnects: Some(10),
+        max_reconnects: 10,
         health_component,
         ..NatsConfig::default()
     }

@@ -34,11 +34,11 @@ mod cases {
     }
     #[allow(
         clippy::too_many_lines,
-        reason = "One isolated database lifecycle verifies migration, both authorities and retention"
+        reason = "One isolated database lifecycle verifies bootstrap, delivery authority and retention"
     )]
     #[tokio::test]
     #[ignore = "requires disposable PostgreSQL; included by the postgres_real CI filter"]
-    async fn postgres_real_delivery_state_and_legacy_exclusion() -> Result<(), Box<dyn Error>> {
+    async fn postgres_real_delivery_state_and_retention() -> Result<(), Box<dyn Error>> {
         let store = Arc::new(PostgresStore::new(&std::env::var("PLENORA_POSTGRES_URL")?)?);
         store.migrate(Retention::default()).await?;
         let admin = store.connect().await?;
@@ -63,14 +63,6 @@ mod cases {
             return Err("receipt".into());
         };
         store.accept_async(id, Some(context)).await?;
-        let old = Invocation {
-            message_id: id,
-            scope: "legacy",
-            step: "step",
-            key: None,
-            canonical_input: b"input",
-        };
-        assert!(matches!(store.start(old).await, Err(StoreError::Conflict)));
         let (a, b) = tokio::join!(
             store.change(&key, j.revision(), DeliveryChange::Start),
             store.change(&key, j.revision(), DeliveryChange::Start)
@@ -109,27 +101,6 @@ mod cases {
         reopened
             .change(&key, reclaimed.revision(), DeliveryChange::Confirm)
             .await?;
-        // Opposite authority ordering is also excluded.
-        let legacy = MessageId::random();
-        store.accept_async(legacy, Some(context)).await?;
-        let StartDecision::Started(_) = store
-            .start(Invocation {
-                message_id: legacy,
-                scope: "legacy-other",
-                step: "step",
-                key: None,
-                canonical_input: b"input",
-            })
-            .await?
-        else {
-            return Err("legacy start".into());
-        };
-        assert!(matches!(
-            store
-                .open(&format!("13:delivery-test:m:{legacy}"), [2; 32], &plan)
-                .await?,
-            DeliveryOpen::Conflict
-        ));
         // Report maintenance must remove inactive bytes without requiring a read.
         let past: i64 = admin
             .query_one(
@@ -163,6 +134,132 @@ mod cases {
         );
         Ok(())
     }
+    #[tokio::test]
+    #[ignore = "requires disposable PostgreSQL; included by postgres_real CI filter"]
+    async fn postgres_real_delivery_crash_process_and_atomic_evidence() -> Result<(), Box<dyn Error>>
+    {
+        let connection = std::env::var("PLENORA_POSTGRES_URL")?;
+        let store = PostgresStore::new(&connection)?;
+        store.migrate(Retention::default()).await?;
+        let plan = DeliveryPlan::new("crash-route", 1, 0, 4096, 1024)?;
+        for phase in ["uncommitted", "running", "settled"] {
+            let id = MessageId::random();
+            let key = format!("crash:{id}");
+            let executable = std::env::current_exe()?;
+            let status = tokio::task::spawn_blocking(move || {
+                std::process::Command::new(executable)
+                    .args([
+                        "--exact",
+                        "delivery_tests::cases::postgres_delivery_crash_child",
+                        "--ignored",
+                        "--nocapture",
+                    ])
+                    .env("PLENORA_CRASH_PHASE", phase)
+                    .env("PLENORA_CRASH_ID", id.to_string())
+                    .status()
+            })
+            .await??;
+            assert_eq!(status.code(), Some(73));
+            let fresh = PostgresStore::new(&connection)?;
+            if phase == "uncommitted" {
+                assert_eq!(fresh.accept_async(id, None).await, Err(StoreError::Missing));
+                assert!(fresh.load(&key).await.is_err());
+            } else {
+                let (receipt, _) = fresh.load(&key).await?;
+                assert_eq!(
+                    receipt.stage(),
+                    if phase == "running" {
+                        DeliveryStage::Running
+                    } else {
+                        DeliveryStage::Finished
+                    }
+                );
+                assert!(
+                    fresh
+                        .change(&key, receipt.revision(), DeliveryChange::Start)
+                        .await
+                        .is_err()
+                );
+                let DeliveryOpen::Opened(reopened, _) = fresh.open(&key, [7; 32], &plan).await?
+                else {
+                    return Err("receipt".into());
+                };
+                assert_eq!(reopened.result_id(), receipt.result_id());
+                assert_eq!(reopened.stage(), receipt.stage());
+                if phase == "settled" {
+                    assert!(reopened.evidence().is_some());
+                }
+            }
+        }
+        let key = format!("atomic:{}", MessageId::random());
+        let DeliveryOpen::Opened(j, _) = store.open(&key, [7; 32], &plan).await? else {
+            return Err("receipt".into());
+        };
+        let (running, _) = store
+            .change(&key, j.revision(), DeliveryChange::Start)
+            .await?;
+        let admin = store.connect().await?;
+        admin.batch_execute("CREATE FUNCTION plenora_test_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected crash point'; END $$; CREATE TRIGGER plenora_test_fail BEFORE UPDATE ON plenora_chain_delivery FOR EACH ROW WHEN (NEW.stage = 'evidence') EXECUTE FUNCTION plenora_test_fail()").await?;
+        let rejected = store
+            .change(
+                &key,
+                running.revision(),
+                DeliveryChange::Evidence(prepared(&running)?),
+            )
+            .await
+            .is_err();
+        let observed = store.load(&key).await;
+        admin.batch_execute("DROP TRIGGER plenora_test_fail ON plenora_chain_delivery; DROP FUNCTION plenora_test_fail()").await?;
+        assert!(rejected);
+        let (unchanged, _) = observed?;
+        assert_eq!(unchanged.to_json()?, running.to_json()?);
+        let (recorded, _) = store
+            .change(
+                &key,
+                running.revision(),
+                DeliveryChange::Evidence(prepared(&running)?),
+            )
+            .await?;
+        assert_eq!(recorded.stage(), DeliveryStage::Evidence);
+        assert!(recorded.evidence().is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "child process crash helper; invoked by postgres_real_delivery_crash_process_and_atomic_evidence"]
+    async fn postgres_delivery_crash_child() -> Result<(), Box<dyn Error>> {
+        let phase = std::env::var("PLENORA_CRASH_PHASE")?;
+        let id = std::env::var("PLENORA_CRASH_ID")?;
+        let store = PostgresStore::new(&std::env::var("PLENORA_POSTGRES_URL")?)?;
+        if phase == "uncommitted" {
+            let mut client = store.connect().await?;
+            let tx = PostgresStore::transaction(&mut client).await?;
+            tx.execute("INSERT INTO plenora_chain_acceptance(id,requires,downgrade,expires_at) VALUES ($1,'plenora-runtime-binding-v2',false,clock_timestamp()+interval '1 day')", &[&id]).await?;
+            std::process::exit(73);
+        }
+        let key = format!("crash:{id}");
+        let plan = DeliveryPlan::new("crash-route", 1, 0, 4096, 1024)?;
+        let DeliveryOpen::Opened(j, _) = store.open(&key, [7; 32], &plan).await? else {
+            return Err("receipt".into());
+        };
+        let (running, _) = store
+            .change(&key, j.revision(), DeliveryChange::Start)
+            .await?;
+        if phase == "settled" {
+            let (recorded, _) = store
+                .change(
+                    &key,
+                    running.revision(),
+                    DeliveryChange::Evidence(prepared(&running)?),
+                )
+                .await?;
+            store
+                .change(&key, recorded.revision(), DeliveryChange::Settle)
+                .await?;
+        }
+        std::process::exit(73);
+    }
+
     #[tokio::test]
     #[ignore = "requires disposable PostgreSQL; included by the postgres_real CI filter"]
     async fn postgres_real_retention_selects_metadata_before_decoding_and_preserves_corruption()

@@ -145,16 +145,12 @@ pub fn parse(
             run_id: required(&mut options, "--run")?,
         },
         "report" => Request::Report {
-            cursor: options
-                .remove("--report-index")
-                .map(|index| {
-                    let offset = required(&mut options, "--offset")?;
-                    Ok::<_, Error>(plenora_runtime_chains::ReportCursor {
-                        index: usize::try_from(number(&index)?).map_err(|_| Error::Invalid)?,
-                        offset: usize::try_from(number(&offset)?).map_err(|_| Error::Invalid)?,
-                    })
-                })
-                .transpose()?,
+            cursor: plenora_runtime_chains::ReportCursor {
+                index: usize::try_from(number(&required(&mut options, "--report-index")?)?)
+                    .map_err(|_| Error::Invalid)?,
+                offset: usize::try_from(number(&required(&mut options, "--offset")?)?)
+                    .map_err(|_| Error::Invalid)?,
+            },
             run_id: required(&mut options, "--run")?,
         },
         "artifact" => Request::Artifact {
@@ -181,11 +177,7 @@ pub fn parse(
                 Request::Resume {
                     run_id,
                     revision,
-                    recovery: match options
-                        .remove("--recovery")
-                        .as_deref()
-                        .unwrap_or("reconcile")
-                    {
+                    recovery: match required(&mut options, "--recovery")?.as_str() {
                         "observe" => plenora_runtime_chains::Recovery::Observe,
                         "continue" => plenora_runtime_chains::Recovery::Continue,
                         "reconcile" => plenora_runtime_chains::Recovery::Reconcile,
@@ -264,9 +256,12 @@ mod tests {
             ("chain result --run id", "result"),
             ("chain events --run id --cursor 0 --limit 2", "events"),
             ("chain cancel --run id --revision 1", "cancel"),
-            ("chain resume --run id --revision 1", "resume"),
+            (
+                "chain resume --run id --revision 1 --recovery reconcile",
+                "resume",
+            ),
             ("artifact get --ref ref:a", "artifact"),
-            ("report get --run id", "report"),
+            ("report get --run id --report-index 0 --offset 0", "report"),
         ];
         assert_eq!(cases.len(), plenora_runtime_chains::FUNCTIONS.len());
         for (command, function) in cases {
@@ -305,6 +300,19 @@ mod tests {
         Ok(())
     }
     #[test]
+    fn controls_without_explicit_policy_or_page_are_rejected() {
+        for command in [
+            "chain resume --run id --revision 1",
+            "chain report --run id",
+        ] {
+            let args = format!("{command} --config fake --json")
+                .split_whitespace()
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            assert!(parse(&args, |_| Err(Error::Invalid)).is_err());
+        }
+    }
+    #[test]
     fn report_cursor_is_only_parsed_here_and_shared_by_both_endpoints() -> Result<(), Error> {
         for endpoint in ["--config fake", "--server local --subject requests"] {
             let args =
@@ -316,10 +324,10 @@ mod tests {
             assert!(matches!(
                 parsed.request,
                 Request::Report {
-                    cursor: Some(plenora_runtime_chains::ReportCursor {
+                    cursor: plenora_runtime_chains::ReportCursor {
                         index: 2,
                         offset: 65536
-                    }),
+                    },
                     ..
                 }
             ));

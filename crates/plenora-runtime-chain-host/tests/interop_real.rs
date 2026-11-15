@@ -432,25 +432,20 @@ async fn five_surfaces_same_real_plan_and_independent_error_oracles() -> Test {
                 diagnostics::summary(&response)
             );
             if result["state"] != expected {
-                let reports = h
-                    .execute(Request::Report {
-                        run_id: o.run_id.clone(),
-                        cursor: None,
-                    })
-                    .await;
-                eprintln!("S4 original reports: error={:?}", reports.error);
-                if let Ok(reports) = serde_json::from_value::<Vec<Vec<u8>>>(reports.value) {
-                    for (index, raw) in reports.iter().enumerate() {
-                        match plenora_runtime_chains::contracts::parse_step_result(raw) {
-                            Ok(step) => eprintln!(
-                                "S4 original report: index={index}; facts={}",
-                                diagnostics::summary(&json!({"value":{"steps":[step]}}))
-                            ),
-                            Err(rejection) => eprintln!(
-                                "S4 original report: index={index}; rejection={}",
-                                rejection.0.as_str()
-                            ),
+                let mut cursor = Some(plenora_runtime_chains::ReportCursor { index: 0, offset: 0 });
+                let mut raw = Vec::new();
+                while let Some(at) = cursor {
+                    let response = h.execute(Request::Report { run_id: o.run_id.clone(), cursor: at }).await;
+                    if response.error.is_some() { break; }
+                    let page: plenora_runtime_chains::ReportPage = serde_json::from_value(response.value)?;
+                    raw.extend(&page.bytes);
+                    cursor = page.next;
+                    if cursor.is_none_or(|next| next.index != at.index) {
+                        match plenora_runtime_chains::contracts::parse_step_result(&raw) {
+                            Ok(step) => eprintln!("S4 original report: index={}; facts={}", at.index, diagnostics::summary(&json!({"value":{"steps":[step]}}))),
+                            Err(rejection) => eprintln!("S4 original report: index={}; rejection={}", at.index, rejection.0.as_str()),
                         }
+                        raw.clear();
                     }
                 }
             }

@@ -42,7 +42,7 @@ impl NatsConnection {
             .require_tls(config.tls.mode == TlsMode::Required)
             .connection_timeout(config.connect_timeout)
             .request_timeout(Some(config.request_timeout))
-            .max_reconnects(config.max_reconnects)
+            .max_reconnects(Some(config.max_reconnects))
             .client_capacity(config.client_capacity)
             .subscription_capacity(config.subscription_capacity)
             .event_callback(move |event| {

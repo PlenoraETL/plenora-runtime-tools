@@ -6,8 +6,57 @@ full commit SHA; a release tag names one of those commits.
 
 ## Unreleased
 
+### Security
+
+- The audit tool lock moves filelock to 4.2.4 on Python 3.11 and newer
+  (CVE-2026-112907, CVE-2026-112913, CVE-2026-112940, fixed in 4.2.1). No
+  filelock release for Python 3.10 is fixed: 4.1.0, the last, carries six
+  advisories and 4.0.12 three, so the lock keeps 4.0.12 there and those three,
+  which concern `ReadWriteLock`, are ignored in the Python 3.10 audit job only,
+  until 3.10 leaves the supported versions. A weakened guarantee, stated as one.
+
+### Fixed
+
+- The reference oracle (`tools/arrow_data.py`, `tools/crs_grammar.py`) folds
+  case in ASCII only, as GEO-005 and GEO-019 state: `str.upper` and
+  `str.lower` also mapped non-ASCII letters, so an authority `EPſG` matched
+  `EPSG`. No vector changes its verdict.
+
 ### Added
 
+- Arrow Primary Geometry 1.0 (`plenora-arrow-primary-geometry-v1`, PRIM-001
+  to PRIM-009), an opt-in contract for components that claim Arrow Geometry
+  Semantics 1.0: the schema key `plenora.primary_geometry` names the primary
+  geometry field by `plenora.field_id`, or `none`; one geometry field
+  without the key stays the primary and several without it have none; a
+  key that names no geometry field is `schema`; the key is emitted only
+  where absence means another state, so single-geometry schemas are
+  unchanged; no operation promotes another field when the primary is
+  removed, and no join elects one; a geometry operation takes the selected
+  field or the primary, refuses with `schema` without either, and verifies
+  only its operand's CRS; GeoParquet `primary_column` maps to the key both
+  ways, and a writer refuses a table without primary with `unsupported`.
+  New schemas `interop-primary-vector-v1` and `geoparquet-primary-vector-v1`
+  and 34 vectors in `vectors/arrow-primary-v1`, `vectors/interop-primary-v1`
+  and `vectors/geoparquet-primary-v1`; Arrow Geometry Semantics 1.0 gains an
+  informative pointer. No existing schema, catalog, binding, vector or
+  profile changes. See
+  [decision 0023](decisions/0023-primary-geometry-across-components.md).
+- IO-ARROW-001 in the IO-tools profile v3: an Arrow input with neither
+  `plenora.contract.version` nor any `plenora.` key is an external source that
+  IO accepts, a profile acceptance as GEO-000 allows; an input with any
+  `plenora.` key is a contract stream and follows REJ-001 in full.
+- IO-tools Python SDK as a declared surface: `io-tools-v3.json` selects
+  `python_sdk` as `conditional` for its six operations;
+  `bindings/python-sdk-v1.json` names `plenora-io / plenora_io`, its
+  discovery entrypoints and the `Client` methods for each operation; the profile
+  makes the SDK optional and adds IO-PY-001 (synchronous only, CLI
+  protocol semantics through native or process execution, the effect of
+  `Client.read`, typed refusal without PyArrow, cancellation and timeout
+  outcomes). Catalog and profile v2 retain their published content. The
+  validator checks the section; the immutability gate recognizes catalog
+  v2 bytes and applies the existing compatible-addition rules. No schema
+  or vector changes. See [decision 0016](decisions/0016-io-tools-python-sdk.md).
 - Catalogs and profiles of Public Catalogs 2.0 for the components whose
   profiles stated the runtime as required: `database-tools-v2.json`,
   `data-tools-v3.json` and `io-tools-v3.json`, each with the operation

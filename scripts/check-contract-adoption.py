@@ -6,12 +6,12 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-REVISION = "3aec9f724f5a0ad21366f293895b4d0dbcd0aad1"
+REVISION = "38d68b402389855edbcecb7ce57c31e91282cb4e"
 # Changes to the declared deviations require an explicit gate update as well.
 EXPECTED_DEVIATIONS = {
     "RT-007", "RT-010", "RT-012", "RT-013", "RT-016", "RT-017",
     "RT-018", "RT-019", "RT-020", "RT-021", "RT-022", "RT-023",
-    "RT-024", "RT-026", "RT-027", "ADOPTION-v4",
+    "RT-024", "RT-026", "RT-027", "ADOPTION-v4", "IO-ARROW-001", "PRIM-001..009",
 }
 
 

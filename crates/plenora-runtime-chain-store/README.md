@@ -1,70 +1,40 @@
-# Store durevole catene P2.2
+# Store durevole catene
 
-Primitive PostgreSQL per acceptance, start unico con fence, inbox/report/outbox
-atomici, replay immutabile, alias e retention. Nessun engine ETL o profilo
-memoria di produzione. Decisione e limiti: [ADR 0009](../../docs/adr/0009-chain-postgres.md).
+PostgreSQL implementa AcceptanceStore, Store e DurableExecutionStore con una
+sola autorita per ricevuta, invocazione, evidenze e settlement. Nessun profilo
+memoria di produzione. [ADR 0009](../../docs/adr/0009-chain-postgres.md).
 
-`PostgresStore::new` configura soltanto il client; `migrate` installa lo schema
-v2 e la retention. Ogni operazione ricontrolla la fonte autorevole. `start`
-richiede acceptance già confermata; restituisce Started una sola volta,
-RequiresRecovery per intenzioni pendenti e Replay per terminali. `finish`
-registra report, envelope e inbox nella stessa transazione. Il report può
-essere letto anche dopo la finestra di delivery, fino alla propria scadenza.
-`claim` restituisce una lease di 30 secondi; `confirm` deve seguire la conferma
-reale del broker. Nessun ACK deve precedere la conferma dello store.
+`migrate` inizializza solo lo schema corrente 3 da database vuoto, oppure
+riapre lo stesso schema riducendo la retention. Versioni precedenti, schema
+parziale senza identita e versioni sconosciute sono rifiutati; non esiste
+conversione di dati. Il solo sorgente SQL e `src/bootstrap.sql`.
 
-StartPermit non è clonabile o serializzabile; Publication non ha costruttore
-pubblico. Non si può ricostruire una nuova autorità di avvio dopo un crash.
-Un esito tardivo può ancora essere conservato dal proprietario del permit,
-ma oltre la finestra la pubblicazione resta scaduta. L'inbox generico non
-può essere scritto separatamente dalla finalizzazione.
+Ogni operazione verifica primary/read-only/fsync e usa il lock transazionale
+comune, READ COMMITTED e synchronous_commit. COMMIT non confermato resta
+Unconfirmed. Le ricevute conservano identita, route, CAS e stato di settlement;
+nessuna lease autorizza la ripetizione di un effetto ignoto.
 
-## Prove
+Le prove offline verificano codifica SQL, un solo bootstrap/versione, policy,
+redazione e modello con ManualClock. Le prove PostgreSQL ignorate per default
+verificano bootstrap vuoto, riapertura, rifiuto di versioni inattese, retention
+limitata, accettazione concorrente, CAS, restart, fencing e commit incerto.
+La sintassi SQL e la persistenza effettiva richiedono PostgreSQL reale.
 
-Il test normale esegue il doppio in memoria con ManualClock, la validazione
-esatta e l'enumerazione RT-022/027. I due test PostgreSQL sono ignorati per
-default. `postgres_real` avvia anche sottoprocessi che terminano prima del
-commit, dopo lo start e dopo finish; il processo padre riapre lo store.
-Include race con/senza chiave, chiavi tra run diversi, rollback di finish,
-lettura autorevole, lease stale, risultato immutabile, collisioni e retention.
-
-Usare un database PostgreSQL **effimero dedicato**, con un ruolo amministrativo
-per le fault injection. Il test riduce permanentemente la policy del database:
-una nuova esecuzione richiede un database nuovo. Non usare dati di produzione.
-
-```powershell
-$env:CARGO_BUILD_JOBS = '2'
-$env:PLENORA_POSTGRES_URL = 'host=127.0.0.1 port=PORT user=postgres password=PASSWORD dbname=chain_store'
+```sh
+cargo test -p plenora-runtime-chain-store --locked postgres_bootstrap -- --ignored --nocapture --test-threads=1
 cargo test -p plenora-runtime-chain-store --locked postgres_real -- --ignored --nocapture --test-threads=1
 ```
 
-Il job PostgreSQL di [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
-usa PostgreSQL 17.6 bookworm fissato per digest OCI, porta loopback effimera e
-cleanup always del container e volume. Il digest è stato risolto dal registry
-Docker ufficiale; non è stato eseguito PostgreSQL sull'host locale.
+Usare soltanto il database effimero dedicato della CI. Le prove di bootstrap
+richiedono CREATEDB e creano/rimuovono database isolati da template0; le prove
+store riducono permanentemente la retention del database dedicato.
+Le campagne PostgreSQL e coverage restano nei workflow correnti: nessun job
+di aggiornamento di schemi precedenti e richiesto.
 
-Il journal P2.3/P2.4 implementa DurableExecutionStore: ricevuta precedente
-all'ammissione, risultato e route immutabili, CAS, lease e pending recuperabile.
-La migrazione v2 impedisce ai binari v1 di operare e controlla le collisioni con
-le primitive P2.2 in entrambi gli ordini. La retention elimina i rapporti inattivi
-conservando i tombstone. delivery_tests verifica queste proprieta sul PostgreSQL
-reale del job CI; i test di integrazione combinano anche NATS e il runner Apalis.
-
-## Qualifica delle migrazioni
-
-La lista ordinata MIGRATIONS usata da migrate e la fonte unica degli script.
-Il test offline confronta tutti i file SQL con tale lista e rifiuta BOM Unicode
-e caratteri di controllo non ammessi, senza normalizzare i sorgenti in esecuzione.
-Questo controllo di codifica non viene dichiarato un parser sintattico PostgreSQL.
-
-Prima dei test store, entrambi i job PostgreSQL e coverage eseguono
-`postgres_migrations_empty_upgrade_and_idempotence`: database temporanei da
-template0, caso vuoto e schema v1, intera migrazione ripetuta, conservazione dei
-record e della retention, cleanup anche in errore. Serve il privilegio CREATEDB
-sul servizio effimero CI. I test non modificano la policy del database usato dagli
-altri scenari. La sintassi viene verificata dal PostgreSQL reale fissato per digest.
-
-```sh
-cargo test -p plenora-runtime-chain-store --locked postgres_migrations -- --ignored --nocapture --test-threads=1
-cargo llvm-cov -p plenora-runtime-chain-store --locked --no-report -- postgres_migrations --ignored --nocapture --test-threads=1
-```
+Il bootstrap conserva il catalogo finale precedente (13 tabelle), incluso il
+CHECK SQL storico; solo il valore registrato 3 e ammesso. Le API rimosse non
+sono ripristinate. `postgres_bootstrap_matches_baseline_catalog` confronta
+colonne ordinate, default, vincoli/indici con definizioni, funzioni, trigger,
+RLS, owner e ACL con un oracolo test congelato al commit a973b6e. La guardia di
+riapertura controlla il layout, non attesta modifiche amministrative delle
+espressioni dei vincoli: vedere PR23 in docs/contract-alignment.md.

@@ -213,7 +213,7 @@ async fn publication_without_durable_evidence_is_not_replayed_after_restart() ->
         .execute(Request::Resume {
             run_id: options().run_id,
             revision: status.value["revision"].as_u64().ok_or("revision")?,
-            recovery: plenora_runtime_chains::Recovery::default(),
+            recovery: plenora_runtime_chains::Recovery::Reconcile,
         })
         .await;
     assert_ne!(resume.value["state"], "succeeded");

@@ -17,9 +17,9 @@ JetStream -> broker adapter -> bounded worker -> capability dispatcher -> app ad
                                       +-- timeout/cancellation/progress/heartbeat
 ```
 
-Il modello completo, che compila, è
-[`examples/capability-adapter`](../examples/capability-adapter/README.md). Non copiare in produzione
-i suoi tipi di libreria simulati; sostituirli con la vera API pubblica quando quell'API è stabile.
+Il percorso durevole usa `EvidenceComponent` e `DurableRuntime`; le prove di
+composizione sono in [chain_delivery.rs](../tests/integration/tests/chain_delivery.rs).
+Il consumer deve conservare risultato ed evidenze nella ricevuta prima del settlement.
 
 ## Decisioni richieste per ogni adapter
 

@@ -191,14 +191,8 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         }
     }
     async fn work_claimed(&self, run_id: &str) -> Result<RunHandle, Error> {
-        let mut j = self.load(run_id).await?;
+        let j = self.load(run_id).await?;
         self.delivery(&j)?;
-        if j.active.is_some() && j.allocation.is_none() {
-            j.reserve_effect()?;
-            j = self
-                .save(j, "recovery_required", "requires_recovery")
-                .await?;
-        }
         if let Some(intent) = &j.active {
             let invocation = self.invocation(
                 &j,
@@ -285,7 +279,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         }
         let view = initial(plan, &validated, &options.run_id, now)?;
         let mut j = Journal {
-            allocation: Some(crate::accounting::Allocation::new(self.journal_bytes)?),
+            allocation: crate::accounting::Allocation::new(self.journal_bytes)?,
             version: 1,
             tenant: self.tenant.clone(),
             options,
@@ -368,17 +362,6 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             return Err(Error::Pending);
         }
         Ok(parse_result(&j.view)?)
-    }
-    /// Original evidence, including reports that could not be classified as valid results.
-    /// # Errors
-    /// Fails when the run is missing, expired or storage is unavailable.
-    pub async fn report(&self, run_id: &str) -> Result<Vec<Vec<u8>>, Error> {
-        let j = self.load(run_id).await?;
-        let mut reports = j.history;
-        if let Some(last) = j.evidence {
-            reports.push(last);
-        }
-        Ok(reports)
     }
     /// Retrieve an authorized immutable artifact, bounded to one MiB per call.
     /// # Errors
@@ -488,12 +471,12 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             Err(error) => return self.reject(j, index, error).await,
         };
         let intent = Intent {
-            result_limit: Some(result_limit),
+            result_limit,
             index,
             message_id: uuid::Uuid::new_v4().to_string(),
             started: now,
             prior: j.view.clone(),
-            first_started: Some(first_started),
+            first_started,
             causation,
             deadline: step_deadline,
         };
@@ -699,10 +682,8 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                 Error::Recovery
             })?;
             j.view = encode(&view)?;
-            if let Some(allocation) = &mut j.allocation {
-                allocation.recovery = None;
-                allocation.recovery_limit = None;
-            }
+            j.allocation.recovery = None;
+            j.allocation.recovery_limit = None;
             let unknown = evidence.remote_effect == "unknown";
             j.waiting_recovery = unknown;
             if !unknown {
@@ -841,14 +822,11 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                 return self.complete(&j, &invocation, evidence).await;
             }
             let mut j = j;
-            if self.executor.needs_recovery(&j).await?
-                && j.allocation.as_ref().is_none_or(|a| a.recovery.is_none())
-            {
+            if self.executor.needs_recovery(&j).await? && j.allocation.recovery.is_none() {
                 j.reserve_effect()?;
                 let limit = j.report_limit(&invocation.step.id)?;
-                j.allocation.as_mut().ok_or(Error::Invalid)?.recovery_limit = Some(limit);
-                j.allocation.as_mut().ok_or(Error::Invalid)?.recovery =
-                    Some(uuid::Uuid::new_v4().to_string());
+                j.allocation.recovery_limit = Some(limit);
+                j.allocation.recovery = Some(uuid::Uuid::new_v4().to_string());
                 j = self
                     .save(j, "recovery_required", "requires_recovery")
                     .await?;
@@ -857,8 +835,8 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                 Ok(proof) => proof,
                 Err(error) => {
                     if self.executor.inquiry_rejected(&j).await? {
-                        j.allocation.as_mut().ok_or(Error::Invalid)?.recovery = None;
-                        j.allocation.as_mut().ok_or(Error::Invalid)?.recovery_limit = None;
+                        j.allocation.recovery = None;
+                        j.allocation.recovery_limit = None;
                         self.save(j, "recovery_required", "requires_recovery")
                             .await?;
                     }
@@ -866,13 +844,13 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                 }
             };
             let Some(evidence) = proof else {
-                j.allocation.as_mut().ok_or(Error::Invalid)?.recovery = None;
-                j.allocation.as_mut().ok_or(Error::Invalid)?.recovery_limit = None;
+                j.allocation.recovery = None;
+                j.allocation.recovery_limit = None;
                 self.save(j, "recovery_required", "requires_recovery")
                     .await?;
                 return Err(Error::Recovery);
             };
-            if let Some(limit) = j.allocation.as_ref().and_then(|a| a.recovery_limit) {
+            if let Some(limit) = j.allocation.recovery_limit {
                 invocation.reservation.limits.result_bytes =
                     invocation.reservation.limits.result_bytes.min(limit);
             }
@@ -926,7 +904,7 @@ fn finalized_evidence(
     crate::retry::cumulative(
         prior.steps.get(intent.index).ok_or(Error::Invalid)?,
         &evidence,
-        now.checked_sub(intent.first_started.unwrap_or(intent.started))
+        now.checked_sub(intent.first_started)
             .ok_or(Error::Invalid)?,
     )
 }
@@ -1246,9 +1224,7 @@ pub(crate) fn resolve_invocation(
         .limits
         .result_bytes
         .min(crate::accounting::result_limit(plan, view, &step)?);
-    if let Some(limit) = intent.result_limit {
-        reservation.limits.result_bytes = reservation.limits.result_bytes.min(limit);
-    }
+    reservation.limits.result_bytes = reservation.limits.result_bytes.min(intent.result_limit);
     Ok(Invocation {
         tenant: tenant.to_owned(),
         run_id: run_id.to_owned(),

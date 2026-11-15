@@ -13,8 +13,7 @@ P1.1 non cambia pin, vettori, manifesti di adozione o stato delle deviazioni RT.
 Piano/esito/eventi v2, capability `plenora.runtime-tools`, operazioni chain.*@2,
 archi DATA run@3/DB write@2 e conversioni sono proposte da ratificare in passi
 successivi senza reinterpretare v1. Catene v2 non è Runtime Binding 2.0:
-capability wire resta 1. Il target contratti 38d68b4 del progetto non è il pin
-attualmente adottato. Catalogo STORAGE e Primary Geometry restano lavoro futuro.
+capability wire resta 1. Il pin di famiglia adottato e 38d68b4. Catalogo STORAGE e Primary Geometry restano lavoro futuro.
 
 Regola: ogni claim richiede contratto e prova sul profilo/trasporto effettivo.
 Ambito: nuovo host, consumer legacy ed esempi separati. Rischio: estendere una
@@ -24,7 +23,7 @@ reali, con scope esplicito. Vedere i [gate](qualification.md#gate-del-prodotto-c
 e l’[inventario delle superfici](chain-features.md).
 
 
-Pin adottato: `3aec9f724f5a0ad21366f293895b4d0dbcd0aad1` (precedente `90cffb2b78cace16edad352a19d86f674930c133`).
+Pin adottato: `38d68b402389855edbcecb7ce57c31e91282cb4e`.
 
 Il registro sorgente e [contracts/adoption-source.json](../contracts/adoption-source.json); non e un attestato di release v4. Runtime Binding 2.0 e Public Catalogs 2.0 sono adottati con gli ambiti e le deviazioni seguenti. Non si dichiara conformita end-to-end.
 
@@ -82,10 +81,8 @@ settlement terminale rimangono aperti. Le righe globali sotto non vengono promos
 per effetto dei soli test del profilo locale. Le note P2.1a sui bypass legacy sono
 storiche: P2.1b sostituisce quei percorsi pubblici, non qualifica gli esempi esclusi.
 
-L'esempio capability-adapter resta esplicitamente OUTSIDE-QUALIFIED-BOUNDARY e
-chiama il proprio adapter senza registro. Ogni esempio dichiara il profilo nel
-manifest, verificato da test; worker-nats usa il boundary e un producer confermato
-per i successi. Gli errori terminali non sono pubblicati dal runner: gate P2.4.
+Il percorso diretto capability-adapter e stato rimosso. Ogni esempio corrente
+mantiene la dichiarazione del proprio profilo nel manifest, verificata da test.
 L'inventario AST [boundary-api.txt](boundary-api.txt) enumera dichiarazioni, firme,
 visibilità, costruttori, derive e macro; variazioni richiedono nuova raccolta e
 prove, non basta aggiungere un nome a una lista. Test compile_fail impediscono
@@ -359,8 +356,8 @@ Settle, anche dopo crash. Pending recupera la finalizzazione e pubblica con leas
 fenced; una risposta broker incerta libera la lease per ripubblicare lo stesso ID.
 Il replay finalizzato prevale sulla deadline originaria, ma non estende i 7 giorni.
 I rapporti scadono entro 90 giorni anche senza lettura; i tombstone ID restano.
-Schema PostgreSQL v2 esclude entrambe le autorita legacy/prodotto nei due ordini;
-i vecchi binari v1 falliscono esplicitamente dopo migrazione.
+Lo schema corrente ammette soltanto DurableExecutionStore; le primitive
+parallele sono rimosse e gli schemi precedenti vengono rifiutati.
 
 Deviazione delimitata: chiavi di idempotenza d'esecuzione rifiutate con unsupported,
 mai ignorate. Il contesto tenant/progetto autenticato richiesto dalla sezione D
@@ -457,7 +454,7 @@ RT-022 usa lookup/CAS primario e binding distinto dall'identita della ricevuta:
 (tenant fidato, capability, operazione, versione, chiave). Il replay conserva
 contratto/output e ricollega soltanto identita/correlazione/causazione; non concede
 un nuovo tentativo. Il tenant non viene dal messaggio. Submit e run con la stessa
-chiave sono operazioni distinte. La migrazione aggiunge il registro delle chiavi;
+chiave sono operazioni distinte. Il bootstrap comprende il registro delle chiavi;
 retention 7/90 giorni, puntatore eliminabile dopo retention e tombstone permanenti.
 
 PrimaryResultSink conferma la disponibilita del terminale immutabile sul primario
@@ -567,10 +564,8 @@ raw evidence slots remain protected when history capacity is exhausted.
 The effective raw-result limit also reserves the aggregate view: current view,
 plan alias keys/IDs, measured maximum control envelopes and copies of the raw
 result in its step, primary error and named outputs. The limit is fixed in the
-new intention. Existing intents omit the optional field without changing their
-carrier; an unreserved legacy intent cannot start a new receipt, only consume
-proof of work already started. Legacy state remains readable within its old
-hard ceiling; migration does not manufacture prior reservations.
+new intention. Allocation, result quota and first-start time are required in
+stored journals and carriers; previous shapes are rejected before restoration.
 
 A reconciliation has a separately reserved stable carrier. Uncertain delivery
 reuses it. Confirmed null or a pre-invocation rejection releases it with a CAS,
@@ -597,8 +592,7 @@ report index. Rust exposes `ReportCursor`, `ReportPage` and `report_page`.
 This extends report retrieval only; it does not close criteria 5-6.
 
 Local evidence: exhaustive serializer/slot tests, exact quota and pre-effect
-rejection, cumulative recovery exhaustion, cancel/crash regressions, legacy
-carrier guard, confirmed-empty/denied inquiry renewal and complete recovery of
+rejection, cumulative recovery exhaustion, cancel/crash regressions, missing-reservation rejection, confirmed-empty/denied inquiry renewal and complete recovery of
 a declared defective adapter report over 400 KiB through the durable host.
 Real PostgreSQL/NATS tests and installed wheel/bin byte-for-byte reconstruction
 are wired in the existing infrastructure job and remain ignored locally.
@@ -743,16 +737,23 @@ riportati separatamente in target/P1-4-5.md, con gli esiti realmente osservati.
 
 ## PR23: fonte unica dello schema durevole
 
-Ambito P2.2/P1.4: schema.rs associa ogni SQL alla sua revisione e ne fissa
-l'ordine; migrate, vincolo SQL corrente, readiness e test usano quel catalogo.
-La revisione globale corrente e 3; la versione 1 delle evidenze e un asse distinto.
-Il conteggio rigido 12 del test era incompatibile con le 13 tabelle complete:
-la qualifica ora confronta i nomi derivati dagli SQL, non un numero mantenuto
-separatamente. DB vuoto, ogni prefisso v1/v2, idempotenza, preservazione dati,
-riduzione retention e rifiuto versioni sconosciute sono enumerati. Il rifiuto
-verifica anche rollback della creazione DDL, non soltanto della versione.
-Rischio residuo: prove reali del delta ancora da eseguire nella CI aggregata;
-nessuna estensione della qualifica a librerie o provider di dominio.
+Ambito: schema.rs ammette solo versione 3; bootstrap.sql crea direttamente
+lo schema finale di a973b6e (13 tabelle, 72 colonne, 40 vincoli e 21 indici su PG17).
+Nessun percorso incrementale resta in produzione. I nove SQL precedenti sono
+congelati solo in tests/fixtures/baseline-schema.sql come oracolo indipendente.
+Regola: identita del catalogo finale, inclusi ordine colonne, default, ACL e
+CHECK version IN (1,2,3); il codice rifiuta comunque versioni registrate 1 e 2.
+Le sette tabelle senza chiamanti restano per questa identita, non ripristinano API.
+La guardia confronta inventario tipizzato di colonne/default/nullabilita, nomi di
+vincoli/indici e flags strutturali, senza colonne digest aggiunte. Non attesta le
+definizioni complete contro alterazioni amministrative: garanzia piu debole del
+digest precedentemente previsto, che su PostgreSQL falliva con SQLSTATE 42725.
+Il test reale confronta invece le definizioni complete con l'oracolo finale e
+verifica che cambi di default, CHECK, indice e grant siano rilevati.
+Rischio residuo: primario/amministratore fidati; deriva di definizioni con stessi
+nomi non rilevata dalla guardia. Chiusura: eseguire il confronto PostgreSQL reale
+e i quattro scenari VM; ogni modifica DDL richiede nuova qualifica del catalogo.
+
 
 
 ## PR23: selezione retention e diagnostica del primario
@@ -761,9 +762,8 @@ Il journal delivery conserva origine e flag di purge in colonne scalari indicizz
 aggiornate nella stessa transazione del documento. La manutenzione seleziona al
 massimo 32 candidati e verifica documento/metadati prima del purge; la lettura
 puntuale applica comunque la retention, anche se il batch non ha raggiunto la riga.
-La migrazione V3 recupera i metadati dai documenti esistenti atomicamente. Identita,
-fence e tombstone non vengono cancellati. Il backfill resta soggetto al timeout
-SQL: la qualifica su database popolati di dimensione operativa resta aperta.
+Il bootstrap crea direttamente le colonne di selezione: nessun backfill.
+Identita, fence e tombstone non vengono cancellati dalla manutenzione.
 
 PLENORA_STORAGE_DIAGNOSTICS=1 abilita anche nei binari/wheel la posizione del
 fallimento, categoria chiusa, SQLSTATE e stato connessione; non vengono stampati
@@ -1002,3 +1002,31 @@ revisione comune per step/destinazione coerente con la futura API IO, senza
 simulare le API proposte. PG read@1 -> DATA run@3 -> IO e ora composto sul piano
 intero e predisposto nei job PostgreSQL/PostGIS e cinque superfici; esecuzione
 reale ancora da verificare in CI. read@2 resta assente, senza alias.
+
+
+## Pulizia compatibilita e adozione 38d68b4 (15 novembre 2026)
+
+Regola: una sola implementazione corrente, nessuna compatibilita con release
+Plenora precedenti. Bootstrap diretto dello schema finale 3, journal con riserve obbligatorie,
+protocollo resume/report esplicito e unica autorita DurableExecutionStore.
+La qualifica richiede ancora PostgreSQL/NATS reali e CI Linux/Windows sullo
+SHA finale; i test locali non attestano questi gate. Le vecchie prove sulle
+primitive rimosse non costituiscono evidenza del nuovo percorso.
+
+Il delta effettivo dal precedente pin cambia catalogo/profilo IO: python_sdk
+conditional e IO-PY-001, applicabili al pacchetto upstream plenora_io, non
+allo SDK runtime. SB-001 aggiunge il nome di quel pacchetto; le operazioni
+runtime e il binding 2.0 non cambiano. Le copie sono byte esatti dal commit.
+ADOPTION-v4 resta aperta: questo e un registro sorgente senza artefatti di release.
+
+| Regola | Ambito, differenza e rischio | Condizione di chiusura |
+|---|---|---|
+| IO-ARROW-001 | Adapter IO catene: solo Arrow contrattuale, nessun ingresso Arrow esterno senza metadata. Rifiuto di input validi upstream, profilo deliberatamente piu ristretto. | Ingresso esterno qualificato o profilo ristretto comune ratificato. |
+| PRIM-001..009 | Adapter IO/DATA/database, cinque facciate: barriere conservative sui metadata; primary=none puo andare perso nei provider, database geometrico rifiutato. Nessuna conformita opzionale completa; possibili rifiuti di canonicalizzazioni lecite. | Provider corretti, corpus completo e prove sulle cinque superfici. |
+| FILE-001..007 | Matrice opzionale storage/IO non offerta; artefatti catene non equiparati ai descrittori comuni. | Adozione esplicita del descrittore e adapter storage con qualifica della matrice. |
+
+RUNTIME-02 resta coordinata con il contratto di famiglia: il pin richiesto
+contiene ancora Binding 1/2 e downgrade. RUNTIME-07 e chiusa per il pin dei
+contratti; i pin provider DATA/IO restano invariati fino al set coordinato
+con i rispettivi produttori e interop. Nessuna release o ricevuta viene
+rinominata per simulare quella qualifica.
