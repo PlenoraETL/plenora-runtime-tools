@@ -45,6 +45,9 @@ pub struct ScriptStore(
     pub Mutex<Option<(String, Pause)>>,
     // Counts write invoke resource acquisition, independently of file conflicts.
     pub std::sync::atomic::AtomicU64,
+    // Declared CAS contention at an exact successor revision; count each refusal.
+    pub std::sync::atomic::AtomicU64,
+    pub std::sync::atomic::AtomicU64,
 );
 #[async_trait]
 impl Store for ScriptStore {
@@ -403,6 +406,10 @@ impl Store for ScriptStore {
         }
         let lease = next.lease().cloned();
         let next = next.into_journal();
+        if self.20.load(Ordering::SeqCst) == next.revision() {
+            self.21.fetch_add(1, Ordering::SeqCst);
+            return Err(Error::Conflict);
+        }
         let mut rows = self.0.lock().map_err(|_| Error::Storage)?;
         let leases = self.8.lock().map_err(|_| Error::Storage)?;
         let now = u64::try_from(

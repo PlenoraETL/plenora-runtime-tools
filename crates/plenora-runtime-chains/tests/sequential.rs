@@ -1020,3 +1020,48 @@ async fn finalization_read_crossing_deadline_preserves_known_commit_without_reco
     validate_result(&result, &plan()?, &registry()?)?;
     Ok(())
 }
+
+#[tokio::test]
+async fn finalization_contention_preserves_conflict_and_never_reinvokes()
+-> Result<(), Box<dyn StdError>> {
+    // Both durable evidence registration and final view CAS must keep contention
+    // distinct from storage failure, even when their bounded local retries end.
+    for revision in [3, 4] {
+        let store = Arc::new(ScriptStore::default());
+        store.3.set(clock().now());
+        let adapter = adapter(false, false)?;
+        let engine = ChainEngine::new(
+            store.clone(),
+            adapter.clone(),
+            registry()?,
+            clock(),
+            "tenant-a",
+        )?;
+        let h = engine.submit(&plan()?, options()).await?;
+        store.20.store(revision, Ordering::SeqCst);
+        assert_eq!(engine.advance(&h.run_id).await, Err(Error::Conflict));
+        assert_eq!(store.21.load(Ordering::SeqCst), 16);
+        assert_eq!(adapter.calls.load(Ordering::SeqCst), 1);
+        store.20.store(0, Ordering::SeqCst);
+        assert!(
+            engine
+                .work_once(&uuid::Uuid::new_v4().to_string(), 30_000)
+                .await?
+        );
+        assert_eq!(adapter.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(adapter.recoveries.load(Ordering::SeqCst), 0);
+        let result = engine
+            .run(
+                &plan()?,
+                RunOptions {
+                    run_id: h.run_id,
+                    idempotency_key: None,
+                    deadline_ms: None,
+                },
+            )
+            .await?;
+        assert_eq!(result.state, "succeeded");
+        assert_eq!(adapter.calls.load(Ordering::SeqCst), 3);
+    }
+    Ok(())
+}

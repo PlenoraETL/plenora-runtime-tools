@@ -391,9 +391,17 @@ impl<S: Store> Adapter for IoAdapter<S> {
         Ok(())
     }
     async fn invoke(&self, i: &Invocation) -> Result<StepResult, Error> {
-        let prepared = self.prepared(i).await?;
+        use plenora_runtime_chains::{ExecutionStage as Stage, execution_failure};
+        let prepared = self
+            .prepared(i)
+            .await
+            .map_err(|e| execution_failure(Stage::Prepare, e))?;
         let mut request = self.allocation(i)?;
-        let mut lease = self.store.acquire_resources(&request).await?;
+        let lease = self
+            .store
+            .acquire_resources(&request)
+            .await
+            .map_err(|e| execution_failure(Stage::Acquire, e))?;
         let token = {
             let mut running = self.running.lock().map_err(|_| Error::Recovery)?;
             running.entry(i.message_id.clone()).or_default().clone()
@@ -414,53 +422,37 @@ impl<S: Store> Adapter for IoAdapter<S> {
         let future = tokio::task::spawn_blocking(move || {
             operation::execute(prepared, &invocation, &worker_token)
         });
-        tokio::pin!(future);
-        let mut ownership_lost = false;
-        let outcome = loop {
-            tokio::select! {
-                biased;
-                outcome = &mut future => break outcome,
-                () = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
-                    let Ok(now) = self.now() else { ownership_lost = true; token.cancel(); continue; };
-                    tokio::select! {
-                        biased;
-                        outcome = &mut future => break outcome,
-                        journal = tokio::time::timeout(std::time::Duration::from_millis(100), self.store.load(&i.tenant, &i.run_id)) => {
-                            match journal {
-                                Ok(Ok(journal)) if !journal.cancellation_requested() => {},
-                                _ => token.cancel(),
-                            }
-                        }
-                    }
-                    if now >= i.reservation.deadline_ms { token.cancel(); }
-                    if !ownership_lost && now.saturating_add(10_000) >= lease.until {
-                        tokio::select! {
-                            biased;
-                            outcome = &mut future => break outcome,
-                            renewed = tokio::time::timeout(std::time::Duration::from_millis(100), self.store.renew_resources(&i.tenant, &i.run_id, &lease)) => {
-                                if let Ok(Ok(next)) = renewed { lease = next; }
-                                else { ownership_lost = true; token.cancel(); }
-                            }
-                        }
-                    }
-                }
-            }
-        };
+        let supervision = plenora_runtime_chains::monitor_provider(
+            self.store.as_ref(),
+            self.clock.as_ref(),
+            &i.tenant,
+            &i.run_id,
+            i.reservation.deadline_ms,
+            lease,
+        );
+        let outcome =
+            plenora_runtime_chains::drain_supervised(future, supervision, |_| token.cancel()).await;
         self.running
             .lock()
             .map_err(|_| Error::Recovery)?
             .remove(&i.message_id);
-        let outcome = outcome.map_err(|_| Error::Recovery)??;
+        let outcome = outcome
+            .map_err(|_| execution_failure(Stage::Provider, Error::Recovery))?
+            .map_err(|e| execution_failure(Stage::Provider, e))?;
         let (result, objects) = receipt::build(
             i,
             outcome,
             request_bytes,
             self.now()?.saturating_sub(i.started_ms),
-        )?;
+        )
+        .map_err(|e| execution_failure(Stage::Receipt, e))?;
         request.objects.extend(objects);
         // Publication of documents is atomic with the subsequent confirmed chain view.
         // A failed confirmation returns recovery, never success or authorization to invoke again.
-        self.store.reconcile_resources(&request).await?;
+        self.store
+            .reconcile_resources(&request)
+            .await
+            .map_err(|e| execution_failure(Stage::Publish, e))?;
         // Even after lease loss, return the drained original evidence. The primary
         // journal fence, not this adapter, decides whether it may advance the view.
         Ok(result)

@@ -74,7 +74,10 @@ impl<A: Adapter> EvidenceComponent for Component<A> {
     ) -> ComponentOutcome {
         match self.execute(&request, budget).await {
             Ok(outcome) => outcome,
-            Err(_) => budget.failure(self.failure.clone()),
+            Err(error) => {
+                let _ = crate::execution_failure(crate::ExecutionStage::Component, error);
+                budget.failure(self.failure.clone())
+            }
         }
     }
 }

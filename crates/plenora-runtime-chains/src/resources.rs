@@ -1,6 +1,9 @@
 //! Durable ownership of declared provider doubles; expiry is never proof of termination.
 use crate::{Error, Invocation, contracts::Budget};
 use serde::{Deserialize, Serialize};
+
+/// Duration granted by the primary for a resource lease.
+pub(crate) const RESOURCE_LEASE_MS: u64 = 30_000;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
@@ -262,9 +265,11 @@ impl ResourceLedger {
         let mut next = self.clone();
         let mut refs = old.map_or_else(Vec::new, |a| a.objects.clone());
         let mut supplied = std::collections::BTreeSet::new();
-        let until = old.map_or(now.checked_add(30_000).ok_or(Error::ResourceLimit)?, |a| {
-            a.until
-        });
+        let until = old.map_or(
+            now.checked_add(RESOURCE_LEASE_MS)
+                .ok_or(Error::ResourceLimit)?,
+            |a| a.until,
+        );
         let expires = retain_until;
         for resource in &request.objects {
             resource.validate()?;
@@ -343,9 +348,10 @@ impl ResourceLedger {
         if attempt.stopped || now >= attempt.until {
             return Err(Error::Conflict);
         }
-        attempt.until = attempt
-            .until
-            .max(now.checked_add(30_000).ok_or(Error::ResourceLimit)?);
+        attempt.until = attempt.until.max(
+            now.checked_add(RESOURCE_LEASE_MS)
+                .ok_or(Error::ResourceLimit)?,
+        );
         Ok(ResourceLease {
             message_id: lease.message_id.clone(),
             until: attempt.until,

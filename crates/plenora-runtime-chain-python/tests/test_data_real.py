@@ -40,7 +40,12 @@ class DataReal(unittest.IsolatedAsyncioTestCase):
                         except ChainError as error:
                             self.assertTrue(corrupt)
                             result=error.result
-                    self.assertEqual(result["state"],"failed" if corrupt else "succeeded")
+                    self.assertEqual(result["state"],"rejected" if corrupt else "succeeded")
+                    if corrupt:
+                        self.assertEqual(result["remote_effect"], "none")
+                        self.assertEqual(result["counters"]["max_attempts"], 0)
+                        self.assertEqual(result["steps"][0]["state"], "rejected")
+                        self.assertEqual(result["steps"][0]["attempt"], 0)
                     if not corrupt:
                         for report in result["steps"][0]["reports"]:
                             document=report["document"]

@@ -461,3 +461,17 @@ I test verificano il contatore di invoke, non soltanto il contenuto invariato.
 Chiusura: evidenza upstream autenticata per riconciliare la pubblicazione, poi
 prove reali ai cut fisici. Restano i limiti RSS/tempfile/cooperazione dei pin S3;
 la composizione non li rafforza e non costituisce qualifica soak/memoria.
+
+
+### Deadline del wrapper durevole e persistenza dell'evidenza
+
+Regola: scadenza e drop non provano arresto o assenza di effetti. Ambito:
+`boundary/src/dispatcher.rs` applica il timeout anche al wrapper durevole di
+`boundary/src/durable.rs`, che comprende invocazione, drain e persistenza.
+Rischio residuo: la deadline puo interrompere il wrapper prima della conferma
+dell'evidenza, lasciando un intent da riconciliare; nessun replay e autorizzato
+per questo solo motivo. Condizione di chiusura: prova deterministica che separi
+esecuzione e finalizzazione durevole, revisione del contenimento e campagna reale.
+Questo percorso non e dimostrato come causa del fallimento S4 vm-1: un semplice
+intent attivo senza evidenza normalmente resta running, mentre il log mostra
+requires_recovery. Non si dichiara contenimento o settlement confermato.

@@ -1,4 +1,6 @@
 //! Real primary and broker worker qualification; domain outcomes are explicitly scripted.
+#[path = "support/observation.rs"]
+mod observation;
 use plenora_runtime_chain_host::{RemoteClient, ScriptedConfig, ScriptedHost};
 use plenora_runtime_chain_store::PostgresStore;
 use plenora_runtime_chains::{Error, Request, RunOptions, Store, Transport};
@@ -92,8 +94,16 @@ async fn postgres_nats_real_worker_restarts_and_retries_persisted_runs()
     let destination = subject.clone();
     let task = tokio::spawn(async move { serving.serve(&address, &destination, ready).await });
     tokio::time::timeout(Duration::from_secs(10), received).await??;
-    let client = RemoteClient::connect(&server, &subject).await?;
-    let result = tokio::time::timeout(Duration::from_secs(30), async {
+    let observation_ms = observation::budget(
+        plan["budgets"]["elapsed_ms"]
+            .as_u64()
+            .ok_or("execution budget")?,
+        plan["execution"]["cleanup_ms"]
+            .as_u64()
+            .ok_or("cleanup budget")?,
+    );
+    let client = RemoteClient::connect_with_timeout(&server, &subject, observation_ms).await?;
+    let result = tokio::time::timeout(Duration::from_millis(observation_ms), async {
         loop {
             let result = client
                 .exchange(Request::Result { run_id: id.clone() })

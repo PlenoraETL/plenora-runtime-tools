@@ -59,7 +59,8 @@ async fn oversized_journal_report_survives_real_primary_restart_and_broker()
     let (ready, received) = tokio::sync::oneshot::channel();
     let task = tokio::spawn(async move { serving.serve(&address, &destination, ready).await });
     tokio::time::timeout(Duration::from_secs(10), received).await??;
-    let client = RemoteClient::connect(&server, &subject).await?;
+    let client =
+        RemoteClient::connect_with_timeout(&server, &subject, super::OBSERVATION_MS).await?;
     let mut cursor = Some(ReportCursor {
         index: 0,
         offset: 0,

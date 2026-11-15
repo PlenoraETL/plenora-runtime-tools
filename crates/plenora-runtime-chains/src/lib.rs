@@ -26,10 +26,14 @@
 mod accounting;
 mod budget;
 mod client;
+mod diagnostics;
 mod engine;
+pub use diagnostics::{ExecutionStage, execution_failure};
 mod execution;
 mod failure;
 mod journal;
+mod monitor;
+pub use monitor::{ProviderStop, drain_supervised, monitor_provider};
 mod protocol;
 pub use failure::Failure;
 mod reports;

@@ -1,11 +1,18 @@
 //! Same complete plans on real PostgreSQL/NATS and installed CLI/wheel.
 #![allow(clippy::too_many_lines)]
+#[path = "support/interop_capture.rs"]
+mod capture;
+#[path = "support/interop_diagnostics.rs"]
+mod diagnostics;
 #[path = "support/interop_fixture.rs"]
 mod fixture;
+#[path = "support/observation.rs"]
+mod observation;
 #[path = "support/interop_oracle.rs"]
 mod oracle;
 #[path = "support/postgres_fixture.rs"]
 mod postgres_fixture;
+use futures_util::FutureExt;
 use plenora_runtime_chain_host::{InteropConfig, InteropHost, InteropProfile, RemoteClient};
 use plenora_runtime_chains::{Request, RunOptions, Transport};
 use serde_json::{Value, json};
@@ -17,6 +24,34 @@ fn options() -> RunOptions {
         idempotency_key: None,
         deadline_ms: None,
     }
+}
+#[test]
+fn real_plan_budget_is_derived_without_extending_execution() -> Test {
+    let root = tempfile::tempdir()?;
+    let (mut profile, mut plan) = fixture::fixture(root.path(), "ipc", false)?;
+    for postgres in [false, true] {
+        if postgres {
+            fixture::postgres(&mut profile, &mut plan, "source", "unused".into())?;
+        }
+        assert_eq!(plan.budgets.elapsed_ms, 180_000);
+        assert!(
+            plan.steps
+                .iter()
+                .all(|step| step.budgets.elapsed_ms == 60_000)
+        );
+        assert_eq!(
+            plan.budgets.elapsed_ms,
+            plan.steps
+                .iter()
+                .map(|step| step.budgets.elapsed_ms)
+                .sum::<u64>()
+        );
+        assert_eq!(
+            profile.authorized_plans,
+            vec![serde_json::to_string(&plan)?]
+        );
+    }
+    Ok(())
 }
 fn configured(
     profile: &InteropProfile,
@@ -42,6 +77,46 @@ fn configured(
 fn axes(value: &Value) -> Value {
     json!({"state":value["state"],"remote_effect":value["remote_effect"],"reports_complete":value["reports_complete"],"losses":value["losses"],"steps":value["steps"].as_array().map(|steps|steps.iter().map(|s|json!({"state":s["state"],"attempt":s["attempt"],"effect":s["remote_effect"],"rows_read":s["counters"]["rows_read"],"rows_produced":s["counters"]["rows_produced"],"category":s["error"]["category"],"phase":s["error"]["phase"],"retry":s["retry"],"stop_confirmed":s["stop_confirmed"],"reports":s["reports"].as_array().map(|r|r.iter().map(|r|json!([r["kind"],r["availability"]])).collect::<Vec<_>>())})).collect::<Vec<_>>())})
 }
+// The descriptor selects the exact upstream wire shape; no fallback projection.
+fn database_read_loss<'a>(descriptor: &Value, doc: &'a Value) -> Result<&'a Value, &'static str> {
+    let loss = match descriptor["contract"].as_str() {
+        Some("plenora-error-v1") => &doc["details"]["read_loss"],
+        Some("plenora-database-read-result-v1") => &doc["read_loss"],
+        _ => return Err("unexpected database evidence contract"),
+    };
+    loss.as_object().ok_or("database read evidence absent")?;
+    Ok(loss)
+}
+
+#[test]
+fn database_loss_oracle_uses_declared_contract() {
+    for (contract, valid, wrong) in [
+        (
+            "plenora-error-v1",
+            json!({"details":{"read_loss":{}}}),
+            json!({"read_loss":{}}),
+        ),
+        (
+            "plenora-database-read-result-v1",
+            json!({"read_loss":{}}),
+            json!({"details":{"read_loss":{}}}),
+        ),
+    ] {
+        let descriptor = json!({"contract":contract});
+        assert!(database_read_loss(&descriptor, &valid).is_ok());
+        assert!(database_read_loss(&descriptor, &wrong).is_err());
+        for invalid in [
+            Value::Null,
+            json!([]),
+            json!({"read_loss":null}),
+            json!({"details":{"read_loss":[]}}),
+        ] {
+            assert!(database_read_loss(&descriptor, &invalid).is_err());
+        }
+    }
+    assert!(database_read_loss(&json!({"contract":"unknown"}), &json!({"read_loss":{}})).is_err());
+}
+
 async fn evidence(
     host: &InteropHost,
     value: &Value,
@@ -82,11 +157,7 @@ async fn evidence(
                     if step["operation"] == "data.run" {
                         docs.push(doc);
                     } else if step["operation"] == "database.read" {
-                        assert!(
-                            doc["read_loss"].is_object(),
-                            "database read evidence absent"
-                        );
-                        docs.push(json!({"read_loss":doc["read_loss"]}));
+                        docs.push(json!({"read_loss":database_read_loss(d, &doc)?}));
                     } else {
                         docs.push(json!({"fidelity":doc["fidelity"],"loss":doc["loss"],"input_fidelity":doc["input_fidelity"],"input_loss":doc["input_loss"],"write_fidelity":doc["write_fidelity"],"write_loss":doc["write_loss"],"rows_read":doc["rows_read"],"rows_written":doc["rows_written"],"truncated":doc["truncated"]}));
                     }
@@ -148,6 +219,24 @@ async fn postgres_real_interop_reports_restart() -> Test {
         })
         .await;
     assert!(cancelled.error.is_none());
+    assert_eq!(cancelled.value["state"], "cancel_requested");
+    let pending = restored
+        .execute(Request::Result {
+            run_id: run_id.clone(),
+        })
+        .await;
+    assert_eq!(pending.error, Some(plenora_runtime_chains::Error::Pending));
+    drop(restored);
+    let restored = InteropHost::interop(serde_json::from_slice(&raw)?)?;
+    let resumed = restored
+        .execute(Request::Resume {
+            run_id: run_id.clone(),
+            revision: cancelled.value["revision"].as_u64().ok_or("revision")?,
+            recovery: plenora_runtime_chains::Recovery::Continue,
+        })
+        .await;
+    assert!(resumed.error.is_none());
+    assert_eq!(resumed.value["state"], "cancelled");
     let result = restored.execute(Request::Result { run_id }).await;
     assert_eq!(result.value["state"], "cancelled");
     assert_eq!(result.value["counters"]["max_attempts"], 0);
@@ -168,7 +257,8 @@ async fn five_surfaces_same_real_plan_and_independent_error_oracles() -> Test {
         "CREATE TABLE {unregistered} (value text); INSERT INTO {unregistered} VALUES ('hello');"
     ))
     .await?;
-    for (format, geometry, target, expected, failed) in [
+    let mut mismatches = 0;
+    let cases = [
         ("ipc", false, "ipc", "succeeded", None),
         ("ipc", true, "ipc", "succeeded", None),
         ("ipc", true, "geoparquet", "succeeded", None),
@@ -199,7 +289,18 @@ async fn five_surfaces_same_real_plan_and_independent_error_oracles() -> Test {
             "failed",
             Some((0, "data_mapping")),
         ),
-    ] {
+    ];
+    let surfaces = ["rust", "runtime", "cli", "sync", "async"];
+    if let Some(root) = std::env::var_os("PLENORA_INTEROP_CAPTURE") {
+        let planned: Vec<_> = cases.iter().flat_map(|(format, geometry, target, expected, _)|
+            surfaces.iter().map(move |surface| json!({"case":format!("{format}-{geometry}-{target}-{surface}"),
+                "format":format,"geometry":geometry,"target":target,"surface":surface,"expected":expected}))).collect();
+        capture::write(
+            &std::path::PathBuf::from(root).join("manifest.json"),
+            &json!({"planned":planned}),
+        )?;
+    }
+    for (format, geometry, target, expected, failed) in cases {
         let root = tempfile::tempdir()?;
         let (mut profile, mut plan) = fixture::fixture(
             root.path(),
@@ -226,13 +327,32 @@ async fn five_surfaces_same_real_plan_and_independent_error_oracles() -> Test {
             )?;
         }
         let mut reference = None;
-        for surface in ["rust", "runtime", "cli", "sync", "async"] {
+        for surface in surfaces {
+            let o = options();
+            let capture = capture::begin(
+                &format!("{format}-{geometry}-{target}-{surface}"),
+                &json!({"format":format,"geometry":geometry,"target":target,"surface":surface,
+                    "expected":expected,"run_id":o.run_id,"plan":plan,
+                    "started_at_ms":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_millis()}),
+            )?;
+            let started = std::time::Instant::now();
+            let mut capture_tenant = None;
+            let mut snapshot_attempted = false;
+            let mut snapshot_failed = false;
+            let outcome = std::panic::AssertUnwindSafe(async {
+            eprintln!(
+                "S4 start: format={format}; geometry={geometry}; target={target}; surface={surface}"
+            );
             let directory = root.path().join(surface);
             let config = configured(&profile, &directory)?;
+            let tenant = config.adapter.tenant.clone();
+            capture_tenant = Some(tenant.clone());
+            if let Some(directory) = &capture {
+                capture::write(&directory.join("binding.json"), &json!({"tenant":tenant,"run_id":o.run_id}))?;
+            }
             let raw = serde_json::to_vec(&config)?;
             let h = Arc::new(InteropHost::interop(config)?);
             h.migrate().await?;
-            let o = options();
             let request = Request::Run {
                 plan: serde_json::to_string(&plan)?,
                 options: o.clone(),
@@ -247,7 +367,12 @@ async fn five_surfaces_same_real_plan_and_independent_error_oracles() -> Test {
                 let name = subject.clone();
                 let task = tokio::spawn(async move { serving.serve(&address, &name, ready).await });
                 tokio::time::timeout(Duration::from_secs(20), received).await??;
-                let client = RemoteClient::connect_with_timeout(&server, &subject, 240_000).await?;
+                let client = RemoteClient::connect_with_timeout(
+                    &server,
+                    &subject,
+                    observation::budget(plan.budgets.elapsed_ms, plan.execution.cleanup_ms),
+                )
+                .await?;
                 let response = client.exchange(request).await;
                 task.abort();
                 let _stopped = task.await;
@@ -256,13 +381,16 @@ async fn five_surfaces_same_real_plan_and_independent_error_oracles() -> Test {
                 let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
                     .join("../plenora-runtime-chain-python/tests/interop_surface_probe.py");
                 let input = serde_json::to_vec(
-                    &json!({"config":serde_json::from_slice::<Value>(&raw)?,"plan":plan,"options":o}),
+                    &json!({"config":serde_json::from_slice::<Value>(&raw)?,"plan":plan,"options":o,"observation_ms":observation::budget(plan.budgets.elapsed_ms, plan.execution.cleanup_ms)}),
                 )?;
                 let surface = surface.to_owned();
                 let output = tokio::task::spawn_blocking(move || -> std::io::Result<_> {
                     let mut child = std::process::Command::new("python")
                         .arg(script)
                         .arg(surface)
+                        // Native child diagnostics would violate the installed CLI stderr oracle.
+                        .env_remove("PLENORA_CHAIN_DIAGNOSTICS")
+                        .env_remove("PLENORA_STORAGE_DIAGNOSTICS")
                         .stdin(std::process::Stdio::piped())
                         .stdout(std::process::Stdio::piped())
                         .stderr(std::process::Stdio::piped())
@@ -275,6 +403,9 @@ async fn five_surfaces_same_real_plan_and_independent_error_oracles() -> Test {
                     child.wait_with_output()
                 })
                 .await??;
+                if let Some(directory) = &capture {
+                    capture::write(&directory.join("child.json"), &json!({"exit_code":output.status.code(),"stdout":output.stdout,"stderr":output.stderr}))?;
+                }
                 assert!(
                     output.status.success(),
                     "installed qualification failed: {}",
@@ -282,8 +413,50 @@ async fn five_surfaces_same_real_plan_and_independent_error_oracles() -> Test {
                 );
                 serde_json::from_slice(&output.stdout)?
             };
+            if let Some(directory) = &capture {
+                capture::write(&directory.join("response.json"), &response)?;
+                snapshot_attempted = true;
+                snapshot_failed = true;
+                if capture::finish(directory, &connection, &tenant, &o.run_id, started.elapsed().as_millis()).await.is_ok() {
+                    snapshot_failed = false;
+                }
+                if snapshot_failed {
+                    capture::write(&directory.join("capture-error.json"), &json!({"stage":"primary_snapshot","complete":false}))?;
+                    return Err("private forensic snapshot incomplete".into());
+                }
+            }
             let result = &response["value"];
-            assert_eq!(result["state"], expected, "{format}/{surface}");
+            eprintln!(
+                "S4 outcome: format={format}; geometry={geometry}; target={target}; surface={surface}; elapsed_ms={}; facts={}",
+                started.elapsed().as_millis(),
+                diagnostics::summary(&response)
+            );
+            if result["state"] != expected {
+                let reports = h
+                    .execute(Request::Report {
+                        run_id: o.run_id.clone(),
+                        cursor: None,
+                    })
+                    .await;
+                eprintln!("S4 original reports: error={:?}", reports.error);
+                if let Ok(reports) = serde_json::from_value::<Vec<Vec<u8>>>(reports.value) {
+                    for (index, raw) in reports.iter().enumerate() {
+                        match plenora_runtime_chains::contracts::parse_step_result(raw) {
+                            Ok(step) => eprintln!(
+                                "S4 original report: index={index}; facts={}",
+                                diagnostics::summary(&json!({"value":{"steps":[step]}}))
+                            ),
+                            Err(rejection) => eprintln!(
+                                "S4 original report: index={index}; rejection={}",
+                                rejection.0.as_str()
+                            ),
+                        }
+                    }
+                }
+            }
+            if result["state"] != expected {
+                return Err("terminal state differs from contract oracle".into());
+            }
             if let Some((index, category)) = failed {
                 assert_eq!(result["steps"][index]["error"]["category"], category);
                 if index == 2 {
@@ -325,8 +498,60 @@ async fn five_surfaces_same_real_plan_and_independent_error_oracles() -> Test {
             } else {
                 reference = Some(observed);
             }
+            Ok::<(), Box<dyn std::error::Error>>(())
+            }).catch_unwind().await;
+            if let Some(directory) = &capture
+                && !snapshot_attempted
+            {
+                if let Some(tenant) = &capture_tenant {
+                    if capture::finish(
+                        directory,
+                        &connection,
+                        tenant,
+                        &o.run_id,
+                        started.elapsed().as_millis(),
+                    )
+                    .await
+                    .is_err()
+                    {
+                        snapshot_failed = true;
+                        capture::write(
+                            &directory.join("capture-error.json"),
+                            &json!({"stage":"primary_snapshot","complete":false}),
+                        )?;
+                    }
+                } else {
+                    snapshot_failed = true;
+                    capture::write(
+                        &directory.join("capture-error.json"),
+                        &json!({"stage":"before_tenant_binding","complete":false}),
+                    )?;
+                }
+            }
+            let case_status = match &outcome {
+                Ok(Ok(())) if !snapshot_failed => "passed",
+                Ok(Ok(())) => "capture_failed",
+                Ok(Err(_)) => "operation_failed",
+                Err(_) => "assertion_failed",
+            };
+            if let Some(directory) = &capture {
+                capture::write(
+                    &directory.join("case-status.json"),
+                    &json!({"status":case_status, "response_file_present":directory.join("response.json").is_file(), "snapshot_complete":!snapshot_failed}),
+                )?;
+            }
+            if case_status != "passed" {
+                mismatches += 1;
+                eprintln!(
+                    "S4 case failed: format={format}; geometry={geometry}; target={target}; surface={surface}"
+                );
+            }
         }
     }
+    assert_eq!(
+        mismatches, 0,
+        "S4 terminal-state mismatches; see per-case captures"
+    );
     pg.batch_execute(&format!(
         "DROP TABLE {pg_source}; DROP TABLE {unregistered}"
     ))

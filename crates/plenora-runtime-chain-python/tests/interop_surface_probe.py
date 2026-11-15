@@ -18,10 +18,10 @@ async def execute():
             path.write_text(json.dumps(config), encoding="utf-8")
             result = subprocess.run([os.environ["PLENORA_CHAIN_BIN"], "interop-call", str(path)],
                 input=json.dumps({"function":"run", "plan":plan, "options":options}),
-                text=True, encoding="utf-8", capture_output=True, check=False, timeout=180)
+                text=True, encoding="utf-8", capture_output=True, check=False, timeout=request["observation_ms"] / 1000)
             if result.stderr: raise AssertionError("CLI emitted unexpected diagnostics")
             response = json.loads(result.stdout)
-            if result.returncode != (0 if response["error"] is None else 3): raise AssertionError("chain exit/result mismatch")
+            if result.returncode != ({None:0,"invalid":2,"failed":3,"recovery":4,"cancelled":5}[response["error"]]): raise AssertionError("chain exit/result mismatch")
             return response
     try:
         if surface == "sync":

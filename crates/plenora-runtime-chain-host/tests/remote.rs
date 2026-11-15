@@ -2,10 +2,9 @@
 use plenora_runtime_chain_host::{RemoteClient, ScriptedConfig, ScriptedHost};
 use plenora_runtime_chains::{Request, Store, Transport};
 use std::{error::Error, sync::Arc, time::Duration};
-// The fixture permits 100s execution and 1s cleanup. Admission and terminal
-// settlement each get one primary statement budget (15s); this is observation,
-// not permission to extend the authorized run deadline or to replay on timeout.
-const OBSERVATION_MS: u64 = 100_000 + 1_000 + 2 * 15_000;
+#[path = "support/observation.rs"]
+mod observation;
+const OBSERVATION_MS: u64 = observation::budget(100_000, 1_000);
 
 struct Observed(RemoteClient);
 impl Observed {
@@ -50,7 +49,7 @@ fn observation_budget_covers_authorized_fixture_execution() -> Result<(), Box<dy
             assert!(
                 execution
                     .checked_add(cleanup)
-                    .and_then(|n| n.checked_add(30_000))
+                    .and_then(|n| n.checked_add(observation::PRIMARY_ALLOWANCE_MS))
                     .is_some_and(|n| n <= OBSERVATION_MS)
             );
         }

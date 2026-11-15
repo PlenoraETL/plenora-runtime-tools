@@ -119,7 +119,7 @@ pub fn fixture(
     ))?;
     plan["components"] = serde_json::to_value(&registry.components)?;
     let budget = json!({"memory_bytes":268_435_456,"elapsed_ms":60_000,"rows_read":1000,"rows_produced":1000,"artifact_bytes":16_777_216,"spool_bytes":268_435_456,"request_bytes":16_777_216,"result_bytes":1_048_576,"max_attempts":1});
-    plan["budgets"] = json!({"memory_bytes":1_073_741_824,"elapsed_ms":180_000,"rows_read":3000,"rows_produced":3000,"artifact_bytes":67_108_864,"spool_bytes":1_073_741_824,"request_bytes":67_108_864,"result_bytes":4_194_304,"max_attempts":3});
+    plan["budgets"] = json!({"memory_bytes":1_073_741_824,"elapsed_ms":0,"rows_read":3000,"rows_produced":3000,"artifact_bytes":67_108_864,"spool_bytes":1_073_741_824,"request_bytes":67_108_864,"result_bytes":4_194_304,"max_attempts":3});
     for (index, (component, operation, version)) in [
         ("io", "io.read", 2),
         ("data", "data.run", 3),
@@ -148,6 +148,17 @@ pub fn fixture(
         s.as_object_mut().ok_or("step")?.remove("loss_consent");
         profile.artifacts.insert(reference, bytes);
     }
+    // Sequential plan execution is authorized from its declared step budgets.
+    plan["budgets"]["elapsed_ms"] = json!(
+        plan["steps"]
+            .as_array()
+            .ok_or("steps")?
+            .iter()
+            .map(|step| step["budgets"]["elapsed_ms"].as_u64().ok_or("elapsed"))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .sum::<u64>()
+    );
     plan["steps"][1]["inputs"] = json!({"data":{"source":{"kind":"step","step":"read","port":"data"},"expected":spec.port(),"boundary":"io-data","schema_barrier":true}});
     plan["steps"][2]["inputs"] = json!({"data":{"source":{"kind":"step","step":"transform","port":"output"},"expected":spec.port(),"boundary":"data-io","schema_barrier":true}});
     plan["outputs"] = json!({"data":{"source":{"kind":"step","step":"transform","port":"output"},"expected":spec.port(),"publication":"durable"}});

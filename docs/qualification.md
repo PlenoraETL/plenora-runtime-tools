@@ -599,3 +599,29 @@ quattro assi. PG read@1 -> DATA -> IO e implementata e inclusa nei job reali,
 ma non eseguita localmente: nessuna qualifica PG derivata dalla sola ammissione.
 Il consenso IO non e un gate S4 da simulare: resta una revisione comune futura
 con U4, esplicitamente separata dal rifiuto attuale delle perdite.
+
+
+### Supervisione primaria degli adapter S3/S4
+
+Regola: la frequenza di polling non e un timeout della primaria. IO, DATA e
+PostgreSQL condividono `monitor_provider`: letture e rinnovi indipendenti,
+deadline originale e lease primaria sempre osservate; la richiesta di stop
+richiede ancora il drain e l'evidenza del provider. Ambito: adapter reali S3/S4.
+Rischio: una primaria lenta puo esaurire la lease o fallire; non autorizza replay
+ne prova arresto. Gate aperto: campagna reale PostgreSQL/PostGIS/NATS e superfici
+installate, inclusi restart/cancel e journal remoto, oltre a CI Linux/Windows.
+Condizione di chiusura: esecuzione verde dei test reali `interop_real`, `remote`
+e `test_data_real.py`, con i gate CI e coverage completi. Le prove locali con
+`ManualClock` e timer sospesi non qualificano la latenza di un deployment.
+
+
+La riproduzione Linux `target/ci25/vm-1` conferma check/unit, host locale,
+adapter (seconda compilazione), remote, host-adapter, superfici installate e
+Python. Restano non qualificati i sessanta casi della matrice S4: il test si
+ferma a `ipc/rust` con recovery, ma il vecchio assert non identificava geometria
+e formato di uscita. Regola: mantenere succeeded per i casi positivi e non
+attribuire una causa senza evidenza. Ambito: interop_real. Rischio: confondere
+pubblicazione ignota, errore adapter e risultato non classificabile. Chiusura:
+rerun della matrice con case completo, assi redatti e stage operativi, quindi
+correzione della causa provata e nuova campagna verde. La diagnostica non chiude
+il gate e non modifica deadline, effetti o risultati.
