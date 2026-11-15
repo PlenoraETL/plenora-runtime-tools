@@ -424,6 +424,47 @@ mod cases {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn extreme_clock_rejects_before_invocation() -> Result<(), Box<dyn Error>> {
+        let records = Arc::new(Mutex::new(Vec::new()));
+        let mut builder = CapabilityRegistryBuilder::new(CapabilityRegistryConfig::new(1)?)?;
+        builder.register(
+            CapabilityId::new("plenora.data-tools", 1)?,
+            RecordingHandler {
+                adapter: "data",
+                records: Arc::clone(&records),
+            },
+        )?;
+        let registry = builder.build();
+        let delta = Duration::from_secs(10_000_000_000_000);
+        for now in [
+            SystemTime::UNIX_EPOCH.checked_add(delta),
+            SystemTime::UNIX_EPOCH.checked_sub(delta),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let dispatcher =
+                CapabilityDispatcher::new(registry.clone(), CapabilityDispatcherConfig::new(32)?)?
+                    .with_clock(Arc::new(FixedClock(now)));
+            let error = dispatcher
+                .handle(worker_context(1), deadline_request()?)
+                .await
+                .err()
+                .ok_or("extreme clock accepted")?;
+            assert_eq!(
+                error.request_rejection(),
+                Some(plenora_runtime_capabilities::CapabilityRequestRejection::ClockOutOfRange)
+            );
+            assert_eq!(
+                error.public_error()?.category(),
+                PlenoraErrorCategory::Internal
+            );
+        }
+        assert!(lock(&records).is_empty());
+        Ok(())
+    }
+
     fn deadline_request() -> Result<CapabilityRequest, Box<dyn Error>> {
         let mut headers = MessageMetadata::new();
         let _replaced =

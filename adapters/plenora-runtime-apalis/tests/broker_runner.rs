@@ -995,3 +995,49 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         Err(poisoned) => poisoned.into_inner(),
     }
 }
+
+#[tokio::test]
+async fn dead_letter_extreme_clock_neither_publishes_nor_terminates_original()
+-> Result<(), Box<dyn Error>> {
+    let delta = Duration::from_secs(10_000_000_000_000);
+    for value in [
+        std::time::SystemTime::UNIX_EPOCH.checked_add(delta),
+        std::time::SystemTime::UNIX_EPOCH.checked_sub(delta),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let runtime = runtime();
+        let broker = FakeBroker::new(ManualClock::default());
+        let _id = broker.enqueue(worker_message(String::from("poison"))?)?;
+        let delivery = broker
+            .dequeue()?
+            .ok_or(TestError("missing delivery"))?
+            .into_delivery();
+        let service = BrokerDeliveryService::new_with_lifecycle(
+            MetadataMessageDecoder::<_, String>::new(TextCodec),
+            FailingHandler,
+            FixedPolicy(RetryDecision::DeadLetter),
+            adapter_config(1)?,
+            runtime.shutdown_signal(),
+            Arc::new(LifecycleRecorder::default()),
+            Arc::new(ManualClock::new(value)),
+        )?
+        .with_dead_letter_sink(broker.producer());
+        let error = service
+            .execute(delivery)
+            .await
+            .err()
+            .ok_or(TestError("extreme clock accepted"))?;
+        assert_eq!(error.kind(), BrokerWorkerErrorKind::DeadLetterPublish);
+        assert_eq!(
+            error
+                .dead_letter_error()
+                .map(plenora_runtime_messaging::DeadLetterPublishError::kind),
+            Some(plenora_runtime_messaging::DeadLetterPublishErrorKind::Metadata)
+        );
+        assert!(broker.published_messages().is_empty());
+        assert_eq!(broker.snapshot().terminal_delivery_count, 0);
+    }
+    Ok(())
+}

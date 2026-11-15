@@ -6,9 +6,10 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use chrono::{DateTime, Utc};
+use chrono::{Datelike, Utc};
 use chrono_tz::Tz;
 use cron::Schedule as CronSchedule;
+use plenora_runtime_core::temporal;
 
 /// Maximum accepted cron expression bytes.
 pub const MAX_CRON_EXPRESSION_BYTES: usize = 1024;
@@ -149,7 +150,7 @@ impl CronPlan {
             .map_err(|_error| CronPlanError::new(CronPlanErrorKind::InvalidTimezone))?;
         let schedule = CronSchedule::from_str(&expression)
             .map_err(|_error| CronPlanError::new(CronPlanErrorKind::InvalidExpression))?;
-        let first_due_at = next_after(&schedule, timezone, first_after)
+        let first_due_at = next_after(&schedule, timezone, first_after)?
             .ok_or_else(|| CronPlanError::new(CronPlanErrorKind::NoFutureOccurrence))?;
         Ok(Self {
             expression,
@@ -158,6 +159,15 @@ impl CronPlan {
             schedule,
             first_due_at,
         })
+    }
+
+    /// Calculates the next occurrence, distinguishing invalid time from exhaustion.
+    /// Cron accepts UTC years 1..=9999, leaving calendar headroom for local offsets
+    /// and dependency iteration. The trait's `next_after` rejects invalid time as None.
+    /// # Errors
+    /// Returns `TimeRange` outside this calendar or the platform clock domain.
+    pub fn try_next_after(&self, after: SystemTime) -> Result<Option<SystemTime>, CronPlanError> {
+        next_after(&self.schedule, self.timezone, after)
     }
 
     /// Returns the validated cron expression.
@@ -179,7 +189,7 @@ impl SchedulePlan for CronPlan {
     }
 
     fn next_after(&self, previous_due_at: SystemTime) -> Option<SystemTime> {
-        next_after(&self.schedule, self.timezone, previous_due_at)
+        self.try_next_after(previous_due_at).ok().flatten()
     }
 }
 
@@ -194,17 +204,29 @@ impl Debug for CronPlan {
     }
 }
 
-fn next_after(schedule: &CronSchedule, timezone: Tz, after: SystemTime) -> Option<SystemTime> {
-    let after = DateTime::<Utc>::from(after).with_timezone(&timezone);
+fn next_after(
+    schedule: &CronSchedule,
+    timezone: Tz,
+    after: SystemTime,
+) -> Result<Option<SystemTime>, CronPlanError> {
+    let range = || CronPlanError::new(CronPlanErrorKind::TimeRange);
+    let after = temporal::clock(after).map_err(|_| range())?;
+    if !(1..=9999).contains(&after.year()) {
+        return Err(range());
+    }
+    let after = after.with_timezone(&timezone);
     schedule
         .after(&after)
         .next()
-        .map(|next| SystemTime::from(next.with_timezone(&Utc)))
+        .map(|next| temporal::calendar(next.with_timezone(&Utc)).map_err(|_| range()))
+        .transpose()
 }
 
 /// Stable cron construction category.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CronPlanErrorKind {
+    /// Input or output is outside the declared cron calendar/platform range.
+    TimeRange,
     /// Expression is blank.
     EmptyExpression,
     /// Expression exceeds its defensive bound.
@@ -242,6 +264,7 @@ impl CronPlanError {
 impl Display for CronPlanError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self.kind {
+            CronPlanErrorKind::TimeRange => "cron time is outside the supported range",
             CronPlanErrorKind::EmptyExpression => "cron expression must not be blank",
             CronPlanErrorKind::ExpressionTooLarge => "cron expression exceeds the byte bound",
             CronPlanErrorKind::EmptyTimezone => "cron timezone must not be blank",

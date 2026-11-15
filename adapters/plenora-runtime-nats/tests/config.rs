@@ -195,7 +195,7 @@ fn every_connection_and_producer_configuration_bound_is_field_specific()
 #[test]
 fn every_consumer_bound_and_provisioning_failure_is_rejected() -> Result<(), Box<dyn Error>> {
     let base = consumer_config()?;
-    let overflow_heartbeat = DeliveryHeartbeatConfig::new(Duration::MAX, 2)?;
+    let overflow_heartbeat = DeliveryHeartbeatConfig::new(Duration::from_hours(24), u32::MAX)?;
     let excessive_pending = usize::try_from(i64::MAX)?.saturating_add(1);
     let cases = [
         consumer_mutated(&base, |config| config.stream = Arc::from(" ")),
@@ -338,4 +338,35 @@ fn connection_requires_a_finite_positive_reconnect_bound() {
 
     assert!(zero.validate().is_err());
     assert!(NatsConfig::default().validate().is_ok());
+}
+
+#[test]
+fn all_nats_time_fields_reject_extremes() -> Result<(), Box<dyn Error>> {
+    for value in [
+        Duration::MAX,
+        Duration::from_secs(u64::MAX),
+        Duration::from_hours(24) + Duration::from_nanos(1),
+    ] {
+        let mut connection = NatsConfig {
+            connect_timeout: value,
+            ..NatsConfig::default()
+        };
+        assert!(connection.validate().is_err());
+        connection.connect_timeout = Duration::from_secs(1);
+        connection.request_timeout = value;
+        assert!(connection.validate().is_err());
+        let mut consumer = consumer_config()?;
+        consumer.ack_wait = value;
+        assert!(consumer.validate().is_err());
+        consumer = consumer_config()?;
+        consumer.shutdown_nak_delay = value;
+        assert!(consumer.validate().is_err());
+        let mut replay = replay_config()?;
+        replay.ack_wait = value;
+        assert!(replay.validate().is_err());
+        replay = replay_config()?;
+        replay.shutdown_nak_delay = value;
+        assert!(replay.validate().is_err());
+    }
+    Ok(())
 }

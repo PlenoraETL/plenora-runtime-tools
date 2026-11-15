@@ -18,3 +18,5 @@ Adapter IO candidate reale: [ADR 0012](0012-io-chain-adapter.md).
 Adapter DATA candidate reale: [ADR 0013](0013-data-chain-adapter.md).
 
 Real IO/DATA chains: [ADR 0014](0014-real-chain-composition.md).
+
+Aritmetica temporale runtime: [ADR 0015](0015-checked-runtime-time.md).

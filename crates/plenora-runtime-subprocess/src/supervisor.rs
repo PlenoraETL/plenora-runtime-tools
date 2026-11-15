@@ -14,7 +14,7 @@ use tokio::{
     process::{Child, Command},
     sync::Semaphore,
     task::JoinHandle,
-    time::{Instant, sleep, timeout},
+    time::{Instant, sleep_until, timeout},
 };
 
 use crate::{
@@ -334,9 +334,9 @@ impl SubprocessSupervisor {
                 io::Error::other("child process did not expose an identifier"),
             ));
         };
-        let deadline = sleep(self.config.execution_timeout());
+        let deadline = sleep_until(timer_deadline(self.config.execution_timeout())?);
         tokio::pin!(deadline);
-        let memory_tick = sleep(self.config.memory_sample_interval());
+        let memory_tick = sleep_until(timer_deadline(self.config.memory_sample_interval())?);
         tokio::pin!(memory_tick);
 
         loop {
@@ -395,7 +395,8 @@ impl SubprocessSupervisor {
                             status,
                         ));
                     }
-                    memory_tick.as_mut().reset(Instant::now() + self.config.memory_sample_interval());
+                    plenora_runtime_core::temporal::reset_timer(memory_tick.as_mut(), Instant::now(), self.config.memory_sample_interval())
+                        .map_err(timer_error)?;
                 }
             }
         }
@@ -730,7 +731,10 @@ enum HelperWait {
 /// Polls a helper until it exits or the deadline elapses.
 #[cfg(any(unix, windows))]
 fn poll_until(helper: &mut std::process::Child, budget: Duration) -> HelperWait {
-    let deadline = std::time::Instant::now() + budget;
+    let Ok(deadline) = plenora_runtime_core::temporal::deadline(std::time::Instant::now(), budget)
+    else {
+        return HelperWait::Unresolved;
+    };
     loop {
         match helper.try_wait() {
             Ok(Some(status)) => return HelperWait::Exited(status.success()),
@@ -948,4 +952,16 @@ mod tests {
         }
         Ok(())
     }
+}
+
+fn timer_deadline(delay: Duration) -> Result<Instant, SubprocessError> {
+    plenora_runtime_core::temporal::timer_deadline(Instant::now(), delay).map_err(timer_error)
+}
+
+fn timer_error(error: plenora_runtime_core::temporal::TimeError) -> SubprocessError {
+    SubprocessError::new(
+        SubprocessErrorKind::TimeRange,
+        "subprocess timer deadline is not representable",
+        io::Error::other(error),
+    )
 }

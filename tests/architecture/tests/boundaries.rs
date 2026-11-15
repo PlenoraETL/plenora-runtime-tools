@@ -2166,3 +2166,65 @@ fn relative_path(root: &Path, path: &Path) -> String {
         |relative| relative.display().to_string(),
     )
 }
+
+fn forbidden_time_conversion(source: &str) -> bool {
+    let compact: String = sanitize_production_rust(source, LiteralPolicy::Mask)
+        .chars()
+        .filter(|ch| !ch.is_whitespace())
+        .collect();
+    [
+        "SystemTime::from(",
+        ".now().into()",
+        "SystemTime::UNIX_EPOCH+",
+        "Instant::now()+",
+        "SystemTime::now()+",
+        "Duration::from_secs_f64(",
+        "Duration::from_secs_f32(",
+        ".timestamp_nanos()",
+        "TimeDelta::seconds(",
+        "TimeDelta::days(",
+    ]
+    .iter()
+    .any(|pattern| compact.contains(pattern))
+        || compact.split("DateTime").skip(1).any(|tail| {
+            tail.split([';', '{', '}'])
+                .next()
+                .is_some_and(|expression| {
+                    expression.starts_with("::from(")
+                        || expression.starts_with("::<") && expression.contains(">::from(")
+                })
+        })
+}
+
+#[test]
+fn production_time_conversions_remain_checked() -> Result<(), Box<dyn Error>> {
+    let root = workspace_root()?;
+    let mut violations = Vec::new();
+    for file in production_rust_files(&root)? {
+        if forbidden_time_conversion(&fs::read_to_string(&file)?) {
+            violations.push(format!(
+                "{} has an infallible temporal conversion or unchecked clock addition",
+                relative_path(&root, &file)
+            ));
+        }
+    }
+    finish_violations(violations)
+}
+
+#[test]
+fn time_guard_detects_known_regressions_and_ignores_tests() {
+    for source in [
+        "fn run() { DateTime::<Utc>::from(clock.now()); }",
+        "fn run() { SystemTime::from(remote); }",
+        "fn run() { Instant::now() + interval; }",
+        "fn run() { Duration::from_secs_f64(remote); }",
+    ] {
+        assert!(forbidden_time_conversion(source), "missed {source}");
+    }
+    assert!(!forbidden_time_conversion(
+        "#[cfg(test)] mod tests { fn test() { DateTime::<Utc>::from(clock.now()); } }"
+    ));
+    assert!(!forbidden_time_conversion(
+        "fn run() { clock.checked_add(interval); }"
+    ));
+}

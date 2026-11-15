@@ -8,6 +8,8 @@ license-file.workspace = true
 publish = false
 
 [dependencies]
+# Shared checked time admission; neutral runtime primitive.
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
 async-trait.workspace = true
 bytes.workspace = true
 chrono.workspace = true

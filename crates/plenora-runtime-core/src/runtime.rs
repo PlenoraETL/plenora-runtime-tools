@@ -81,7 +81,8 @@ pub enum RuntimePhase {
 /// Configurable process lifecycle behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RuntimeConfig {
-    /// Maximum time allowed for supervised tasks to drain.
+    /// Maximum time allowed for supervised tasks to drain: positive and at most 24 hours.
+    /// Invalid time is rejected by spawn and reported by shutdown as `InvalidTime`.
     pub shutdown_grace_period: Duration,
     /// Reaction to failure of an optional task.
     pub optional_task_failure: OptionalTaskFailurePolicy,
@@ -107,6 +108,8 @@ impl Default for RuntimeConfig {
 /// Result of a bounded runtime drain attempt.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DrainOutcome {
+    /// Invalid configured time prevented a drain wait; outstanding tasks were aborted.
+    InvalidTime,
     /// All supervised tasks completed within the grace period.
     Completed,
     /// The grace period elapsed while tasks were still active.
@@ -417,6 +420,11 @@ impl RuntimeHandle {
     pub async fn shutdown(&self) -> DrainOutcome {
         let _started = self.request_shutdown();
 
+        if crate::temporal::timeout(self.inner.config.shutdown_grace_period).is_err() {
+            self.inner.abort_active_tasks();
+            self.inner.mark_stopped();
+            return DrainOutcome::InvalidTime;
+        }
         let outcome = if self.active_tasks() == 0 {
             DrainOutcome::Completed
         } else if let Ok(()) = timeout(
@@ -451,6 +459,8 @@ impl RuntimeHandle {
         F: Future<Output = Result<(), E>> + Send + 'static,
         E: Error + Send + Sync + 'static,
     {
+        crate::temporal::timeout(self.inner.config.shutdown_grace_period)
+            .map_err(|_| SpawnError::InvalidTime)?;
         let runtime = Handle::try_current().map_err(|_| SpawnError::NoRuntime)?;
         let task_id = self.inner.register_task()?;
 

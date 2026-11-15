@@ -4,6 +4,8 @@ adapters/plenora-runtime-apalis/src/broker.rs |  |
 adapters/plenora-runtime-apalis/src/broker.rs |  | 
 adapters/plenora-runtime-apalis/src/broker.rs |  | 
 adapters/plenora-runtime-apalis/src/broker.rs |  | 
+adapters/plenora-runtime-apalis/src/broker.rs |  | 
+adapters/plenora-runtime-apalis/src/broker.rs |  | 
 adapters/plenora-runtime-apalis/src/broker.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum BrokerWorkerErrorKind { Decode , Metadata , Settlement , DecodeSettlement , MetadataSettlement , Heartbeat , HeartbeatSettlement , DeadLetterUnavailable , DeadLetterPublish , DeadLetterOutcomeUnknown , DeadLetterSettlement , }
 adapters/plenora-runtime-apalis/src/broker.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum BrokerWorkerRunErrorKind { Consumer , Monitor , }
 adapters/plenora-runtime-apalis/src/broker.rs |  | async fn execute_with_heartbeat < F , T > (delivery : & mut Delivery , execution : F , config : DeliveryHeartbeatConfig , cancellation : & TaskCancellationToken ,) -> Result < T , AckError > where F : Future < Output = T > ,
@@ -12,6 +14,8 @@ adapters/plenora-runtime-apalis/src/broker.rs |  | async fn reject_heartbeat < E
 adapters/plenora-runtime-apalis/src/broker.rs |  | async fn run_with_instance_heartbeats < F , T > (monitor : F , reporter : WorkerInstanceHeartbeatReporter , interval : std :: time :: Duration ,) -> T where F : Future < Output = T > ,
 adapters/plenora-runtime-apalis/src/broker.rs |  | fn broker_service_error < E > (error : BrokerWorkerError < E >) -> ApalisError where E : Error + Send + Sync + 'static ,
 adapters/plenora-runtime-apalis/src/broker.rs |  | fn delivery_stream < C > (consumer : C , failure : Arc < ConsumerFailure < C :: Error > > ,) -> RequestStream < Request < Delivery , () > > where C : MessageConsumer + 'static ,
+adapters/plenora-runtime-apalis/src/broker.rs |  | fn heartbeat_deadline (config : DeliveryHeartbeatConfig , cancellation : & TaskCancellationToken ,) -> Result < Instant , AckError >
+adapters/plenora-runtime-apalis/src/broker.rs |  | fn heartbeat_timer_error (error : plenora_runtime_core :: temporal :: TimeError , cancellation : & TaskCancellationToken ,) -> AckError
 adapters/plenora-runtime-apalis/src/broker.rs |  | pub enum BrokerWorkerRunError < E > { Consumer (Arc < E >) , Monitor (std :: io :: Error) , }
 adapters/plenora-runtime-apalis/src/broker.rs |  | pub struct BrokerDeliveryService < T , D , H , P > { decoder : Arc < D > , worker : ApalisWorkerService < H , P > , shutdown : ShutdownSignal , dead_letter_sink : Option < Arc < dyn DeadLetterSink > > , clock : Arc < dyn Clock > , message : PhantomData < fn () -> T > , }
 adapters/plenora-runtime-apalis/src/broker.rs |  | pub struct BrokerWorkerError < E > { kind : BrokerWorkerErrorKind , decoder : Option < E > , metadata : Option < MetadataKeyError > , heartbeat : Option < AckError > , dead_letter : Option < DeadLetterPublishError > , acknowledgement : Option < AckError > , }
@@ -20,7 +24,7 @@ adapters/plenora-runtime-apalis/src/broker.rs |  | pub struct BrokerWorkerRunner
 adapters/plenora-runtime-apalis/src/broker.rs |  | tokio :: pin ! (execution)
 adapters/plenora-runtime-apalis/src/broker.rs |  | tokio :: pin ! (monitor)
 adapters/plenora-runtime-apalis/src/broker.rs |  | tokio :: pin ! (timer)
-adapters/plenora-runtime-apalis/src/broker.rs |  | tokio :: select ! { biased ; outcome = & mut execution => return Ok (outcome) , () = & mut timer => { match delivery . heartbeat () . await { Ok (()) => consecutive_failures = 0 , Err (error) => { consecutive_failures = consecutive_failures . saturating_add (1) ; if consecutive_failures >= config . max_consecutive_failures () { let _started = cancellation . cancel (TaskCancellationReason :: LeaseLost) ; return Err (error) ; } } } timer . as_mut () . reset (Instant :: now () + config . interval ()) ; } }
+adapters/plenora-runtime-apalis/src/broker.rs |  | tokio :: select ! { biased ; outcome = & mut execution => return Ok (outcome) , () = & mut timer => { match delivery . heartbeat () . await { Ok (()) => consecutive_failures = 0 , Err (error) => { consecutive_failures = consecutive_failures . saturating_add (1) ; if consecutive_failures >= config . max_consecutive_failures () { let _started = cancellation . cancel (TaskCancellationReason :: LeaseLost) ; return Err (error) ; } } } plenora_runtime_core :: temporal :: reset_timer (timer . as_mut () , Instant :: now () , config . interval ()) . map_err (| error | heartbeat_timer_error (error , cancellation)) ?; } }
 adapters/plenora-runtime-apalis/src/broker.rs |  | tokio :: select ! { result = & mut monitor => return result , () = sleep (interval) => { let _heartbeat = reporter . heartbeat () ; } }
 adapters/plenora-runtime-apalis/src/broker.rs |  | type DeliveryFuture < HandlerError > = Pin < Box < dyn Future < Output = Result < ApalisExecutionOutcome < HandlerError > , ApalisError > > + Send > > ;
 adapters/plenora-runtime-apalis/src/broker.rs | impl < E > BrokerWorkerError < E > { } | 
@@ -453,6 +457,7 @@ adapters/plenora-runtime-nats/src/consumer.rs |  |
 adapters/plenora-runtime-nats/src/consumer.rs |  | 
 adapters/plenora-runtime-nats/src/consumer.rs |  | 
 adapters/plenora-runtime-nats/src/consumer.rs |  | 
+adapters/plenora-runtime-nats/src/consumer.rs |  | 
 adapters/plenora-runtime-nats/src/consumer.rs |  | async fn convert_delivery (message : jetstream :: Message , shutdown_nak_delay : Duration , max_payload_bytes : usize , heartbeat : Option < DeliveryHeartbeatConfig > ,) -> Result < ConvertedDelivery , NatsAdapterError >
 adapters/plenora-runtime-nats/src/consumer.rs |  | async fn convert_parts (message : async_nats :: Message , facts : Result < DeliveryFacts , NatsAdapterError > , max_payload_bytes : usize , heartbeat : Option < DeliveryHeartbeatConfig > , acknowledger : impl DeliveryAcknowledger + 'static ,) -> Result < ConvertedDelivery , NatsAdapterError >
 adapters/plenora-runtime-nats/src/consumer.rs |  | async fn open (context : & jetstream :: Context , settings : ConsumerSettings < '_ > ,) -> Result < JetStreamConsumer , NatsAdapterError >
@@ -464,6 +469,7 @@ adapters/plenora-runtime-nats/src/consumer.rs |  | fn delivery_facts (message : 
 adapters/plenora-runtime-nats/src/consumer.rs |  | fn finite_max_ack_pending (value : usize) -> Result < i64 , NatsAdapterError >
 adapters/plenora-runtime-nats/src/consumer.rs |  | fn infrastructure < E > (message : & 'static str , source : E) -> NatsAdapterError where E : Into < Box < dyn Error + Send + Sync + 'static > > ,
 adapters/plenora-runtime-nats/src/consumer.rs |  | fn insert_text (metadata : & mut MessageMetadata , key : & 'static str , value : & impl ToString ,) -> Result < () , NatsAdapterError >
+adapters/plenora-runtime-nats/src/consumer.rs |  | fn nack_kind (reason : NackReason , shutdown_nak_delay : Duration) -> Result < AckKind , AckError >
 adapters/plenora-runtime-nats/src/consumer.rs |  | fn validate_bound_consumer (consumer : & PullConsumer , expected : & ConsumerSettings < '_ > ,) -> Result < () , NatsAdapterError >
 adapters/plenora-runtime-nats/src/consumer.rs |  | pub struct JetStreamConsumer { messages : pull :: Stream , shutdown_nak_delay : Duration , max_payload_bytes : usize , heartbeat : Option < DeliveryHeartbeatConfig > , rejected_deliveries : u64 , last_rejection : Option < NatsAdapterError > , }
 adapters/plenora-runtime-nats/src/consumer.rs | # [async_trait] impl DeliveryAcknowledger for NatsAcknowledger { } | 
@@ -954,10 +960,12 @@ crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatchError
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatchError { } | pub
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatchError { } | pub
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatchError { } | pub
+crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | 
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | async fn complete_response (& self , capability : CapabilityId , operation : OperationName , operation_version : OperationVersion , correlation_id : CorrelationId , expected : Option < CapabilityPayload > , response : CapabilityResponse ,) -> Result < () , CapabilityDispatchError >
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | async fn handle (& self , context : WorkerContext , request : CapabilityRequest ,) -> Result < () , CapabilityDispatchError >
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | const fn config (& self) -> CapabilityDispatcherConfig
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | const fn registry (& self) -> & CapabilityRegistry
+crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | fn execution_deadline (& self , request : & CapabilityRequest ,) -> Result < Option < tokio :: time :: Instant > , CapabilityDispatchError >
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | fn new (registry : CapabilityRegistry , config : CapabilityDispatcherConfig ,) -> Result < Self , CapabilityDispatcherConfigError >
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | fn with_clock < C > (mut self , clock : Arc < C >) -> Self where C : Clock + 'static ,
 crates/plenora-runtime-boundary/src/dispatcher.rs | impl CapabilityDispatcher { } | fn with_result_sink < S > (registry : CapabilityRegistry , config : CapabilityDispatcherConfig , result_sink : S ,) -> Result < Self , CapabilityDispatcherConfigError > where S : CapabilityResultSink + 'static ,
@@ -1232,12 +1240,14 @@ crates/plenora-runtime-boundary/src/lib.rs | impl Clock for SharedClock { } | fn
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | 
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | 
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | 
+crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | 
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | fn admit (& self , raw : & Map < String , Value > , input : SerializedMessage ,) -> Result < AdmittedRequest , Rejection >
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | fn admit_message (& self , input : & SerializedMessage) -> Result < AdmittedRequest , Rejection >
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | fn admit_raw (& self , metadata : & [u8] , input : SerializedMessage ,) -> Result < AdmittedRequest , Rejection >
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | fn for_replay (& self) -> Self
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | fn materialize (& self , raw : & Map < String , Value > , mut input : SerializedMessage ,) -> Result < AdmittedRequest , Rejection >
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | fn new < C : Clock + 'static > (dispatcher : CapabilityDispatcher , clock : Arc < C > , policy : Arc < dyn AdmissionPolicy > , sink : Arc < dyn BoundaryResultSink > ,) -> Self
+crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | fn validate_deadline (& self , deadline : Option < chrono :: DateTime < chrono :: Utc > > ,) -> Result < () , Category >
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | pub
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | pub
 crates/plenora-runtime-boundary/src/lib.rs | impl RuntimeBoundary { } | pub
@@ -1406,7 +1416,7 @@ crates/plenora-runtime-capabilities/src/discovery.rs |  | # [derive (Clone , Cop
 crates/plenora-runtime-capabilities/src/discovery.rs |  | # [derive (Clone , Copy , Debug , Deserialize , Eq , PartialEq)] # [serde (rename_all = "snake_case")] pub enum CapabilitySideEffect { None , Local , Remote , }
 crates/plenora-runtime-capabilities/src/discovery.rs |  | # [derive (Clone , Copy , Debug , Deserialize , Eq , PartialEq)] # [serde (rename_all = "snake_case")] pub enum CapabilityStatus { Available , Unavailable , Experimental , Deprecated , }
 crates/plenora-runtime-capabilities/src/discovery.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum CapabilityDiscoveryErrorKind { DocumentTooLarge , InvalidJson , DuplicateJsonMember , UnsupportedSchemaVersion , InvalidComponent , InvalidComponentVersion , MissingInterfaces , TooManyInterfaces , InvalidInterface , DuplicateInterface , TooManyOperations , InvalidOperation , DuplicateOperation , InvalidAttributes , MissingRuntimeInterface , DuplicateRuntimeInterface , UnsupportedRuntimeBinding , MissingRuntimeArtifact , InvalidRuntimeCapability , }
-crates/plenora-runtime-capabilities/src/discovery.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum CapabilityRequestRejection { UnknownOperation , OperationVersionMismatch , OperationUnavailable , RuntimeSurfaceUnsupported , InputContractMismatch , InputContentTypeMismatch , DeadlineUnsupported , IdempotencyKeyUnsupported , InvalidDeadline , }
+crates/plenora-runtime-capabilities/src/discovery.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum CapabilityRequestRejection { ClockOutOfRange , DeadlineOutOfRange , UnknownOperation , OperationVersionMismatch , OperationUnavailable , RuntimeSurfaceUnsupported , InputContractMismatch , InputContentTypeMismatch , DeadlineUnsupported , IdempotencyKeyUnsupported , InvalidDeadline , }
 crates/plenora-runtime-capabilities/src/discovery.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct CapabilityDiscoveryError { kind : CapabilityDiscoveryErrorKind , }
 crates/plenora-runtime-capabilities/src/discovery.rs |  | # [derive (Clone , Debug , Eq , PartialEq)] pub struct CapabilityInterface { kind : CapabilitySurface , contract : ContractId , version : u16 , artifact : Option < Arc < str > > , }
 crates/plenora-runtime-capabilities/src/discovery.rs |  | # [derive (Clone , Debug , Eq , PartialEq)] pub struct CapabilityPayload { contract : ContractId , content_types : Vec < Arc < str > > , }
@@ -3180,12 +3190,13 @@ crates/plenora-runtime-core/src/lib.rs |  | mod health ;
 crates/plenora-runtime-core/src/lib.rs |  | mod runtime ;
 crates/plenora-runtime-core/src/lib.rs |  | mod shutdown ;
 crates/plenora-runtime-core/src/lib.rs |  | mod supervision ;
+crates/plenora-runtime-core/src/lib.rs |  | pub mod temporal ;
 crates/plenora-runtime-core/src/lib.rs |  | pub use clock :: { Clock , SystemClock } ;
 crates/plenora-runtime-core/src/lib.rs |  | pub use health :: { ComponentHealth , ComponentReadiness , HealthRegistry , HealthSnapshot , HealthStatus , ReadinessSnapshot , ReadinessStatus , } ;
 crates/plenora-runtime-core/src/lib.rs |  | pub use runtime :: { DrainOutcome , RuntimeConfig , RuntimeContext , RuntimeHandle , RuntimePhase , ServiceMetadata , } ;
 crates/plenora-runtime-core/src/lib.rs |  | pub use shutdown :: ShutdownSignal ;
 crates/plenora-runtime-core/src/lib.rs |  | pub use supervision :: { OptionalTaskFailurePolicy , SpawnError , TaskCompletion , TaskCompletionError , TaskCriticality , TaskFailure , TaskFailureKind , TaskOutcome , TaskReport , TaskSpec , } ;
-crates/plenora-runtime-core/src/runtime.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum DrainOutcome { Completed , TimedOut { # [doc = " Number of supervised tasks still active when the timeout was observed."] remaining_tasks : usize , } , }
+crates/plenora-runtime-core/src/runtime.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum DrainOutcome { InvalidTime , Completed , TimedOut { # [doc = " Number of supervised tasks still active when the timeout was observed."] remaining_tasks : usize , } , }
 crates/plenora-runtime-core/src/runtime.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum RuntimePhase { Running , Draining , Stopped , }
 crates/plenora-runtime-core/src/runtime.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct RuntimeConfig { pub shutdown_grace_period : Duration , pub optional_task_failure : OptionalTaskFailurePolicy , pub max_concurrent_tasks : usize , pub task_report_capacity : usize , }
 crates/plenora-runtime-core/src/runtime.rs |  | # [derive (Clone , Debug , Eq , PartialEq)] pub struct ServiceMetadata { pub service_name : Arc < str > , pub service_version : Arc < str > , pub instance_id : Arc < str > , pub environment : Option < Arc < str > > , }
@@ -3256,7 +3267,7 @@ crates/plenora-runtime-core/src/shutdown.rs | impl ShutdownSignal { } | fn is_ca
 crates/plenora-runtime-core/src/shutdown.rs | impl ShutdownSignal { } | pub
 crates/plenora-runtime-core/src/shutdown.rs | impl ShutdownSignal { } | pub
 crates/plenora-runtime-core/src/supervision.rs |  | # [derive (Clone , Copy , Debug , Default , Eq , PartialEq)] pub enum OptionalTaskFailurePolicy { Ignore , # [default] MarkDegraded , Shutdown , }
-crates/plenora-runtime-core/src/supervision.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum SpawnError { NoRuntime , RuntimeNotRunning (RuntimePhase) , TaskCapacityExceeded { # [doc = " Configured maximum number of concurrently active tasks."] limit : usize , } , TaskIdentifierExhausted , }
+crates/plenora-runtime-core/src/supervision.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum SpawnError { InvalidTime , NoRuntime , RuntimeNotRunning (RuntimePhase) , TaskCapacityExceeded { # [doc = " Configured maximum number of concurrently active tasks."] limit : usize , } , TaskIdentifierExhausted , }
 crates/plenora-runtime-core/src/supervision.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum TaskCriticality { Critical , Required , Optional , }
 crates/plenora-runtime-core/src/supervision.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum TaskFailureKind { Error , Panicked , Cancelled , }
 crates/plenora-runtime-core/src/supervision.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct TaskCompletionError ;
@@ -3300,6 +3311,27 @@ crates/plenora-runtime-core/src/supervision.rs | impl TaskOutcome { } | pub
 crates/plenora-runtime-core/src/supervision.rs | impl TaskOutcome { } | pub
 crates/plenora-runtime-core/src/supervision.rs | impl TaskSpec { } | fn new (name : impl Into < Arc < str > > , criticality : TaskCriticality) -> Self
 crates/plenora-runtime-core/src/supervision.rs | impl TaskSpec { } | pub
+crates/plenora-runtime-core/src/temporal.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum TimeError { Zero , WaitRange , DeadlineRange , CalendarRange , }
+crates/plenora-runtime-core/src/temporal.rs |  | fn absolute_deadline (remaining : Duration) -> Result < tokio :: time :: Instant , TimeError >
+crates/plenora-runtime-core/src/temporal.rs |  | fn calendar (value : DateTime < Utc >) -> Result < SystemTime , TimeError >
+crates/plenora-runtime-core/src/temporal.rs |  | fn clock (value : SystemTime) -> Result < DateTime < Utc > , TimeError >
+crates/plenora-runtime-core/src/temporal.rs |  | fn deadline (now : Instant , delay : Duration) -> Result < Instant , TimeError >
+crates/plenora-runtime-core/src/temporal.rs |  | fn interval (value : Duration) -> Result < () , TimeError >
+crates/plenora-runtime-core/src/temporal.rs |  | fn reset_timer (mut timer : std :: pin :: Pin < & mut tokio :: time :: Sleep > , now : tokio :: time :: Instant , delay : Duration ,) -> Result < () , TimeError >
+crates/plenora-runtime-core/src/temporal.rs |  | fn retry_delay (value : Duration) -> Result < () , TimeError >
+crates/plenora-runtime-core/src/temporal.rs |  | fn timeout (value : Duration) -> Result < () , TimeError >
+crates/plenora-runtime-core/src/temporal.rs |  | fn timer_deadline (now : tokio :: time :: Instant , delay : Duration ,) -> Result < tokio :: time :: Instant , TimeError >
+crates/plenora-runtime-core/src/temporal.rs |  | pub
+crates/plenora-runtime-core/src/temporal.rs |  | pub
+crates/plenora-runtime-core/src/temporal.rs |  | pub
+crates/plenora-runtime-core/src/temporal.rs |  | pub
+crates/plenora-runtime-core/src/temporal.rs |  | pub
+crates/plenora-runtime-core/src/temporal.rs |  | pub
+crates/plenora-runtime-core/src/temporal.rs |  | pub
+crates/plenora-runtime-core/src/temporal.rs |  | pub
+crates/plenora-runtime-core/src/temporal.rs |  | pub
+crates/plenora-runtime-core/src/temporal.rs | impl fmt :: Display for TimeError { } | 
+crates/plenora-runtime-core/src/temporal.rs | impl fmt :: Display for TimeError { } | fn fmt (& self , f : & mut fmt :: Formatter < '_ >) -> fmt :: Result
 crates/plenora-runtime-http/src/bootstrap.rs |  | 
 crates/plenora-runtime-http/src/bootstrap.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum HttpServeOutcome { GracefulShutdown , ShutdownTimedOut { # [doc = " Configured bound that elapsed."] grace_period : Duration , } , }
 crates/plenora-runtime-http/src/bootstrap.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum HttpServePhase { Bind , Serve , }
@@ -3339,7 +3371,7 @@ crates/plenora-runtime-http/src/bootstrap.rs | impl HttpServeError { } | const f
 crates/plenora-runtime-http/src/bootstrap.rs | impl HttpServeError { } | fn new (phase : HttpServePhase , source : io :: Error) -> Self
 crates/plenora-runtime-http/src/bootstrap.rs | impl HttpServeError { } | pub
 crates/plenora-runtime-http/src/bootstrap.rs | impl HttpServeError { } | pub
-crates/plenora-runtime-http/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum HttpServerConfigError { ZeroShutdownGracePeriod , ZeroMaxRequestBodyBytes , ZeroMaxInFlightRequests , }
+crates/plenora-runtime-http/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum HttpServerConfigError { TimeRange , ZeroShutdownGracePeriod , ZeroMaxRequestBodyBytes , ZeroMaxInFlightRequests , }
 crates/plenora-runtime-http/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct HttpServerConfig { bind_address : SocketAddr , shutdown_grace_period : Duration , max_request_body_bytes : usize , max_in_flight_requests : usize , }
 crates/plenora-runtime-http/src/config.rs | impl Display for HttpServerConfigError { } | 
 crates/plenora-runtime-http/src/config.rs | impl Display for HttpServerConfigError { } | fn fmt (& self , formatter : & mut Formatter < '_ >) -> fmt :: Result
@@ -3438,7 +3470,7 @@ crates/plenora-runtime-http/src/middleware.rs |  | tracing :: info_span ! ("http
 crates/plenora-runtime-http/src/middleware.rs |  | tracing :: info_span ! ("http.request" , http_method = % request . method () , http_version = ? request . version () , request_id = field :: Empty , correlation_id = field :: Empty ,)
 crates/plenora-runtime-http/src/middleware.rs |  | tracing :: warn ! (http_error = error . code () , "HTTP request rejected")
 crates/plenora-runtime-messaging/src/broker.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum AckOperation { Ack , Nack , Heartbeat , }
-crates/plenora-runtime-messaging/src/broker.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum DeliveryHeartbeatConfigError { ZeroInterval , ZeroFailureLimit , }
+crates/plenora-runtime-messaging/src/broker.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum DeliveryHeartbeatConfigError { TimeRange , ZeroInterval , ZeroFailureLimit , }
 crates/plenora-runtime-messaging/src/broker.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum NackReason { Retryable , RetryAfter (Duration) , Permanent , Shutdown , ConsumerRejected , }
 crates/plenora-runtime-messaging/src/broker.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum PublishOutcome { Confirmed , OutcomeUnknown , }
 crates/plenora-runtime-messaging/src/broker.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct DeliveryHeartbeatConfig { interval : Duration , max_consecutive_failures : NonZeroU32 , }
@@ -4063,7 +4095,7 @@ crates/plenora-runtime-outbox/src/stores.rs | impl PublishFailure { } | pub
 crates/plenora-runtime-outbox/src/stores.rs | impl PublishFailure { } | pub
 crates/plenora-runtime-outbox/src/stores.rs | impl PublishFailure { } | pub
 crates/plenora-runtime-outbox/src/stores.rs | impl PublishFailure { } | pub
-crates/plenora-runtime-resources/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum MemoryPressureConfigError { ZeroSampleInterval , ZeroResumeThreshold , ResumeNotBelowSoftLimit , SoftNotBelowHardLimit , ZeroPressureConfirmation , ZeroRecoveryConfirmation , }
+crates/plenora-runtime-resources/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum MemoryPressureConfigError { TimeRange , ZeroSampleInterval , ZeroResumeThreshold , ResumeNotBelowSoftLimit , SoftNotBelowHardLimit , ZeroPressureConfirmation , ZeroRecoveryConfirmation , }
 crates/plenora-runtime-resources/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct MemoryPressureConfig { sample_interval : Duration , resume_below_bytes : u64 , soft_limit_bytes : u64 , hard_limit_bytes : u64 , pressure_confirmation_samples : u32 , recovery_confirmation_samples : u32 , }
 crates/plenora-runtime-resources/src/config.rs | impl Display for MemoryPressureConfigError { } | 
 crates/plenora-runtime-resources/src/config.rs | impl Display for MemoryPressureConfigError { } | fn fmt (& self , formatter : & mut Formatter < '_ >) -> fmt :: Result
@@ -4073,8 +4105,8 @@ crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } |
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | const fn resume_below_bytes (self) -> u64
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | const fn sample_interval (self) -> Duration
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | const fn soft_limit_bytes (self) -> u64
-crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | const fn validate (& self) -> Result < () , MemoryPressureConfigError >
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | fn new (sample_interval : Duration , resume_below_bytes : u64 , soft_limit_bytes : u64 , hard_limit_bytes : u64 ,) -> Result < Self , MemoryPressureConfigError >
+crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | fn validate (& self) -> Result < () , MemoryPressureConfigError >
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | fn with_confirmation_samples (mut self , pressure : u32 , recovery : u32 ,) -> Result < Self , MemoryPressureConfigError >
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | pub
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | pub
@@ -4151,7 +4183,7 @@ crates/plenora-runtime-resources/src/sampler.rs | impl MemorySampleError { } | p
 crates/plenora-runtime-resources/src/sampler.rs | impl MemorySampler for ProcessMemorySampler { } | 
 crates/plenora-runtime-resources/src/sampler.rs | impl MemorySampler for ProcessMemorySampler { } | fn sample (& self) -> Result < MemorySample , MemorySampleError >
 crates/plenora-runtime-resources/src/sampler.rs | pub trait MemorySampler : Send + Sync { } | fn sample (& self) -> Result < MemorySample , MemorySampleError >
-crates/plenora-runtime-scheduler/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum SchedulerConfigError { ZeroTickInterval , ZeroDispatchTimeout , ZeroScheduleCapacity , ZeroDispatchCapacity , ZeroCatchUpCapacity , }
+crates/plenora-runtime-scheduler/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum SchedulerConfigError { TimeRange , ZeroTickInterval , ZeroDispatchTimeout , ZeroScheduleCapacity , ZeroDispatchCapacity , ZeroCatchUpCapacity , }
 crates/plenora-runtime-scheduler/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct SchedulerConfig { tick_interval : Duration , dispatch_timeout : Duration , misfire_grace : Duration , max_schedules : usize , max_dispatches_per_tick : usize , max_catch_up_per_schedule : usize , }
 crates/plenora-runtime-scheduler/src/config.rs | impl Display for SchedulerConfigError { } | 
 crates/plenora-runtime-scheduler/src/config.rs | impl Display for SchedulerConfigError { } | fn fmt (& self , formatter : & mut Formatter < '_ >) -> fmt :: Result
@@ -4161,8 +4193,8 @@ crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | cons
 crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | const fn max_schedules (self) -> usize
 crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | const fn misfire_grace (self) -> Duration
 crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | const fn tick_interval (self) -> Duration
-crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | const fn validate (self) -> Result < () , SchedulerConfigError >
 crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | fn new (tick_interval : Duration , dispatch_timeout : Duration , misfire_grace : Duration , max_schedules : usize , max_dispatches_per_tick : usize , max_catch_up_per_schedule : usize ,) -> Result < Self , SchedulerConfigError >
+crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | fn validate (self) -> Result < () , SchedulerConfigError >
 crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | pub
 crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | pub
 crates/plenora-runtime-scheduler/src/config.rs | impl SchedulerConfig { } | pub
@@ -4213,7 +4245,7 @@ crates/plenora-runtime-scheduler/src/lib.rs |  | pub use scheduler :: { ManualTr
 crates/plenora-runtime-scheduler/src/plan.rs |  | 
 crates/plenora-runtime-scheduler/src/plan.rs |  | 
 crates/plenora-runtime-scheduler/src/plan.rs |  | 
-crates/plenora-runtime-scheduler/src/plan.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum CronPlanErrorKind { EmptyExpression , ExpressionTooLarge , EmptyTimezone , TimezoneTooLarge , InvalidExpression , InvalidTimezone , NoFutureOccurrence , }
+crates/plenora-runtime-scheduler/src/plan.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum CronPlanErrorKind { TimeRange , EmptyExpression , ExpressionTooLarge , EmptyTimezone , TimezoneTooLarge , InvalidExpression , InvalidTimezone , NoFutureOccurrence , }
 crates/plenora-runtime-scheduler/src/plan.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum FixedIntervalPlanError { ZeroInterval , }
 crates/plenora-runtime-scheduler/src/plan.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct CronPlanError { kind : CronPlanErrorKind , }
 crates/plenora-runtime-scheduler/src/plan.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct FixedIntervalPlan { first_due_at : SystemTime , interval : Duration , }
@@ -4222,7 +4254,7 @@ crates/plenora-runtime-scheduler/src/plan.rs |  | # [derive (Clone , Debug)] pub
 crates/plenora-runtime-scheduler/src/plan.rs |  | # [derive (Clone)] pub struct CronPlan { expression : Arc < str > , timezone_name : Arc < str > , timezone : Tz , schedule : CronSchedule , first_due_at : SystemTime , }
 crates/plenora-runtime-scheduler/src/plan.rs |  | const fn mix (mut value : u64) -> u64
 crates/plenora-runtime-scheduler/src/plan.rs |  | fn duration_from_nanos (nanos : u128) -> Duration
-crates/plenora-runtime-scheduler/src/plan.rs |  | fn next_after (schedule : & CronSchedule , timezone : Tz , after : SystemTime) -> Option < SystemTime >
+crates/plenora-runtime-scheduler/src/plan.rs |  | fn next_after (schedule : & CronSchedule , timezone : Tz , after : SystemTime ,) -> Result < Option < SystemTime > , CronPlanError >
 crates/plenora-runtime-scheduler/src/plan.rs | impl < P > JitteredPlan < P > where P : SchedulePlan , { } | const fn delay (& self) -> Duration
 crates/plenora-runtime-scheduler/src/plan.rs | impl < P > JitteredPlan < P > where P : SchedulePlan , { } | fn new (inner : P , maximum_delay : Duration , seed : u64) -> Self
 crates/plenora-runtime-scheduler/src/plan.rs | impl < P > JitteredPlan < P > where P : SchedulePlan , { } | pub
@@ -4234,6 +4266,8 @@ crates/plenora-runtime-scheduler/src/plan.rs | impl < P > SchedulePlan for Jitte
 crates/plenora-runtime-scheduler/src/plan.rs | impl CronPlan { } | const fn expression (& self) -> & Arc < str >
 crates/plenora-runtime-scheduler/src/plan.rs | impl CronPlan { } | const fn timezone_name (& self) -> & Arc < str >
 crates/plenora-runtime-scheduler/src/plan.rs | impl CronPlan { } | fn new (expression : impl Into < Arc < str > > , timezone_name : impl Into < Arc < str > > , first_after : SystemTime ,) -> Result < Self , CronPlanError >
+crates/plenora-runtime-scheduler/src/plan.rs | impl CronPlan { } | fn try_next_after (& self , after : SystemTime) -> Result < Option < SystemTime > , CronPlanError >
+crates/plenora-runtime-scheduler/src/plan.rs | impl CronPlan { } | pub
 crates/plenora-runtime-scheduler/src/plan.rs | impl CronPlan { } | pub
 crates/plenora-runtime-scheduler/src/plan.rs | impl CronPlan { } | pub
 crates/plenora-runtime-scheduler/src/plan.rs | impl CronPlan { } | pub
@@ -4368,7 +4402,7 @@ crates/plenora-runtime-scheduler/src/scheduler.rs | impl SchedulerObserver for N
 crates/plenora-runtime-scheduler/src/scheduler.rs | impl SchedulerObserver for NoopSchedulerObserver { } | fn record (& self , _observation : SchedulerTickObservation)
 crates/plenora-runtime-scheduler/src/scheduler.rs | pub trait SchedulerObserver : Send + Sync { } | fn record (& self , observation : SchedulerTickObservation)
 crates/plenora-runtime-subprocess/src/config.rs |  | 
-crates/plenora-runtime-subprocess/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum SubprocessConfigError { ZeroConcurrency , ConcurrencyAboveMaximum , ZeroExecutionTimeout , ZeroCaptureLimit , CaptureLimitAboveMaximum , ZeroTerminationTimeout , ZeroMemoryLimit , MemoryLimitAboveMaximum , ZeroMemorySampleInterval , MemoryLimitUnsupported , }
+crates/plenora-runtime-subprocess/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum SubprocessConfigError { TimeRange , ZeroConcurrency , ConcurrencyAboveMaximum , ZeroExecutionTimeout , ZeroCaptureLimit , CaptureLimitAboveMaximum , ZeroTerminationTimeout , ZeroMemoryLimit , MemoryLimitAboveMaximum , ZeroMemorySampleInterval , MemoryLimitUnsupported , }
 crates/plenora-runtime-subprocess/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct SubprocessSupervisorConfig { max_concurrent : usize , execution_timeout : Duration , graceful_termination : Duration , hard_kill_timeout : Duration , output_drain_timeout : Duration , max_stdout_bytes : usize , max_stderr_bytes : usize , process_tree_mode : ProcessTreeMode , resident_memory_limit_bytes : Option < u64 > , memory_sample_interval : Duration , }
 crates/plenora-runtime-subprocess/src/config.rs |  | fn validate_capture_limit (limit : usize) -> Result < () , SubprocessConfigError >
 crates/plenora-runtime-subprocess/src/config.rs | impl Display for SubprocessConfigError { } | 
@@ -4404,7 +4438,7 @@ crates/plenora-runtime-subprocess/src/config.rs | impl SubprocessSupervisorConfi
 crates/plenora-runtime-subprocess/src/config.rs | impl SubprocessSupervisorConfig { } | pub (crate)
 crates/plenora-runtime-subprocess/src/config.rs | impl SubprocessSupervisorConfig { } | pub (crate)
 crates/plenora-runtime-subprocess/src/config.rs | impl SubprocessSupervisorConfig { } | pub (crate)
-crates/plenora-runtime-subprocess/src/error.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum SubprocessErrorKind { Spawn , Wait , Termination , MemorySample , }
+crates/plenora-runtime-subprocess/src/error.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum SubprocessErrorKind { TimeRange , Spawn , Wait , Termination , MemorySample , }
 crates/plenora-runtime-subprocess/src/error.rs |  | pub struct SubprocessError { kind : SubprocessErrorKind , message : & 'static str , source : Arc < io :: Error > , containment_failed : bool , }
 crates/plenora-runtime-subprocess/src/error.rs | impl Debug for SubprocessError { } | 
 crates/plenora-runtime-subprocess/src/error.rs | impl Debug for SubprocessError { } | fn fmt (& self , formatter : & mut Formatter < '_ >) -> fmt :: Result
@@ -4499,6 +4533,8 @@ crates/plenora-runtime-subprocess/src/supervisor.rs |  |
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | 
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | 
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | 
+crates/plenora-runtime-subprocess/src/supervisor.rs |  | 
+crates/plenora-runtime-subprocess/src/supervisor.rs |  | 
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | # [cfg (all (test , unix))] mod tests ;
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | # [cfg (any (unix , windows))] enum HelperWait { Exited (bool) , Unresolved , }
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum SubprocessCancellationPhase { Queued , Running , }
@@ -4527,6 +4563,8 @@ crates/plenora-runtime-subprocess/src/supervisor.rs |  | fn pinned_target (pid :
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | fn poll_reaped (child : & mut Child , leader_pinned : & AtomicBool) -> Option < ExitStatus >
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | fn poll_until (helper : & mut std :: process :: Child , budget : Duration) -> HelperWait
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | fn spawn_capture < R > (reader : Option < R > , capture : Arc < SharedCapture >) -> JoinHandle < () > where R : tokio :: io :: AsyncRead + Send + Unpin + 'static ,
+crates/plenora-runtime-subprocess/src/supervisor.rs |  | fn timer_deadline (delay : Duration) -> Result < Instant , SubprocessError >
+crates/plenora-runtime-subprocess/src/supervisor.rs |  | fn timer_error (error : plenora_runtime_core :: temporal :: TimeError) -> SubprocessError
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | fn wait_bounded (helper : & mut std :: process :: Child , budget : Duration) -> bool
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | format ! ("-{child_group}")
 crates/plenora-runtime-subprocess/src/supervisor.rs |  | format ! ("-{pid}")
@@ -4563,7 +4601,7 @@ crates/plenora-runtime-subprocess/src/supervisor.rs | impl SubprocessSupervisor 
 crates/plenora-runtime-subprocess/src/supervisor.rs | impl SubprocessSupervisor { } | tokio :: pin ! (deadline)
 crates/plenora-runtime-subprocess/src/supervisor.rs | impl SubprocessSupervisor { } | tokio :: pin ! (memory_tick)
 crates/plenora-runtime-subprocess/src/supervisor.rs | impl SubprocessSupervisor { } | tokio :: select ! { biased ; () = & mut cancellation => { self . counters . cancellations . fetch_add (1 , Ordering :: Relaxed) ; return Ok (SubprocessReport :: cancelled_while_queued (started_at . elapsed ())) ; } permit = Arc :: clone (& self . permits) . acquire_owned () => permit . map_err (| error | { SubprocessError :: new (SubprocessErrorKind :: Spawn , "subprocess admission control is closed" , io :: Error :: other (error . to_string ()) ,) }) ?, }
-crates/plenora-runtime-subprocess/src/supervisor.rs | impl SubprocessSupervisor { } | tokio :: select ! { biased ; () = cancellation . as_mut () => { self . counters . cancellations . fetch_add (1 , Ordering :: Relaxed) ; let status = terminate_and_reap (child , Some (pid) , self . config , & self . counters , tree_degraded , leader_pinned) . await ?; return Ok ((SubprocessTermination :: Cancelled (SubprocessCancellationPhase :: Running) , status ,)) ; } () = & mut deadline => { self . counters . timeouts . fetch_add (1 , Ordering :: Relaxed) ; let status = terminate_and_reap (child , Some (pid) , self . config , & self . counters , tree_degraded , leader_pinned) . await ?; return Ok ((SubprocessTermination :: TimedOut , status)) ; } result = child . wait () => { let status = result . map_err (| error | { leader_pinned . store (false , Ordering :: Release) ; SubprocessError :: new (SubprocessErrorKind :: Wait , "subprocess wait failed" , error ,) }) ?; return Ok ((SubprocessTermination :: Exited , status)) ; } () = & mut memory_tick , if self . config . resident_memory_limit_bytes () . is_some () => { let limit = self . config . resident_memory_limit_bytes () . unwrap_or_default () ; let observed = match resident_memory_bytes (pid) . await { Ok (observed) => observed , Err (error) => { if let Some (status) = poll_reaped (child , leader_pinned) { return Ok ((SubprocessTermination :: Exited , status)) ; } return Err (SubprocessError :: new (SubprocessErrorKind :: MemorySample , "subprocess RSS sampling failed while enforcement was active" , error ,)) ; } } ; if observed > limit { self . counters . memory_terminations . fetch_add (1 , Ordering :: Relaxed) ; let status = terminate_and_reap (child , Some (pid) , self . config , & self . counters , tree_degraded , leader_pinned) . await ?; return Ok ((SubprocessTermination :: ResidentMemoryLimitExceeded { observed_bytes : observed , limit_bytes : limit , } , status ,)) ; } memory_tick . as_mut () . reset (Instant :: now () + self . config . memory_sample_interval ()) ; } }
+crates/plenora-runtime-subprocess/src/supervisor.rs | impl SubprocessSupervisor { } | tokio :: select ! { biased ; () = cancellation . as_mut () => { self . counters . cancellations . fetch_add (1 , Ordering :: Relaxed) ; let status = terminate_and_reap (child , Some (pid) , self . config , & self . counters , tree_degraded , leader_pinned) . await ?; return Ok ((SubprocessTermination :: Cancelled (SubprocessCancellationPhase :: Running) , status ,)) ; } () = & mut deadline => { self . counters . timeouts . fetch_add (1 , Ordering :: Relaxed) ; let status = terminate_and_reap (child , Some (pid) , self . config , & self . counters , tree_degraded , leader_pinned) . await ?; return Ok ((SubprocessTermination :: TimedOut , status)) ; } result = child . wait () => { let status = result . map_err (| error | { leader_pinned . store (false , Ordering :: Release) ; SubprocessError :: new (SubprocessErrorKind :: Wait , "subprocess wait failed" , error ,) }) ?; return Ok ((SubprocessTermination :: Exited , status)) ; } () = & mut memory_tick , if self . config . resident_memory_limit_bytes () . is_some () => { let limit = self . config . resident_memory_limit_bytes () . unwrap_or_default () ; let observed = match resident_memory_bytes (pid) . await { Ok (observed) => observed , Err (error) => { if let Some (status) = poll_reaped (child , leader_pinned) { return Ok ((SubprocessTermination :: Exited , status)) ; } return Err (SubprocessError :: new (SubprocessErrorKind :: MemorySample , "subprocess RSS sampling failed while enforcement was active" , error ,)) ; } } ; if observed > limit { self . counters . memory_terminations . fetch_add (1 , Ordering :: Relaxed) ; let status = terminate_and_reap (child , Some (pid) , self . config , & self . counters , tree_degraded , leader_pinned) . await ?; return Ok ((SubprocessTermination :: ResidentMemoryLimitExceeded { observed_bytes : observed , limit_bytes : limit , } , status ,)) ; } plenora_runtime_core :: temporal :: reset_timer (memory_tick . as_mut () , Instant :: now () , self . config . memory_sample_interval ()) . map_err (timer_error) ?; } }
 crates/plenora-runtime-subprocess/src/supervisor.rs | tests | 
 crates/plenora-runtime-subprocess/src/supervisor.rs | tests | fn isolated_group_target_must_be_distinct_and_led_by_the_child () -> std :: io :: Result < () >
 crates/plenora-runtime-testkit/src/broker.rs |  | 
@@ -4897,7 +4935,7 @@ crates/plenora-runtime-worker/src/cancellation.rs | impl TaskCancellationToken {
 crates/plenora-runtime-worker/src/cancellation.rs | impl TaskCancellationToken { } | pub
 crates/plenora-runtime-worker/src/cancellation.rs | impl TaskCancellationToken { } | pub
 crates/plenora-runtime-worker/src/cancellation.rs | impl TaskCancellationToken { } | pub
-crates/plenora-runtime-worker/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum WorkerConfigError { ZeroMaxInFlight , ZeroShutdownGracePeriod , ZeroExecutionTimeout , ZeroTaskCancellationGracePeriod , ZeroLifecycleHeartbeatInterval , }
+crates/plenora-runtime-worker/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum WorkerConfigError { TimeRange , ZeroMaxInFlight , ZeroShutdownGracePeriod , ZeroExecutionTimeout , ZeroTaskCancellationGracePeriod , ZeroLifecycleHeartbeatInterval , }
 crates/plenora-runtime-worker/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct WorkerConcurrency { pub max_in_flight : usize , }
 crates/plenora-runtime-worker/src/config.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct WorkerConfig { pub concurrency : WorkerConcurrency , pub shutdown_grace_period : Duration , pub execution_timeout : Option < Duration > , pub task_cancellation_grace_period : Duration , pub timeout_retry_decision : RetryDecision , pub lifecycle_heartbeat_interval : Option < Duration > , }
 crates/plenora-runtime-worker/src/config.rs | impl Default for WorkerConcurrency { } | 
@@ -4909,7 +4947,7 @@ crates/plenora-runtime-worker/src/config.rs | impl Display for WorkerConfigError
 crates/plenora-runtime-worker/src/config.rs | impl WorkerConcurrency { } | const fn new (max_in_flight : usize) -> Result < Self , WorkerConfigError >
 crates/plenora-runtime-worker/src/config.rs | impl WorkerConcurrency { } | pub
 crates/plenora-runtime-worker/src/config.rs | impl WorkerConfig { } | const fn new (concurrency : WorkerConcurrency , shutdown_grace_period : Duration) -> Self
-crates/plenora-runtime-worker/src/config.rs | impl WorkerConfig { } | const fn validate (& self) -> Result < () , WorkerConfigError >
+crates/plenora-runtime-worker/src/config.rs | impl WorkerConfig { } | fn validate (& self) -> Result < () , WorkerConfigError >
 crates/plenora-runtime-worker/src/config.rs | impl WorkerConfig { } | fn with_execution_timeout (mut self , timeout : Duration , cancellation_grace_period : Duration , retry_decision : RetryDecision ,) -> Result < Self , WorkerConfigError >
 crates/plenora-runtime-worker/src/config.rs | impl WorkerConfig { } | fn with_lifecycle_heartbeat (mut self , interval : Duration ,) -> Result < Self , WorkerConfigError >
 crates/plenora-runtime-worker/src/config.rs | impl WorkerConfig { } | pub
@@ -5155,7 +5193,7 @@ crates/plenora-runtime-worker/src/executor.rs | pub trait WorkerAdmissionControl
 crates/plenora-runtime-worker/src/handler.rs | # [async_trait] pub trait WorkerHandler < T > : Send + Sync where T : Send , { } | async fn handle (& self , ctx : WorkerContext , message : T) -> Result < () , Self :: Error >
 crates/plenora-runtime-worker/src/instance.rs |  | 
 crates/plenora-runtime-worker/src/instance.rs |  | # [derive (Clone , Copy , Debug , Default)] pub struct NoopWorkerInstanceHeartbeatObserver ;
-crates/plenora-runtime-worker/src/instance.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum WorkerInstanceHeartbeatConfigError { ZeroInterval , }
+crates/plenora-runtime-worker/src/instance.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum WorkerInstanceHeartbeatConfigError { TimeRange , ZeroInterval , }
 crates/plenora-runtime-worker/src/instance.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum WorkerInstanceHeartbeatError { SequenceExhausted , InvalidTransition { # [doc = " Current state."] from : WorkerInstanceStatus , # [doc = " Rejected target state."] to : WorkerInstanceStatus , } , }
 crates/plenora-runtime-worker/src/instance.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub enum WorkerInstanceStatus { Starting , Ready , Draining , Stopped , }
 crates/plenora-runtime-worker/src/instance.rs |  | # [derive (Clone , Copy , Debug , Eq , PartialEq)] pub struct WorkerInstanceHeartbeatConfig { interval : Duration , }
@@ -5173,7 +5211,7 @@ crates/plenora-runtime-worker/src/instance.rs | impl Display for WorkerInstanceH
 crates/plenora-runtime-worker/src/instance.rs | impl Display for WorkerInstanceHeartbeatError { } | fn fmt (& self , formatter : & mut Formatter < '_ >) -> fmt :: Result
 crates/plenora-runtime-worker/src/instance.rs | impl Display for WorkerInstanceHeartbeatError { } | write ! (formatter , "worker-instance transition {from:?} -> {to:?} is invalid")
 crates/plenora-runtime-worker/src/instance.rs | impl WorkerInstanceHeartbeatConfig { } | const fn interval (self) -> Duration
-crates/plenora-runtime-worker/src/instance.rs | impl WorkerInstanceHeartbeatConfig { } | const fn new (interval : Duration) -> Result < Self , WorkerInstanceHeartbeatConfigError >
+crates/plenora-runtime-worker/src/instance.rs | impl WorkerInstanceHeartbeatConfig { } | fn new (interval : Duration) -> Result < Self , WorkerInstanceHeartbeatConfigError >
 crates/plenora-runtime-worker/src/instance.rs | impl WorkerInstanceHeartbeatConfig { } | pub
 crates/plenora-runtime-worker/src/instance.rs | impl WorkerInstanceHeartbeatConfig { } | pub
 crates/plenora-runtime-worker/src/instance.rs | impl WorkerInstanceHeartbeatObserver for NoopWorkerInstanceHeartbeatObserver { } | 

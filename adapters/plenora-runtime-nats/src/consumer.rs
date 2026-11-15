@@ -434,12 +434,7 @@ impl DeliveryAcknowledger for NatsAcknowledger {
     }
 
     async fn nack(self: Box<Self>, reason: NackReason) -> Result<(), AckError> {
-        let kind = match reason {
-            NackReason::Retryable => AckKind::Nak(None),
-            NackReason::RetryAfter(delay) => AckKind::Nak(Some(delay)),
-            NackReason::Shutdown => AckKind::Nak(Some(self.shutdown_nak_delay)),
-            NackReason::Permanent | NackReason::ConsumerRejected => AckKind::Term,
-        };
+        let kind = nack_kind(reason, self.shutdown_nak_delay)?;
         self.acker.ack_with(kind).await.map_err(|error| {
             AckError::with_source(
                 AckOperation::Nack,
@@ -447,6 +442,25 @@ impl DeliveryAcknowledger for NatsAcknowledger {
                 BoxedAckSource(error),
             )
         })
+    }
+}
+
+fn nack_kind(reason: NackReason, shutdown_nak_delay: Duration) -> Result<AckKind, AckError> {
+    let delayed = |delay| {
+        plenora_runtime_core::temporal::retry_delay(delay).map_err(|error| {
+            AckError::with_source(
+                AckOperation::Nack,
+                "retry delay is outside the operational range",
+                error,
+            )
+        })?;
+        Ok(AckKind::Nak(Some(delay)))
+    };
+    match reason {
+        NackReason::Retryable => Ok(AckKind::Nak(None)),
+        NackReason::RetryAfter(delay) => delayed(delay),
+        NackReason::Shutdown => delayed(shutdown_nak_delay),
+        NackReason::Permanent | NackReason::ConsumerRejected => Ok(AckKind::Term),
     }
 }
 
@@ -493,6 +507,33 @@ where
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn nack_delay_is_checked_before_wire_settlement() -> Result<(), Box<dyn std::error::Error>> {
+        for delay in [
+            std::time::Duration::MAX,
+            std::time::Duration::from_secs(u64::MAX),
+            std::time::Duration::from_hours(24) + std::time::Duration::from_nanos(1),
+        ] {
+            let error = super::nack_kind(
+                super::NackReason::RetryAfter(delay),
+                std::time::Duration::ZERO,
+            )
+            .err()
+            .ok_or("delay accepted")?;
+            assert_eq!(error.operation(), super::AckOperation::Nack);
+            assert!(super::nack_kind(super::NackReason::Shutdown, delay).is_err());
+        }
+        for delay in [
+            std::time::Duration::ZERO,
+            std::time::Duration::from_hours(24),
+        ] {
+            assert!(
+                matches!(super::nack_kind(super::NackReason::RetryAfter(delay), delay)?, super::AckKind::Nak(Some(value)) if value == delay)
+            );
+        }
+        Ok(())
+    }
+
     use std::sync::{Arc, Mutex};
 
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};

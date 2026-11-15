@@ -5,6 +5,9 @@ use std::{
 };
 
 /// Validated process-memory pressure thresholds and sampling cadence.
+///
+/// Operational timeouts and intervals must be positive, at most 24 hours, and
+/// admit a checked monotonic deadline. Calendar tolerances are not timer waits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct MemoryPressureConfig {
     sample_interval: Duration,
@@ -60,7 +63,7 @@ impl MemoryPressureConfig {
     /// # Errors
     ///
     /// Returns a stable configuration error for the first invalid invariant.
-    pub const fn validate(&self) -> Result<(), MemoryPressureConfigError> {
+    pub fn validate(&self) -> Result<(), MemoryPressureConfigError> {
         if self.sample_interval.is_zero() {
             return Err(MemoryPressureConfigError::ZeroSampleInterval);
         }
@@ -79,6 +82,8 @@ impl MemoryPressureConfig {
         if self.recovery_confirmation_samples == 0 {
             return Err(MemoryPressureConfigError::ZeroRecoveryConfirmation);
         }
+        plenora_runtime_core::temporal::interval(self.sample_interval)
+            .map_err(|_| MemoryPressureConfigError::TimeRange)?;
         Ok(())
     }
 
@@ -122,6 +127,8 @@ impl MemoryPressureConfig {
 /// Invalid memory-pressure monitoring configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MemoryPressureConfigError {
+    /// A temporal bound is outside the operational or platform range.
+    TimeRange,
     /// Sampling cannot use a zero interval.
     ZeroSampleInterval,
     /// Recovery must use a positive threshold.
@@ -139,6 +146,7 @@ pub enum MemoryPressureConfigError {
 impl Display for MemoryPressureConfigError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
+            Self::TimeRange => "time bound is outside the operational range",
             Self::ZeroSampleInterval => "memory sample interval must be greater than zero",
             Self::ZeroResumeThreshold => "memory resume threshold must be greater than zero",
             Self::ResumeNotBelowSoftLimit => "memory resume threshold must be below the soft limit",

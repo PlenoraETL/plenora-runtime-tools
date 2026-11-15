@@ -8,6 +8,8 @@ license-file.workspace = true
 publish = false
 
 [dependencies]
+# Exact checked calendar conversion at the shared runtime clock boundary; workspace pin.
+chrono.workspace = true
 tokio = { workspace = true, features = ["rt", "sync", "time"] }
 
 [dev-dependencies]

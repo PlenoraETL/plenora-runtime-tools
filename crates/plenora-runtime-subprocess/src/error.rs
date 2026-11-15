@@ -8,6 +8,8 @@ use std::{
 /// Stable phase for a supervisor infrastructure failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SubprocessErrorKind {
+    /// A timer deadline cannot be represented; containment is handled by the caller.
+    TimeRange,
     /// Child creation failed.
     Spawn,
     /// Waiting for the child failed.

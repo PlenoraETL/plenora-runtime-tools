@@ -629,7 +629,14 @@ where
             message: delivery.message.clone(),
             reason: Arc::from("handler_failed"),
             attempts: delivery.attempt,
-            failed_at: self.clock.now().into(),
+            failed_at: plenora_runtime_core::temporal::clock(self.clock.now()).map_err(
+                |error| {
+                    BrokerWorkerError::dead_letter_publish(DeadLetterPublishError::with_source(
+                        plenora_runtime_messaging::DeadLetterPublishErrorKind::Metadata,
+                        error,
+                    ))
+                },
+            )?,
         };
         match sink.publish_dead_letter(dead_letter).await {
             Ok(PublishOutcome::Confirmed) => delivery
@@ -655,7 +662,7 @@ where
 {
     let execution = execution;
     tokio::pin!(execution);
-    let timer = sleep(config.interval());
+    let timer = tokio::time::sleep_until(heartbeat_deadline(config, cancellation)?);
     tokio::pin!(timer);
     let mut consecutive_failures = 0_u32;
 
@@ -674,7 +681,7 @@ where
                         }
                     }
                 }
-                timer.as_mut().reset(Instant::now() + config.interval());
+                plenora_runtime_core::temporal::reset_timer(timer.as_mut(), Instant::now(), config.interval()).map_err(|error| heartbeat_timer_error(error, cancellation))?;
             }
         }
     }
@@ -1054,4 +1061,24 @@ async fn reject_heartbeat<E, H>(
             acknowledgement,
         )),
     }
+}
+
+fn heartbeat_deadline(
+    config: DeliveryHeartbeatConfig,
+    cancellation: &TaskCancellationToken,
+) -> Result<Instant, AckError> {
+    plenora_runtime_core::temporal::timer_deadline(Instant::now(), config.interval())
+        .map_err(|error| heartbeat_timer_error(error, cancellation))
+}
+
+fn heartbeat_timer_error(
+    error: plenora_runtime_core::temporal::TimeError,
+    cancellation: &TaskCancellationToken,
+) -> AckError {
+    let _started = cancellation.cancel(TaskCancellationReason::LeaseLost);
+    AckError::with_source(
+        plenora_runtime_messaging::AckOperation::Heartbeat,
+        "heartbeat timer deadline is not representable",
+        error,
+    )
 }

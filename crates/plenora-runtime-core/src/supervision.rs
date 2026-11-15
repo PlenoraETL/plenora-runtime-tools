@@ -216,6 +216,8 @@ impl Error for TaskCompletionError {}
 /// Error returned when a supervised task cannot be started.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SpawnError {
+    /// The configured drain timeout is outside the operational time domain.
+    InvalidTime,
     /// No asynchronous runtime is active on the current thread.
     NoRuntime,
     /// Runtime draining or termination has already started.
@@ -232,6 +234,9 @@ pub enum SpawnError {
 impl Display for SpawnError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidTime => {
+                formatter.write_str("runtime drain time is outside the operational range")
+            }
             Self::NoRuntime => formatter.write_str("no Tokio runtime is active"),
             Self::RuntimeNotRunning(phase) => {
                 write!(

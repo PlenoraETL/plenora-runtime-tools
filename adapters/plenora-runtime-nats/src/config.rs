@@ -288,6 +288,9 @@ impl JetStreamConsumerConfig {
     ///
     /// Returns a field-specific validation error.
     pub fn validate(&self) -> Result<(), NatsConfigError> {
+        plenora_runtime_core::temporal::retry_delay(self.shutdown_nak_delay).map_err(|_| {
+            NatsConfigError::new("shutdown_nak_delay", "exceeds the operational time range")
+        })?;
         consumer(ConsumerValidation {
             stream: &self.stream,
             durable: &self.durable_name,
@@ -343,6 +346,9 @@ impl ReplayConsumerConfig {
                 "must differ from the operational durable name",
             ));
         }
+        plenora_runtime_core::temporal::retry_delay(self.shutdown_nak_delay).map_err(|_| {
+            NatsConfigError::new("shutdown_nak_delay", "exceeds the operational time range")
+        })?;
         consumer(ConsumerValidation {
             stream: &self.stream,
             durable: &self.durable_name,
@@ -459,9 +465,10 @@ fn nonzero(field: &'static str, value: usize) -> Result<(), NatsConfigError> {
 }
 
 fn duration(field: &'static str, value: Duration) -> Result<(), NatsConfigError> {
-    if value.is_zero() {
-        Err(NatsConfigError::new(field, "must be greater than zero"))
-    } else {
-        Ok(())
-    }
+    plenora_runtime_core::temporal::timeout(value).map_err(|_| {
+        NatsConfigError::new(
+            field,
+            "must be positive and within the operational time range",
+        )
+    })
 }

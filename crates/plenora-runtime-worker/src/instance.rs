@@ -11,6 +11,9 @@ use plenora_runtime_core::{Clock, ServiceMetadata};
 pub const DEFAULT_WORKER_INSTANCE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10);
 
 /// Worker-instance heartbeat cadence.
+///
+/// Operational timeouts and intervals must be positive, at most 24 hours, and
+/// admit a checked monotonic deadline. Calendar tolerances are not timer waits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct WorkerInstanceHeartbeatConfig {
     interval: Duration,
@@ -22,10 +25,12 @@ impl WorkerInstanceHeartbeatConfig {
     /// # Errors
     ///
     /// Returns an error when `interval` is zero.
-    pub const fn new(interval: Duration) -> Result<Self, WorkerInstanceHeartbeatConfigError> {
+    pub fn new(interval: Duration) -> Result<Self, WorkerInstanceHeartbeatConfigError> {
         if interval.is_zero() {
             return Err(WorkerInstanceHeartbeatConfigError::ZeroInterval);
         }
+        plenora_runtime_core::temporal::interval(interval)
+            .map_err(|_| WorkerInstanceHeartbeatConfigError::TimeRange)?;
         Ok(Self { interval })
     }
 
@@ -47,13 +52,20 @@ impl Default for WorkerInstanceHeartbeatConfig {
 /// Invalid worker-instance heartbeat configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WorkerInstanceHeartbeatConfigError {
+    /// The cadence exceeds the operational or platform range.
+    TimeRange,
     /// A zero interval would create a busy loop.
     ZeroInterval,
 }
 
 impl Display for WorkerInstanceHeartbeatConfigError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        formatter.write_str("worker-instance heartbeat interval must be nonzero")
+        formatter.write_str(match self {
+            Self::ZeroInterval => "worker-instance heartbeat interval must be nonzero",
+            Self::TimeRange => {
+                "worker-instance heartbeat interval is outside the operational range"
+            }
+        })
     }
 }
 

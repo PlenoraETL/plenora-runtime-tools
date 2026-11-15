@@ -136,3 +136,53 @@ fn maximum_representable_instant() -> SystemTime {
     }
     instant
 }
+
+#[test]
+fn cron_extreme_clocks_are_rejected_separately_from_exhaustion() -> Result<(), Box<dyn Error>> {
+    let plan = CronPlan::new("0 0 * * * * *", "UTC", SystemTime::UNIX_EPOCH)?;
+    let maximum = maximum_representable_instant();
+    assert_eq!(
+        plan.try_next_after(maximum).err().map(CronPlanError::kind),
+        Some(CronPlanErrorKind::TimeRange)
+    );
+    let beyond = Duration::from_secs(10_000_000_000_000);
+    for value in [
+        SystemTime::UNIX_EPOCH.checked_add(beyond),
+        SystemTime::UNIX_EPOCH.checked_sub(beyond),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        for zone in ["UTC", "Pacific/Kiritimati", "America/New_York"] {
+            assert_eq!(
+                CronPlan::new("0 0 * * * * *", zone, value)
+                    .err()
+                    .map(CronPlanError::kind),
+                Some(CronPlanErrorKind::TimeRange)
+            );
+        }
+        assert_eq!(
+            plan.try_next_after(value).err().map(CronPlanError::kind),
+            Some(CronPlanErrorKind::TimeRange)
+        );
+        assert_eq!(plan.next_after(value), None);
+    }
+    for date in [
+        chrono::DateTime::<Utc>::MIN_UTC,
+        chrono::DateTime::<Utc>::MAX_UTC,
+    ] {
+        if let Ok(value) = plenora_runtime_core::temporal::calendar(date) {
+            assert_eq!(
+                plan.try_next_after(value).err().map(CronPlanError::kind),
+                Some(CronPlanErrorKind::TimeRange)
+            );
+        }
+    }
+    assert_eq!(
+        CronPlan::new("0 0 0 1 1 * 2020", "UTC", utc(2026, 1, 1, 0, 0, 0)?)
+            .err()
+            .map(CronPlanError::kind),
+        Some(CronPlanErrorKind::NoFutureOccurrence)
+    );
+    Ok(())
+}

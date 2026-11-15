@@ -3110,6 +3110,7 @@ dependencies = [
 name = "plenora-runtime-core"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "tokio",
 ]
 
@@ -3192,6 +3193,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "chrono",
+ "plenora-runtime-core",
  "tokio",
  "uuid",
 ]
@@ -3259,6 +3261,7 @@ dependencies = [
 name = "plenora-runtime-subprocess"
 version = "0.1.0"
 dependencies = [
+ "plenora-runtime-core",
  "tokio",
 ]
 
