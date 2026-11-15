@@ -91,3 +91,13 @@ Il budget di osservazione remoto e separato dalla deadline autorizzata del run:
 intervallo 1..86400000 ms. Un timeout non cancella, non ripete e non estende il run.
 Il client Rust e l'unica autorita del timeout; il timer implicito NATS e disabilitato.
 I comandi legacy remote-call conservano il default; la sintassi chain espone il parametro.
+
+
+La proiezione terminale conserva lo stato del risultato: `rejected` (rifiuto
+prima dell'invocazione) produce errore `invalid` ed exit 2; `failed` e `partial`
+producono `failed` ed exit 3; `requires_recovery` exit 4; `cancelled` exit 5;
+`succeeded` exit 0. CLI, SDK sync/async e runtime usano la stessa proiezione Rust.
+Un `cancel_requested` e una ricevuta non terminale: `result` non conferma lo stop;
+il worker o una ripresa esplicita devono persistere la conferma. Vedere la
+[semantica degli esiti](specs/CHAIN-PLAN-2.0.md) e
+[ADR 0010](adr/0010-scripted-chain-facades.md).

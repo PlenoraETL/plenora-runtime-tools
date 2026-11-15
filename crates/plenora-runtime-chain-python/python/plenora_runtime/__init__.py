@@ -1,4 +1,4 @@
-"""Native scripted qualification clients; no ETL library is attested by this profile."""
+"""Native clients with explicit scripted, real database or IO candidate host profiles."""
 import asyncio
 import json
 from ._native import FUNCTIONS, NativeClient, NativeRemoteClient, NativeEventCursor, failure_json
@@ -36,8 +36,8 @@ def _encode(value):
 class Client:
     """Synchronous native client. The extension releases the GIL during Rust work."""
 
-    def __init__(self, config):
-        self._native = _native_call(NativeClient, _encode(config))
+    def __init__(self, config, *, profile="scripted"):
+        self._native = _native_call(NativeClient, _encode(config), profile)
 
     def migrate(self):
         """Apply the confirmed primary-store migration before accepting runs."""
@@ -75,20 +75,21 @@ class Client:
 class AsyncClient:
     """Async waits do not block the event loop. Cancelling a wait does not cancel a run."""
 
-    def __init__(self, config):
+    def __init__(self, config, *, profile="scripted"):
         # Configuration is consumed on first await; construction performs no native work.
         self._config = config
+        self._profile = profile
         self._initialization = None
 
     async def _ready(self):
         if self._initialization is None:
-            self._initialization = asyncio.create_task(asyncio.to_thread(Client, self._config))
+            self._initialization = asyncio.create_task(asyncio.to_thread(Client, self._config, profile=self._profile))
         return await asyncio.shield(self._initialization)
 
     @classmethod
-    async def create(cls, config):
+    async def create(cls, config, *, profile="scripted"):
         """Construct and validate off the event loop; returns only after initialization."""
-        instance = cls(config)
+        instance = cls(config, profile=profile)
         await instance._ready()
         return instance
 

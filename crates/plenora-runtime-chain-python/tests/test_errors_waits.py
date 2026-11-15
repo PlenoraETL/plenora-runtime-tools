@@ -56,7 +56,8 @@ class ErrorsAndWaits(unittest.IsolatedAsyncioTestCase):
 
     async def test_initialization_allows_loop_progress_with_declared_barrier_double(self):
         entered, release = threading.Event(), threading.Event()
-        def controlled(config):
+        def controlled(config, *, profile="scripted"):
+            self.assertEqual(profile, "scripted")
             entered.set()
             if not release.wait(10): raise AssertionError('event loop did not release initialization')
             return Client(config)

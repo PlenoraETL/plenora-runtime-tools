@@ -30,10 +30,39 @@ class Campaign(unittest.TestCase):
             '--test remote --locked --no-report -- nats_real_scripted --ignored',
             '--test worker --locked --no-report -- postgres_nats_real --ignored',
             '--test transport --locked --no-report -- --ignored',
+            '--test database --locked --no-report -- --ignored',
+            '--test io --locked --no-report -- --ignored',
+            '--test interop_real --locked --no-report -- postgres_real_ --ignored',
             'cargo llvm-cov report --summary-only --fail-under-lines 90',
         ]:
             self.assertIn(fragment, coverage)
         self.assertIn('--test transport --locked -- --ignored', ci_job(workflow, 'postgres-integration'))
+
+    def test_llvm_cov_test_filters_follow_the_separator(self):
+        # cargo llvm-cov parses a positional argument before `--` as one of its
+        # own subcommands: test name filters belong to libtest, after `--`.
+        options_with_value = {'-p', '--package', '--test', '--features', '--target',
+                              '--profile', '--output-path', '--fail-under-lines', '--lcov'}
+        seen = 0
+        for path in sorted((ROOT/'.github/workflows').glob('*.yml')):
+            for line in path.read_text(encoding='utf-8').splitlines():
+                if 'cargo llvm-cov' not in line:
+                    continue
+                words = line.split('cargo llvm-cov', 1)[1].split()
+                if words and words[0] in {'report', 'clean', 'show-env', 'nextest', 'run'}:
+                    continue
+                seen += 1
+                expects_value = False
+                for word in words:
+                    if word == '--' or word.startswith(('|', '&', ';', '>')):
+                        break
+                    if expects_value:
+                        expects_value = False
+                    elif word in options_with_value:
+                        expects_value = True
+                    elif not word.startswith('-') and word != '\\':
+                        self.fail(f'{path.name}: positional argument {word!r} before --')
+        self.assertGreater(seen, 0)
 
     def test_output_references_have_a_producer_in_the_same_job(self):
         workflow = (ROOT/'.github/workflows/ci.yml').read_text(encoding='utf-8')
@@ -71,3 +100,19 @@ class Campaign(unittest.TestCase):
             for failed in actual:
                 outcomes = {name:{'outcome':'failure' if name==failed else 'success', 'conclusion':'success'} for name in actual}
                 self.assertEqual(failures(outcomes,expected),[failed])
+
+    def test_real_adapter_prerequisites_are_explicit_in_both_campaigns(self):
+        for name in ('ci.yml', 'boundary-confirmation.yml'):
+            workflow = (ROOT/'.github/workflows'/name).read_text(encoding='utf-8')
+            for job in ('postgres-integration', 'coverage'):
+                text = ci_job(workflow, job)
+                self.assertIn('scripts/postgres-adapter-ci.Dockerfile', text)
+                self.assertIn('CREATE EXTENSION postgis', text)
+                self.assertRegex(text, r'--example io_fixture --locked -- "\$RUNNER_TEMP/[^"]+"')
+            installed = ci_job(workflow, 'postgres-integration')
+            self.assertIn('--example postgres_source_fixture --locked', installed)
+            self.assertNotIn('CREATE TABLE s3_source', installed)
+            coverage = ci_job(workflow, 'coverage')
+            for adapter in ('database', 'io', 'data'):
+                self.assertIn(f'--test {adapter} --locked --no-report -- --ignored', coverage)
+                self.assertIn(f'campaign_adapter_{adapter}', coverage.split('run: python scripts/ci_campaign.py')[-1])

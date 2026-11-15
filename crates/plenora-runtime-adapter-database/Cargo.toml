@@ -1,0 +1,34 @@
+[package]
+name = "plenora-runtime-adapter-database"
+description = "Pinned database read@1 and write@2 chain adapter."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+plenora-runtime-chains = { version = "=0.1.0", path = "../plenora-runtime-chains" }
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+# Real API/provider, all from the published py-v11.0.0 source. docs/adr/0011-database-chain-adapter.md.
+plenora-database-core = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }
+plenora-database-engine = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }
+plenora-db-postgres = { version = "=11.0.0", git = "https://github.com/PlenoraETL/plenora-database-tools.git", rev = "f4fdb9b5f09d8babe795f68e894949693aa9d0a1" }
+# IPC is an explicit lossless boundary using the same Arrow version as the pinned provider.
+arrow-ipc = "=60.1.0"
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+# Same SHA-256 implementation used by the chain manifest contract.
+sha2 = "=0.10.9"
+
+[dev-dependencies]
+plenora-runtime-boundary = { version = "=0.1.0", path = "../plenora-runtime-boundary" }
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../plenora-runtime-capabilities" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

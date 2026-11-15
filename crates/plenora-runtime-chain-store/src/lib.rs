@@ -30,6 +30,11 @@ use uuid::Uuid;
 mod schema;
 use schema::{MIGRATIONS, current_version, supported_versions};
 
+/// Primary connection establishment bound in milliseconds.
+pub const PRIMARY_CONNECT_MS: u64 = 10_000;
+/// Per-statement primary bound in milliseconds; not a whole-transaction deadline.
+pub const PRIMARY_STATEMENT_MS: u64 = 15_000;
+
 /// Connection factory. Each operation opens a primary connection and a transaction;
 /// no cached acceptance, replica fallback, or in-memory production profile exists.
 /// Connections use PostgreSQL's local/trusted-network transport (`NoTls`); deployment
@@ -51,7 +56,7 @@ impl PostgresStore {
     /// Returns `Invalid` on malformed configuration.
     pub fn new(connection: &str) -> Result<Self, StoreError> {
         let mut config = Config::from_str(connection).map_err(|_| StoreError::Invalid)?;
-        config.connect_timeout(std::time::Duration::from_secs(10));
+        config.connect_timeout(std::time::Duration::from_millis(PRIMARY_CONNECT_MS));
         Ok(Self { config })
     }
 
@@ -70,7 +75,7 @@ impl PostgresStore {
             .isolation_level(tokio_postgres::IsolationLevel::ReadCommitted)
             .start()
             .await?;
-        tx.batch_execute("SET LOCAL synchronous_commit = on; SET LOCAL statement_timeout = '15s'; SET LOCAL lock_timeout = '10s'").await?;
+        tx.batch_execute(&format!("SET LOCAL synchronous_commit = on; SET LOCAL statement_timeout = '{PRIMARY_STATEMENT_MS}ms'; SET LOCAL lock_timeout = '10s'")).await?;
         let row = tx.query_one("SELECT pg_is_in_recovery(), current_setting('transaction_read_only'), current_setting('fsync')", &[]).await?;
         if row.try_get::<_, bool>(0)?
             || row.try_get::<_, String>(1)? != "off"

@@ -1,0 +1,39 @@
+[package]
+name = "plenora-runtime-adapter-io"
+description = "Real IO candidate 9.0.0 chain adapter."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+plenora-runtime-chains = { version = "=0.1.0", path = "../plenora-runtime-chains" }
+plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }
+# Real IO APIs, candidate (NOT a published release); immutable revision. docs/adr/0012-io-chain-adapter.md.
+plenora-io-tools = { version = "=9.0.0", git = "https://github.com/PlenoraETL/plenora-IO-tools.git", rev = "9c087aa7daf5d9ad10843ebf3027ae8858f66b94" }
+plenora-io-core = { version = "=9.0.0", git = "https://github.com/PlenoraETL/plenora-IO-tools.git", rev = "9c087aa7daf5d9ad10843ebf3027ae8858f66b94" }
+plenora-io-model = { version = "=9.0.0", git = "https://github.com/PlenoraETL/plenora-IO-tools.git", rev = "9c087aa7daf5d9ad10843ebf3027ae8858f66b94" }
+# Same exact Arrow release as IO; inspect bytes/schema without casts.
+arrow-ipc = "=60.1.0"
+arrow-array = "=60.1.0"
+arrow-schema = { version = "=60.1.0", features = ["serde"] }
+# Private bounded staging and explicit cleanup before reporting completion. docs/adr/0012-io-chain-adapter.md.
+tempfile = "=3.27.0"
+# Same content-addressed evidence digest as the chain contract.
+sha2 = "=0.10.9"
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["sync", "time", "rt"] }
+
+[dev-dependencies]
+plenora-runtime-boundary = { version = "=0.1.0", path = "../plenora-runtime-boundary" }
+plenora-runtime-capabilities = { version = "=0.1.0", path = "../plenora-runtime-capabilities" }
+plenora-runtime-messaging = { version = "=0.1.0", path = "../plenora-runtime-messaging" }
+plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+
+[lints]
+workspace = true

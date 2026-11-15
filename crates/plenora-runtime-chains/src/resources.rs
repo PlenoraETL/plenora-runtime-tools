@@ -1,6 +1,9 @@
 //! Durable ownership of declared provider doubles; expiry is never proof of termination.
 use crate::{Error, Invocation, contracts::Budget};
 use serde::{Deserialize, Serialize};
+
+/// Duration granted by the primary for a resource lease.
+pub(crate) const RESOURCE_LEASE_MS: u64 = 30_000;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
@@ -262,9 +265,11 @@ impl ResourceLedger {
         let mut next = self.clone();
         let mut refs = old.map_or_else(Vec::new, |a| a.objects.clone());
         let mut supplied = std::collections::BTreeSet::new();
-        let until = old.map_or(now.checked_add(30_000).ok_or(Error::ResourceLimit)?, |a| {
-            a.until
-        });
+        let until = old.map_or(
+            now.checked_add(RESOURCE_LEASE_MS)
+                .ok_or(Error::ResourceLimit)?,
+            |a| a.until,
+        );
         let expires = retain_until;
         for resource in &request.objects {
             resource.validate()?;
@@ -343,9 +348,10 @@ impl ResourceLedger {
         if attempt.stopped || now >= attempt.until {
             return Err(Error::Conflict);
         }
-        attempt.until = attempt
-            .until
-            .max(now.checked_add(30_000).ok_or(Error::ResourceLimit)?);
+        attempt.until = attempt.until.max(
+            now.checked_add(RESOURCE_LEASE_MS)
+                .ok_or(Error::ResourceLimit)?,
+        );
         Ok(ResourceLease {
             message_id: lease.message_id.clone(),
             until: attempt.until,
@@ -371,6 +377,19 @@ impl ResourceLedger {
     pub fn observe(&mut self, journal: &crate::Journal) -> Result<(), Error> {
         journal.validate()?;
         let result = crate::contracts::parse_result(&journal.view)?;
+        // Evidence documents are useful even when the remote effect is unknown.
+        // Publishing immutable reports does not confirm provider termination or
+        // publish data outputs; those authorities remain separate below.
+        for step in &result.steps {
+            if let Some(allocation) = self
+                .attempts
+                .values()
+                .find(|a| a.step == step.step_id && a.attempt == step.attempt)
+            {
+                let owned = allocation.objects.clone();
+                self.observe_documents(step, &owned)?;
+            }
+        }
         let stopped: Vec<_> = self
             .attempts
             .iter()
@@ -412,6 +431,44 @@ impl ResourceLedger {
                 }
             }
             self.stopped(&id)?;
+        }
+        Ok(())
+    }
+    fn observe_documents(
+        &mut self,
+        step: &crate::contracts::StepResult,
+        owned: &[String],
+    ) -> Result<(), Error> {
+        let errors = step.error.iter().chain(&step.other_errors);
+        let reports = step
+            .reports
+            .iter()
+            .chain(step.outputs.values().flat_map(|a| &a.reports))
+            .chain(errors.clone().flat_map(|e| &e.reports));
+        let documents: Vec<_> = step
+            .upstream_result
+            .iter()
+            .chain(errors.filter_map(|e| e.upstream_error.as_ref()))
+            .chain(reports.filter_map(|r| r.document.as_ref()))
+            .collect();
+        // External immutable resolvers remain allowed. For ledger-owned objects,
+        // validate all documents before publishing any of them.
+        for document in &documents {
+            if let Some(object) = self.objects.get(&document.artifact_ref)
+                && (object.temporary
+                    || !owned.contains(&document.artifact_ref)
+                    || document.sha256 != object.sha256
+                    || object.bytes.as_ref().is_none_or(|bytes| {
+                        format!("{:x}", Sha256::digest(bytes)) != document.sha256
+                    }))
+            {
+                return Err(Error::Conflict);
+            }
+        }
+        for document in documents {
+            if let Some(object) = self.objects.get_mut(&document.artifact_ref) {
+                object.published = true;
+            }
         }
         Ok(())
     }
@@ -655,6 +712,58 @@ mod tests {
             ledger.reconcile(&request, 50_000, 100_000),
             Err(Error::Conflict)
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn evidence_publication_checks_digest_ownership_and_temporary_before_restart()
+    -> Result<(), Error> {
+        let request = request()?;
+        let mut ledger = ResourceLedger::new(&request.limits);
+        ledger.acquire(&request, 0, 100_000)?;
+        let result = crate::contracts::parse_result(include_bytes!(
+            "../../../contracts/chains-v2/fixtures/result-valid.json"
+        ))?;
+        let mut step = result.steps.first().ok_or(Error::Invalid)?.clone();
+        step.outputs.clear();
+        step.reports.clear();
+        step.error = None;
+        step.other_errors.clear();
+        step.remote_effect = "unknown".into();
+        step.stop_confirmed = false;
+        let document = crate::contracts::Document {
+            artifact_ref: "ref:blob".into(),
+            sha256: format!("{:x}", Sha256::digest(&request.objects[0].bytes)),
+            contract: "plenora-error-v1".into(),
+        };
+        step.upstream_result = Some(document.clone());
+        assert!(ledger.observe_documents(&step, &[]).is_err());
+        assert!(matches!(
+            ledger.artifact("ref:blob", 0),
+            Err(Error::Pending)
+        ));
+        step.upstream_result.as_mut().ok_or(Error::Invalid)?.sha256 = "0".repeat(64);
+        assert!(
+            ledger
+                .observe_documents(&step, &["ref:blob".into()])
+                .is_err()
+        );
+        step.upstream_result
+            .as_mut()
+            .ok_or(Error::Invalid)?
+            .artifact_ref = "ref:temporary".into();
+        assert!(
+            ledger
+                .observe_documents(&step, &["ref:temporary".into()])
+                .is_err()
+        );
+        step.upstream_result = Some(document);
+        ledger.observe_documents(&step, &["ref:blob".into()])?;
+        let bytes = serde_json::to_vec(&ledger).map_err(|_| Error::Invalid)?;
+        let restored: ResourceLedger =
+            serde_json::from_slice(&bytes).map_err(|_| Error::Invalid)?;
+        assert_eq!(restored.artifact("ref:blob", 0)?, &request.objects[0].bytes);
+        assert_eq!(restored.active(), 1); // Evidence availability is not remote stop confirmation.
         Ok(())
     }
 }

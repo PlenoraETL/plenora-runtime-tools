@@ -620,7 +620,9 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             }
         }
         if !recorded {
-            return Err(Error::Storage);
+            // Contention is not loss of primary confirmation. The waiter can
+            // observe the current owner and consume the durable receipt later.
+            return Err(Error::Conflict);
         }
         Ok(())
     }
@@ -644,7 +646,11 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         invocation: &Invocation,
         evidence: StepResult,
     ) -> Result<RunHandle, Error> {
-        match self.complete(started, invocation, evidence).await {
+        match self
+            .complete(started, invocation, evidence)
+            .await
+            .map_err(|error| crate::execution_failure(crate::ExecutionStage::Finalize, error))
+        {
             Err(Error::Recovery) => {
                 self.require_recovery(started).await?;
                 Err(Error::Recovery)
@@ -683,7 +689,15 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             let mut view = parse_result(&j.view)?;
             *view.steps.get_mut(intent.index).ok_or(Error::Invalid)? = evidence.clone();
             summarize(&mut view, &plan, now, j.revision + 1)?;
-            validate_result(&view, &plan, &self.registry).map_err(|_| Error::Recovery)?;
+            validate_result(&view, &plan, &self.registry).map_err(|rejection| {
+                if crate::diagnostics::enabled() {
+                    eprintln!(
+                        "Chain result classification rejected: code={}",
+                        rejection.0.as_str()
+                    );
+                }
+                Error::Recovery
+            })?;
             j.view = encode(&view)?;
             if let Some(allocation) = &mut j.allocation {
                 allocation.recovery = None;
@@ -723,7 +737,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
                 result => return result?.handle(),
             }
         }
-        Err(Error::Storage)
+        Err(Error::Conflict)
     }
     /// Drive the same submit/advance path until a terminal outcome is durably available.
     /// # Errors

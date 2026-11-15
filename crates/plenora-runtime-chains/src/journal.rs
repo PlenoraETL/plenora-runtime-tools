@@ -115,6 +115,11 @@ impl Journal {
     pub fn idempotency_key(&self) -> Option<&str> {
         self.options.idempotency_key.as_deref()
     }
+    /// Durable stop request, visible to adapters running in another host process.
+    #[must_use]
+    pub const fn cancellation_requested(&self) -> bool {
+        self.cancelled
+    }
     /// Revision used by primary CAS.
     #[must_use]
     pub const fn revision(&self) -> u64 {

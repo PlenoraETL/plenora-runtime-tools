@@ -160,13 +160,7 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
         };
         match self.wait_run(&handle).await {
             Ok(result) => {
-                let error = match result.state.as_str() {
-                    "succeeded" => None,
-                    "cancelled" => Some(Error::Cancelled),
-                    "requires_recovery" => Some(Error::Recovery),
-                    "rejected" => Some(Error::Invalid),
-                    _ => Some(Error::Failed),
-                };
+                let error = terminal_error(&result.state);
                 match serde_json::to_value(result) {
                     Ok(value) => Response { value, error },
                     Err(_) => Response {
@@ -243,5 +237,56 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
             },
         };
         value.map_err(|_| Error::Invalid)
+    }
+}
+
+/// Closed projection shared by every transport; never rewrite the domain state.
+fn terminal_error(state: &str) -> Option<Error> {
+    match state {
+        "succeeded" => None,
+        "cancelled" => Some(Error::Cancelled),
+        "requires_recovery" => Some(Error::Recovery),
+        "failed" | "partial" => Some(Error::Failed),
+        _ => Some(Error::Invalid),
+    }
+}
+
+#[cfg(test)]
+mod terminal_tests {
+    use super::*;
+    #[test]
+    fn enumerate_contract_states_and_transport_projection() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let schema: Value = serde_json::from_str(include_str!(
+            "../../../contracts/chains-v2/schemas/chain-result-v2.schema.json"
+        ))?;
+        let cases = [
+            ("succeeded", None, 0),
+            ("rejected", Some(Error::Invalid), 2),
+            ("failed", Some(Error::Failed), 3),
+            ("partial", Some(Error::Failed), 3),
+            ("requires_recovery", Some(Error::Recovery), 4),
+            ("cancelled", Some(Error::Cancelled), 5),
+        ];
+        let declared = schema["properties"]["state"]["enum"]
+            .as_array()
+            .ok_or("states")?;
+        assert_eq!(declared.len(), cases.len());
+        for (state, expected, exit) in cases {
+            assert!(declared.contains(&json!(state)));
+            let response = Response {
+                value: json!({"state":state}),
+                error: terminal_error(state),
+            };
+            assert_eq!(response.error, expected);
+            assert_eq!(response.exit_code(), exit);
+            let wire = serde_json::to_value(&response)?;
+            assert_eq!(wire["value"]["state"], state);
+            assert_eq!(wire["error"], serde_json::to_value(expected)?);
+        }
+        for invalid in ["cancel_requested", "running", "", "FAILED"] {
+            assert_eq!(terminal_error(invalid), Some(Error::Invalid));
+        }
+        Ok(())
     }
 }

@@ -40,6 +40,14 @@ pub struct ScriptStore(
     pub Mutex<Option<Pause>>,
     pub AtomicBool,
     pub Mutex<Option<std::sync::Arc<plenora_runtime_testkit::ManualClock>>>,
+    // S4 declared cut after a real provider returns, before evidence becomes durable.
+    pub Mutex<Option<String>>,
+    pub Mutex<Option<(String, Pause)>>,
+    // Counts write invoke resource acquisition, independently of file conflicts.
+    pub std::sync::atomic::AtomicU64,
+    // Declared CAS contention at an exact successor revision; count each refusal.
+    pub std::sync::atomic::AtomicU64,
+    pub std::sync::atomic::AtomicU64,
 );
 #[async_trait]
 impl Store for ScriptStore {
@@ -84,6 +92,9 @@ impl Store for ScriptStore {
         &self,
         request: &plenora_runtime_chains::ResourceRequest,
     ) -> Result<plenora_runtime_chains::ResourceLease, Error> {
+        if request.step == "write" {
+            self.19.fetch_add(1, Ordering::SeqCst);
+        }
         let now = u64::try_from(
             self.3
                 .now()
@@ -114,6 +125,33 @@ impl Store for ScriptStore {
         &self,
         request: &plenora_runtime_chains::ResourceRequest,
     ) -> Result<(), Error> {
+        let fail = {
+            let mut selected = self.17.lock().map_err(|_| Error::Storage)?;
+            if selected.as_deref() == Some(&request.step) {
+                selected.take();
+                true
+            } else {
+                false
+            }
+        };
+        if fail {
+            return Err(Error::Storage);
+        }
+        let pause = {
+            let mut selected = self.18.lock().map_err(|_| Error::Storage)?;
+            if selected
+                .as_ref()
+                .is_some_and(|(step, _)| step == &request.step)
+            {
+                selected.take()
+            } else {
+                None
+            }
+        };
+        if let Some((_, (entered, release))) = pause {
+            entered.notify_one();
+            release.notified().await;
+        }
         let now = u64::try_from(
             self.3
                 .now()
@@ -368,6 +406,10 @@ impl Store for ScriptStore {
         }
         let lease = next.lease().cloned();
         let next = next.into_journal();
+        if self.20.load(Ordering::SeqCst) == next.revision() {
+            self.21.fetch_add(1, Ordering::SeqCst);
+            return Err(Error::Conflict);
+        }
         let mut rows = self.0.lock().map_err(|_| Error::Storage)?;
         let leases = self.8.lock().map_err(|_| Error::Storage)?;
         let now = u64::try_from(

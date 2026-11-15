@@ -27,7 +27,7 @@ tokio = { workspace = true, features = ["time", "macros"] }
 
 [dev-dependencies]
 plenora-runtime-testkit = { version = "=0.1.0", path = "../plenora-runtime-testkit" }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "test-util"] }
 
 [lints]
 workspace = true

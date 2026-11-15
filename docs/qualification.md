@@ -516,3 +516,112 @@ non promuove i gate storici ne i consumer legacy. Audit/deny, fuzz prolungato,
 memoria e provider S3/S4 conservano i propri gate separati. Una cancellazione
 del workflow puo impedire l'upload: assenza dell'artefatto significa mancata
 conferma, mai successo.
+
+## Gate S3: database reale e superfici installate
+
+Regola: la disponibilita del codice non equivale alla qualifica. Ambito:
+adapter database 11.0.0 read@1/write@2. Stato: **aperto** fino agli esiti CI.
+Il crate reale, il profilo host/CLI/wheel e le prove sono implementati; le
+prove Rust locali usano IPC e settlement upstream con un provider double
+esplicito. Il test host `tests/database.rs` usa invece il provider PostgreSQL
+reale e lo store reale, controlla righe/null/stringhe vuote e rapporti dopo
+restart. E inserito nel job PostgreSQL esistente. Il test installato
+`test_database_real.py` confronta CLI, SDK sync e async sullo stesso provider.
+Rischio: comportamento infrastrutturale e parita non dimostrati dalla sola
+compilazione. Chiusura: eseguire questi job, suite e gate Linux/Windows, senza
+skip non giustificati. TLS/ACL di deployment restano qualifica distinta.
+
+Read@2 e lacuna upstream esplicita; il requisito corrente usa read@1 autorizzato.
+Stato storico dopo DB: DATA e IO erano passi successivi; vedere le sezioni S3 successive. La ratifica dei
+contratti catene resta separata. Esiti locali e comandi sono in target/S3.md;
+CI, audit/deny e fuzz non eseguiti qui non sono dichiarati verdi.
+
+
+## Gate S3 IO candidate
+
+Ambito: IO 9.0.0 candidate 9c087aa, non pubblicata. Test Rust con libreria/file
+reali e primario simulato sono distinti da PostgreSQL reale e wheel/CLI installate.
+I job PostgreSQL esistenti includono `chain-host/tests/io.rs` e
+`chain-python/tests/test_io_real.py`; un test ignored/skipped non e passato.
+Rischio aperto: parita su deployment, perdita evidenza crash dopo rename e
+candidate che normalizza metadata Primary Geometry. Chiusura: CI Linux/Windows
+verde, nuovo pin upstream corretto e campagne crash/durabilita. Nessuna promozione
+a qualifica completa delle cinque superfici sulla sola base del catalogo.
+Il successivo adapter DATA 5.0.0 candidate e descritto nella sezione S3 DATA sotto.
+
+
+## CI25: prerequisito PostgreSQL del provider database 11.0.0
+
+Regola: qualificare solo il profilo eseguito. Ambito: read@1/write@2 del pin
+f4fdb9b. Il probe interroga spatial_ref_sys e postgis_typmod_* anche per colonne
+non spaziali: PostgreSQL senza PostGIS fallisce not_found/probe. La CI installa
+PostGIS e attiva l'estensione nelle basi isolate delle superfici e della coverage.
+Rischio: il profilo PostgreSQL senza estensione non e qualificato; nessun bypass
+nel provider. Chiusura: correzione upstream e nuovo pin provato senza PostGIS.
+Il nuovo job reale e il recupero della soglia coverage 90% devono essere verificati
+in CI; la sola raccolta aggiunta non costituisce un gate passato.
+
+
+## S3 DATA candidate - ambito e gate
+
+Adapter Rust data.run@3 al pin eba11205, host durabile, CLI data-call/
+--data-config e Client/AsyncClient profile=data. Prove reali in-process sui
+percorsi documentati in target/S3.md; parita degli assi con fixture esplicitamente
+scriptate, non sostituzione del provider. Il fake usa buste JSON proprie e
+rapporti completi: non attesta C-01 reale o l'indisponibilita degli errori DATA.
+
+Gate aperti: PostgreSQL reale e wrapper installati con journal nei job esistenti,
+coverage 90% con nuovo test data separato e aggregato, CI Linux/Windows. Non
+estendere l'esito locale ai 146 kernel, a tutti i profili Arrow/file/Parquet o
+ai hard cap nativi (security-review). La catena PG -> data -> IO S4 resta successiva:
+serve composizione multi-adapter con autorizzazione del piano intero e resolver
+cross-component; tre test isolati non costituiscono quella prova.
+
+## S4 - gate della prima catena reale
+
+Regola: catene reali su cinque superfici, oracoli indipendenti e infrastruttura
+reale. Ambito locale: IPC -> DATA sort -> IPC, con controlli metadati/righe,
+rapporti recuperabili, piano modificato rifiutato, cancel al confine di settlement,
+crash con resume di ricevuta confermata e pubblicazione senza evidenza mai
+reinvocata. I cut locali usano una primary dichiaratamente doppia, gli adapter
+sono reali. CI: interop_real esegue PostgreSQL restart/cancel e la matrice su Rust,
+NATS runtime, CLI e wheel sync/async con lo stesso piano; coverage aggiunta al
+job esistente. Soglia invariata. Esistenza del test non significa gate passato.
+
+Gate aperti: CI Linux/Windows, campagna PostgreSQL/PostGIS/NATS installata,
+coverage completa, crash fisici/soak/RSS con engine reali e deployment target.
+I quattro formati richiesti hanno i rifiuti riprodotti in contract-alignment:
+S4 e il primo percorso ETL NON sono dichiarati chiusi. Condizione di chiusura:
+nuovi pin per i blocchi upstream e prove positive sui formati scelti, oltre ai
+gate reali. Il delta successivo prova anche IPC geometrico canonico -> DATA ->
+GeoParquet con oracolo indipendente, e rifiuti CSV/XLSX prima dell'effetto su
+quattro assi. PG read@1 -> DATA -> IO e implementata e inclusa nei job reali,
+ma non eseguita localmente: nessuna qualifica PG derivata dalla sola ammissione.
+Il consenso IO non e un gate S4 da simulare: resta una revisione comune futura
+con U4, esplicitamente separata dal rifiuto attuale delle perdite.
+
+
+### Supervisione primaria degli adapter S3/S4
+
+Regola: la frequenza di polling non e un timeout della primaria. IO, DATA e
+PostgreSQL condividono `monitor_provider`: letture e rinnovi indipendenti,
+deadline originale e lease primaria sempre osservate; la richiesta di stop
+richiede ancora il drain e l'evidenza del provider. Ambito: adapter reali S3/S4.
+Rischio: una primaria lenta puo esaurire la lease o fallire; non autorizza replay
+ne prova arresto. Gate aperto: campagna reale PostgreSQL/PostGIS/NATS e superfici
+installate, inclusi restart/cancel e journal remoto, oltre a CI Linux/Windows.
+Condizione di chiusura: esecuzione verde dei test reali `interop_real`, `remote`
+e `test_data_real.py`, con i gate CI e coverage completi. Le prove locali con
+`ManualClock` e timer sospesi non qualificano la latenza di un deployment.
+
+
+La riproduzione Linux `target/ci25/vm-1` conferma check/unit, host locale,
+adapter (seconda compilazione), remote, host-adapter, superfici installate e
+Python. Restano non qualificati i sessanta casi della matrice S4: il test si
+ferma a `ipc/rust` con recovery, ma il vecchio assert non identificava geometria
+e formato di uscita. Regola: mantenere succeeded per i casi positivi e non
+attribuire una causa senza evidenza. Ambito: interop_real. Rischio: confondere
+pubblicazione ignota, errore adapter e risultato non classificabile. Chiusura:
+rerun della matrice con case completo, assi redatti e stage operativi, quindi
+correzione della causa provata e nuova campagna verde. La diagnostica non chiude
+il gate e non modifica deadline, effetti o risultati.
