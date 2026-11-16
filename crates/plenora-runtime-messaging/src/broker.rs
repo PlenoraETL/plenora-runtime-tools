@@ -74,6 +74,9 @@ pub enum AckOperation {
 }
 
 /// Validated cadence and failure budget for non-terminal delivery heartbeats.
+///
+/// Operational timeouts and intervals must be positive, at most 24 hours, and
+/// admit a checked monotonic deadline. Calendar tolerances are not timer waits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DeliveryHeartbeatConfig {
     interval: Duration,
@@ -93,6 +96,8 @@ impl DeliveryHeartbeatConfig {
         if interval.is_zero() {
             return Err(DeliveryHeartbeatConfigError::ZeroInterval);
         }
+        plenora_runtime_core::temporal::interval(interval)
+            .map_err(|_| DeliveryHeartbeatConfigError::TimeRange)?;
         let max_consecutive_failures = NonZeroU32::new(max_consecutive_failures)
             .ok_or(DeliveryHeartbeatConfigError::ZeroFailureLimit)?;
         Ok(Self {
@@ -117,6 +122,8 @@ impl DeliveryHeartbeatConfig {
 /// Invalid delivery-heartbeat policy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DeliveryHeartbeatConfigError {
+    /// A temporal bound is outside the operational or platform range.
+    TimeRange,
     /// A zero interval would create a busy loop.
     ZeroInterval,
     /// At least one renewal failure must be observed before processing is cancelled.
@@ -126,6 +133,7 @@ pub enum DeliveryHeartbeatConfigError {
 impl Display for DeliveryHeartbeatConfigError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Self::TimeRange => formatter.write_str("time bound is outside the operational range"),
             Self::ZeroInterval => {
                 formatter.write_str("delivery heartbeat interval must be nonzero")
             }

@@ -5,6 +5,9 @@ use std::{
 };
 
 /// Validated global scheduler bounds.
+///
+/// Operational timeouts and intervals must be positive, at most 24 hours, and
+/// admit a checked monotonic deadline. Calendar tolerances are not timer waits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SchedulerConfig {
     tick_interval: Duration,
@@ -46,7 +49,7 @@ impl SchedulerConfig {
     /// # Errors
     ///
     /// Returns the first invalid invariant.
-    pub const fn validate(self) -> Result<(), SchedulerConfigError> {
+    pub fn validate(self) -> Result<(), SchedulerConfigError> {
         if self.tick_interval.is_zero() {
             return Err(SchedulerConfigError::ZeroTickInterval);
         }
@@ -62,6 +65,10 @@ impl SchedulerConfig {
         if self.max_catch_up_per_schedule == 0 {
             return Err(SchedulerConfigError::ZeroCatchUpCapacity);
         }
+        plenora_runtime_core::temporal::interval(self.tick_interval)
+            .map_err(|_| SchedulerConfigError::TimeRange)?;
+        plenora_runtime_core::temporal::timeout(self.dispatch_timeout)
+            .map_err(|_| SchedulerConfigError::TimeRange)?;
         Ok(())
     }
 
@@ -105,6 +112,8 @@ impl SchedulerConfig {
 /// Invalid scheduler configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SchedulerConfigError {
+    /// A temporal bound is outside the operational or platform range.
+    TimeRange,
     /// Polling requires a positive interval.
     ZeroTickInterval,
     /// Dispatch requires a positive timeout.
@@ -120,6 +129,7 @@ pub enum SchedulerConfigError {
 impl Display for SchedulerConfigError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
+            Self::TimeRange => "time bound is outside the operational range",
             Self::ZeroTickInterval => "scheduler tick interval must be greater than zero",
             Self::ZeroDispatchTimeout => "scheduler dispatch timeout must be greater than zero",
             Self::ZeroScheduleCapacity => "scheduler schedule capacity must be greater than zero",

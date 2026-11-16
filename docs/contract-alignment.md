@@ -1030,3 +1030,15 @@ contiene ancora Binding 1/2 e downgrade. RUNTIME-07 e chiusa per il pin dei
 contratti; i pin provider DATA/IO restano invariati fino al set coordinato
 con i rispettivi produttori e interop. Nessuna release o ricevuta viene
 rinominata per simulare quella qualifica.
+
+
+## TEMPO-RT
+
+Regola: conversione esatta, deadline scaduta = timeout, nessun limite rimosso per overflow.
+Ambito: R1..R5 e siti analoghi; [ADR 0015](adr/0015-checked-runtime-time.md).
+Restrizione locale esplicita: timeout relativi positivi <=24 ore; retry NATS 0..24 ore;
+cron UTC anni 1..9999. Le deadline assolute conservano l'orizzonte contrattuale.
+Rischio: configurazioni precedentemente accettate sono ora rifiutate; il trait cron
+Option non distingue rifiuto da esaurimento, mentre try_next_after lo distingue.
+Condizione di chiusura: ratifica del profilo operativo e qualifica Linux/Windows;
+nessuna modifica ai contratti vendorizzati o ai pin di famiglia.

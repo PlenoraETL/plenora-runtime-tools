@@ -598,6 +598,10 @@ impl Error for CapabilityDiscoveryError {}
 /// Stable reason a request is incompatible with discovered capability metadata.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CapabilityRequestRejection {
+    /// The runtime clock cannot be represented as a calendar instant.
+    ClockOutOfRange,
+    /// A deadline cannot be represented by the runtime monotonic clock.
+    DeadlineOutOfRange,
     /// The operation is not advertised.
     UnknownOperation,
     /// The requested operation contract version differs.

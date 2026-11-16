@@ -660,3 +660,14 @@ baseline a973b6e / bootstrap, riapertura e rifiuti; poi interop-real, remote-rea
 host-adapters-real e installed. Rischio: gli unit test non eseguono SQL.
 Chiusura: `CI25_COMPAT_ONLY=1 bash target/ci25/VM.sh` verde su VM PostgreSQL/NATS.
 La corsa locale senza servizi non chiude questo gate.
+
+
+## TEMPO-RT
+
+Regola: un gate non eseguito non e passato. Ambito: [ADR 0015](adr/0015-checked-runtime-time.md),
+R1..R5 e analoghi su HTTP/resources/scheduler/core/chains/NATS/dead-letter.
+Gate aperto: ripetere prove mirate e Clippy su Linux e Windows, inclusi RSS Linux,
+SystemTime oltre chrono dove rappresentabile, NATS reale e PostgreSQL per la regressione
+settlement/journal. Rischio: sola esecuzione locale Windows non prova Linux, servizi
+reali o dipendenze in esercizio. Condizione di chiusura: evidenze di questi comandi
+sulla stessa revisione, poi normale CI di merge; nessun commit o merge in questa attivita.

@@ -12,6 +12,9 @@ pub const DEFAULT_MAX_REQUEST_BODY_BYTES: usize = 1024 * 1024;
 pub const DEFAULT_MAX_IN_FLIGHT_REQUESTS: usize = 256;
 
 /// Validated network and shutdown configuration for the HTTP adapter.
+///
+/// Operational timeouts and intervals must be positive, at most 24 hours, and
+/// admit a checked monotonic deadline. Calendar tolerances are not timer waits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct HttpServerConfig {
     bind_address: SocketAddr,
@@ -108,6 +111,8 @@ impl HttpServerConfig {
         if self.max_in_flight_requests == 0 {
             return Err(HttpServerConfigError::ZeroMaxInFlightRequests);
         }
+        plenora_runtime_core::temporal::timeout(self.shutdown_grace_period)
+            .map_err(|_| HttpServerConfigError::TimeRange)?;
         Ok(())
     }
 }
@@ -115,6 +120,8 @@ impl HttpServerConfig {
 /// Invalid HTTP server configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HttpServerConfigError {
+    /// A temporal bound is outside the operational or platform range.
+    TimeRange,
     /// A zero grace period would not permit cooperative HTTP drain.
     ZeroShutdownGracePeriod,
     /// A zero body limit would reject every non-empty request.
@@ -126,6 +133,7 @@ pub enum HttpServerConfigError {
 impl Display for HttpServerConfigError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Self::TimeRange => formatter.write_str("time bound is outside the operational range"),
             Self::ZeroShutdownGracePeriod => {
                 formatter.write_str("HTTP shutdown grace period must be greater than zero")
             }

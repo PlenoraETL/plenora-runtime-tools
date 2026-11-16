@@ -690,3 +690,17 @@ async fn worker_finalizes_cancelled_unstarted_run_after_deadline_and_keeps_polli
     assert!(!e.work_once(&owner, 30_000).await?);
     Ok(())
 }
+
+#[tokio::test]
+async fn worker_rejects_extreme_lease_before_store_claim() -> Test {
+    let (store, script) = setup(0, "none")?;
+    let engine = engine(&store, &script)?;
+    for lease in [0, u64::MAX, 86_400_001] {
+        assert!(matches!(
+            engine.work_once("worker", lease).await,
+            Err(Error::Invalid)
+        ));
+    }
+    assert!(script.calls.lock().map_err(|_| Error::Storage)?.is_empty());
+    Ok(())
+}

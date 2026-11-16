@@ -500,3 +500,16 @@ in produzione. Garanzia indebolita rispetto al digest previsto (mai funzionante
 sulla VM: SQLSTATE 42725). Il confronto completo dei cataloghi e delle ACL e nel
 test PostgreSQL contro il finale a973b6e. Chiusura: qualifica reale del catalogo
 prima di adottare DDL e controlli amministrativi sul primario; nessun upgrade automatico.
+
+
+## TEMPO-RT
+
+Regola: niente panic, wrap o perdita di precisione per valori temporali esterni.
+Ambito: modulo temporal e inventario R1..R5 esteso; [ADR 0015](adr/0015-checked-runtime-time.md).
+Rischio residuo: la guardia sorgente copre costruttori e conversioni infallibili note,
+non segue alias e flussi arbitrari; un ingresso nuovo richiede anche revisione del
+codice e inventario API. I timer delle dipendenze ricevono config limitate e validate,
+ma non sono certificati formalmente da questo audit. Gli estremi SystemTime non
+rappresentabili su una piattaforma richiedono prove sulla piattaforma che li supporta.
+Condizione di chiusura: gate multipiattaforma, backend reali pertinenti e revisione
+indipendente del codice; una suite locale non qualifica il deploy TLS/subject NATS.

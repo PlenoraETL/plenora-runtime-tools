@@ -2,6 +2,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod temporal;
+
 mod clock;
 mod health;
 mod runtime;

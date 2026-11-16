@@ -940,3 +940,22 @@ fn raw_allocation_budgets_are_measured_before_encoding_expansion() -> TestResult
     assert_eq!(error.metadata().len(), 2);
     Ok(())
 }
+
+#[test]
+fn public_boundary_rejects_extreme_injected_clocks() -> TestResult {
+    let h = harness()?;
+    let mut doc = fixture("io-read-request.json")?;
+    doc["metadata"][EXECUTION_DEADLINE_METADATA_KEY] = json!("2030-01-01T00:00:00Z");
+    let delta = std::time::Duration::from_secs(10_000_000_000_000);
+    for value in [
+        SystemTime::UNIX_EPOCH.checked_add(delta),
+        SystemTime::UNIX_EPOCH.checked_sub(delta),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        h.clock.set(value);
+        reject(&h, &doc, PlenoraErrorCategory::Internal)?;
+    }
+    Ok(())
+}

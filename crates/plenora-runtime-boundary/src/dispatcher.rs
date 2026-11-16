@@ -281,6 +281,59 @@ impl CapabilityDispatcher {
         clippy::result_large_err,
         reason = "Private dispatch preserves typed evidence by value until the boundary maps it once"
     )]
+    fn execution_deadline(
+        &self,
+        request: &CapabilityRequest,
+    ) -> Result<Option<tokio::time::Instant>, CapabilityDispatchError> {
+        let capability = request.capability();
+        let operation = request.operation();
+        let deadline = request_deadline(request).map_err(|reason| {
+            CapabilityDispatchError::IncompatibleRequest {
+                capability: capability.clone(),
+                operation: operation.clone(),
+                reason,
+            }
+        })?;
+        let remaining = match deadline {
+            // RT-021: timeout(0, future) may poll the future once. Reject equality
+            // here, before even constructing the handler future.
+            Some(deadline) => Some(
+                deadline
+                    .signed_duration_since(
+                        plenora_runtime_core::temporal::clock(self.clock.now()).map_err(|_| {
+                            CapabilityDispatchError::IncompatibleRequest {
+                                capability: capability.clone(),
+                                operation: operation.clone(),
+                                reason: CapabilityRequestRejection::ClockOutOfRange,
+                            }
+                        })?,
+                    )
+                    .to_std()
+                    .ok()
+                    .filter(|remaining| !remaining.is_zero())
+                    .ok_or_else(|| CapabilityDispatchError::DeadlineExceeded {
+                        capability: capability.clone(),
+                        operation: operation.clone(),
+                        invocation_started: false,
+                    })?,
+            ),
+            None => None,
+        };
+        let timer_deadline = remaining
+            .map(plenora_runtime_core::temporal::absolute_deadline)
+            .transpose()
+            .map_err(|_| CapabilityDispatchError::IncompatibleRequest {
+                capability: capability.clone(),
+                operation: operation.clone(),
+                reason: CapabilityRequestRejection::DeadlineOutOfRange,
+            })?;
+        Ok(timer_deadline)
+    }
+
+    #[allow(
+        clippy::result_large_err,
+        reason = "Private dispatch preserves typed evidence by value until the boundary maps it once"
+    )]
     pub(crate) async fn handle(
         &self,
         context: WorkerContext,
@@ -318,34 +371,11 @@ impl CapabilityDispatcher {
             .and_then(|discovery| discovery.operation(&operation, operation_version))
             .map(|discovered| discovered.output().clone());
         let public_error_required = registration.discovery().is_some();
-        let deadline = request_deadline(&request).map_err(|reason| {
-            CapabilityDispatchError::IncompatibleRequest {
-                capability: capability.clone(),
-                operation: operation.clone(),
-                reason,
-            }
-        })?;
-        let remaining = match deadline {
-            // RT-021: timeout(0, future) may poll the future once. Reject equality
-            // here, before even constructing the handler future.
-            Some(deadline) => Some(
-                deadline
-                    .signed_duration_since(DateTime::<chrono::Utc>::from(self.clock.now()))
-                    .to_std()
-                    .ok()
-                    .filter(|remaining| !remaining.is_zero())
-                    .ok_or_else(|| CapabilityDispatchError::DeadlineExceeded {
-                        capability: capability.clone(),
-                        operation: operation.clone(),
-                        invocation_started: false,
-                    })?,
-            ),
-            None => None,
-        };
+        let timer_deadline = self.execution_deadline(&request)?;
         let cancellation = context.cancellation.clone();
         let invocation = registration.handler().invoke(context, request);
-        let result = if let Some(remaining) = remaining {
-            match tokio::time::timeout(remaining, invocation).await {
+        let result = if let Some(timer_deadline) = timer_deadline {
+            match tokio::time::timeout_at(timer_deadline, invocation).await {
                 Ok(result) => result,
                 Err(_elapsed) => {
                     let _cancelled = cancellation
@@ -893,6 +923,8 @@ fn request_deadline(
 
 const fn request_error_category(reason: CapabilityRequestRejection) -> PlenoraErrorCategory {
     match reason {
+        CapabilityRequestRejection::ClockOutOfRange => PlenoraErrorCategory::Internal,
+        CapabilityRequestRejection::DeadlineOutOfRange => PlenoraErrorCategory::ResourceLimit,
         CapabilityRequestRejection::UnknownOperation
         | CapabilityRequestRejection::OperationUnavailable
         | CapabilityRequestRejection::RuntimeSurfaceUnsupported

@@ -152,7 +152,11 @@ async fn benchmark_scheduler(iterations: usize) -> Result<Duration, Box<dyn Erro
     let final_offset = u64::try_from(iterations.saturating_sub(1))?;
     let started_at = Instant::now();
     let report = scheduler
-        .tick(SystemTime::UNIX_EPOCH + Duration::from_millis(final_offset))
+        .tick(
+            SystemTime::UNIX_EPOCH
+                .checked_add(Duration::from_millis(final_offset))
+                .ok_or_else(|| io::Error::other("benchmark time is outside the platform range"))?,
+        )
         .await;
     let elapsed = started_at.elapsed();
     if report.dispatched != iterations

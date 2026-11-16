@@ -227,6 +227,23 @@ impl RuntimeBoundary {
         self.admit(&raw, input.clone())
     }
 
+    fn validate_deadline(
+        &self,
+        deadline: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<(), Category> {
+        if let Some(deadline) = deadline {
+            let now = plenora_runtime_core::temporal::clock(self.clock.now())
+                .map_err(|_| Category::Internal)?;
+            if deadline <= now {
+                return Err(Category::Timeout);
+            }
+            let remaining = (deadline - now).to_std().map_err(|_| Category::Internal)?;
+            plenora_runtime_core::temporal::absolute_deadline(remaining)
+                .map_err(|_| Category::ResourceLimit)?;
+        }
+        Ok(())
+    }
+
     fn admit(
         &self,
         raw: &Map<String, Value>,
@@ -301,12 +318,8 @@ impl RuntimeBoundary {
         if raw.contains_key(KEY) && key_limit.is_none() {
             return Err(reject(Category::Unsupported));
         }
-        if self.check_deadline
-            && deadline.is_some_and(|deadline| {
-                deadline <= chrono::DateTime::<chrono::Utc>::from(self.clock.now())
-            })
-        {
-            return Err(reject(Category::Timeout));
+        if self.check_deadline {
+            self.validate_deadline(deadline).map_err(reject)?;
         }
         if input.exceeds_transport_payload_limit()
             || input.len() > self.dispatcher.config().max_payload_bytes

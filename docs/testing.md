@@ -105,3 +105,15 @@ cargo test -p plenora-runtime-subprocess --all-targets --locked
 cargo test -p plenora-runtime-control --all-targets --locked
 cargo test -p plenora-runtime-control-http --all-targets --locked
 ```
+
+
+## Conversioni temporali
+
+Il test architetturale `production_time_conversions_remain_checked` riusa il sanitizer
+di produzione per crate, adapter ed esempi. Rifiuta conversioni DateTime/SystemTime
+infallibili note, clock.into(), costruttori float panicking e somme dirette al clock.
+`time_guard_detects_known_regressions_and_ignores_tests` ne prova la distinzione dai test.
+Le suite `temporal` dei crate core, messaging, worker, subprocess, scheduler, resources
+ed HTTP, i piani cron, boundary_facades e broker_runner verificano i limiti senza server.
+NATS config e preparazione NAK si provano senza rete; real_nats resta un gate distinto.
+Vedere [ADR 0015](adr/0015-checked-runtime-time.md) per domini ed eccezioni.

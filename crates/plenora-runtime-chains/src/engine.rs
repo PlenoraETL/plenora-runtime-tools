@@ -141,6 +141,8 @@ impl<S: Store + plenora_runtime_boundary::DurableExecutionStore> ChainEngine<S> 
     /// # Errors
     /// Unconfirmed ownership, stale fences and storage errors are surfaced without new effects.
     pub async fn work_once(&self, owner: &str, lease_ms: u64) -> Result<bool, Error> {
+        plenora_runtime_core::temporal::timeout(std::time::Duration::from_millis(lease_ms))
+            .map_err(|_| Error::Invalid)?;
         let Some(mut lease) = self.store.claim_work(&self.tenant, owner, lease_ms).await? else {
             return Ok(false);
         };

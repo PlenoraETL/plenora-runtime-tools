@@ -13,6 +13,9 @@ pub const MAX_CAPTURE_BYTES: usize = 16 * 1024 * 1024;
 const MAX_MEMORY_LIMIT_BYTES: u64 = 1024 * 1024 * 1024 * 1024;
 
 /// Validated limits for one subprocess supervisor.
+///
+/// Operational timeouts and intervals must be positive, at most 24 hours, and
+/// admit a checked monotonic deadline. Calendar tolerances are not timer waits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SubprocessSupervisorConfig {
     max_concurrent: usize,
@@ -46,6 +49,8 @@ impl SubprocessSupervisorConfig {
         if execution_timeout.is_zero() {
             return Err(SubprocessConfigError::ZeroExecutionTimeout);
         }
+        plenora_runtime_core::temporal::timeout(execution_timeout)
+            .map_err(|_| SubprocessConfigError::TimeRange)?;
         Ok(Self {
             max_concurrent,
             execution_timeout,
@@ -91,6 +96,12 @@ impl SubprocessSupervisorConfig {
         if graceful.is_zero() || hard_kill.is_zero() || output_drain.is_zero() {
             return Err(SubprocessConfigError::ZeroTerminationTimeout);
         }
+        plenora_runtime_core::temporal::timeout(graceful)
+            .map_err(|_| SubprocessConfigError::TimeRange)?;
+        plenora_runtime_core::temporal::timeout(hard_kill)
+            .map_err(|_| SubprocessConfigError::TimeRange)?;
+        plenora_runtime_core::temporal::timeout(output_drain)
+            .map_err(|_| SubprocessConfigError::TimeRange)?;
         self.graceful_termination = graceful;
         self.hard_kill_timeout = hard_kill;
         self.output_drain_timeout = output_drain;
@@ -123,6 +134,8 @@ impl SubprocessSupervisorConfig {
         if sample_interval.is_zero() {
             return Err(SubprocessConfigError::ZeroMemorySampleInterval);
         }
+        plenora_runtime_core::temporal::interval(sample_interval)
+            .map_err(|_| SubprocessConfigError::TimeRange)?;
         if !cfg!(target_os = "linux") {
             return Err(SubprocessConfigError::MemoryLimitUnsupported);
         }
@@ -189,6 +202,8 @@ fn validate_capture_limit(limit: usize) -> Result<(), SubprocessConfigError> {
 /// Invalid supervisor configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SubprocessConfigError {
+    /// A temporal bound is outside the operational or platform range.
+    TimeRange,
     /// Concurrency must be positive.
     ZeroConcurrency,
     /// Concurrency exceeded the hard maximum.
@@ -214,6 +229,7 @@ pub enum SubprocessConfigError {
 impl Display for SubprocessConfigError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
+            Self::TimeRange => "time bound is outside the operational range",
             Self::ZeroConcurrency => "subprocess concurrency must be positive",
             Self::ConcurrencyAboveMaximum => "subprocess concurrency exceeds the hard maximum",
             Self::ZeroExecutionTimeout => "subprocess execution timeout must be positive",

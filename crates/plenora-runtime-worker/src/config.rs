@@ -38,6 +38,9 @@ impl Default for WorkerConcurrency {
 }
 
 /// Engine-neutral worker execution configuration.
+///
+/// Operational timeouts and intervals must be positive, at most 24 hours, and
+/// admit a checked monotonic deadline. Calendar tolerances are not timer waits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct WorkerConfig {
     /// Explicit concurrency bound for handler invocations.
@@ -108,7 +111,7 @@ impl WorkerConfig {
     /// # Errors
     ///
     /// Returns an error when concurrency or the shutdown grace period is zero.
-    pub const fn validate(&self) -> Result<(), WorkerConfigError> {
+    pub fn validate(&self) -> Result<(), WorkerConfigError> {
         if self.concurrency.max_in_flight == 0 {
             return Err(WorkerConfigError::ZeroMaxInFlight);
         }
@@ -127,6 +130,18 @@ impl WorkerConfig {
             && interval.is_zero()
         {
             return Err(WorkerConfigError::ZeroLifecycleHeartbeatInterval);
+        }
+        plenora_runtime_core::temporal::timeout(self.shutdown_grace_period)
+            .map_err(|_| WorkerConfigError::TimeRange)?;
+        plenora_runtime_core::temporal::timeout(self.task_cancellation_grace_period)
+            .map_err(|_| WorkerConfigError::TimeRange)?;
+        if let Some(value) = self.execution_timeout {
+            plenora_runtime_core::temporal::timeout(value)
+                .map_err(|_| WorkerConfigError::TimeRange)?;
+        }
+        if let Some(value) = self.lifecycle_heartbeat_interval {
+            plenora_runtime_core::temporal::interval(value)
+                .map_err(|_| WorkerConfigError::TimeRange)?;
         }
         Ok(())
     }
@@ -148,6 +163,8 @@ impl Default for WorkerConfig {
 /// Invalid worker configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WorkerConfigError {
+    /// A temporal bound is outside the operational or platform range.
+    TimeRange,
     /// At least one handler invocation must be allowed.
     ZeroMaxInFlight,
     /// Drain must have a finite, non-zero grace period.
@@ -163,6 +180,7 @@ pub enum WorkerConfigError {
 impl Display for WorkerConfigError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Self::TimeRange => formatter.write_str("time bound is outside the operational range"),
             Self::ZeroMaxInFlight => {
                 formatter.write_str("worker max_in_flight must be greater than zero")
             }
