@@ -56,7 +56,7 @@ cui sono scritte.
 | rischi residui e checklist di rilascio | [`docs/security-review.md`](docs/security-review.md) |
 | pin dei contratti comuni e lacune note | [`docs/contract-alignment.md`](docs/contract-alignment.md) e [`contracts/source.json`](contracts/source.json) |
 | politica delle dipendenze e della supply chain | [`docs/dependency-policy.md`](docs/dependency-policy.md) e [`deny.toml`](deny.toml) |
-| coverage, fuzz e prove di memoria | [`docs/testing.md`](docs/testing.md) |
+| piano CI locale e ricevute, coverage, fuzz e prove di memoria | [`docs/testing.md`](docs/testing.md) |
 | decisioni architetturali | [`docs/adr/`](docs/adr/README.md) |
 | segnalare una vulnerabilità | [`SECURITY.md`](SECURITY.md) |
 | perché una decisione è stata presa | `git log` |
