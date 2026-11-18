@@ -6,4 +6,6 @@
 # (pin esatto), che non porta radici proprie: le riesporta dalla 1.0.x
 # interna. Rientro: bump di tokio-websockets a una linea che usa
 # webpki-roots 1.0 (issue #13).
-ignore = ["RUSTSEC-2026-0381"]
+# Riesame: 2027-02-13; owner: manutentori della famiglia Plenora.
+# unmaintained, non vulnerabile, nessuna versione sicura; migrazione di famiglia a jiff/time pianificata
+ignore = ["RUSTSEC-2026-0381", "RUSTSEC-2026-0543", "RUSTSEC-2026-0555", "RUSTSEC-2026-0548"]

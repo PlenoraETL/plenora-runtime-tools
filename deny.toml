@@ -2,6 +2,14 @@
 all-features = true
 
 [advisories]
+# Riesame: 2027-02-13; owner: manutentori della famiglia Plenora.
+ignore = [
+    { id = "RUSTSEC-2026-0543", reason = "unmaintained, non vulnerabile, nessuna versione sicura; migrazione di famiglia a jiff/time pianificata" },
+    { id = "RUSTSEC-2026-0555", reason = "chrono-tz unmaintained, non vulnerabile, nessuna versione sicura; segue la migrazione di famiglia da chrono a jiff/time" },
+    # Unica eccezione per una vulnerabilita', decisione del titolare del 17/11/2026: scade con
+    # l'adozione di IO 10.0.0 pubblicata, che porta zip 9.0.5.
+    { id = "RUSTSEC-2026-0548", reason = "zip 9.0.3 solo transitiva via IO fissato da git a 9c087aa7 (=9.0.3); ZipStreamReader non usato da runtime ne' da IO; si toglie adottando IO 10.0.0" },
+]
 unmaintained = "workspace"
 # Una versione ritirata dal registro è un errore, non un avviso.
 yanked = "deny"
