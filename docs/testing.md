@@ -117,3 +117,48 @@ Le suite `temporal` dei crate core, messaging, worker, subprocess, scheduler, re
 ed HTTP, i piani cron, boundary_facades e broker_runner verificano i limiti senza server.
 NATS config e preparazione NAK si provano senza rete; real_nats resta un gate distinto.
 Vedere [ADR 0015](adr/0015-checked-runtime-time.md) per domini ed eccezioni.
+
+
+## CI locale derivata dai workflow
+
+Il piano C2 si legge con `python scripts/ci_locale.py --piano --profilo pr`.
+La fonte dei comandi resta `.github/workflows/`: il piano conserva tutti i job,
+matrici, needs, condizioni, filtri, shell, directory, ambiente, toolchain e servizi.
+I profili `qualifica` e `release` sono consultabili con `--piano`; soltanto `pr`
+accetta `--esegui`. I filtri di evento sono riportati, senza simulare il diff PR:
+il piano PR include tutti i job dei workflow con trigger pull_request.
+
+Preparare un ambiente Python (quello locale puo stare in `target/ci-locale-venv`)
+e installare `requirements-ci-locale.txt` e `scripts/requirements-chains.txt`.
+Il parser YAML usa PyYAML 6.0.3, come il runner della famiglia data.
+`python scripts/ci_locale.py --esegui --profilo pr` salva una ricevuta progressiva
+in `target/ci-locale/<corsa>/ricevuta.json`, con SHA e stato dirty, hash delle fonti,
+comando completo, toolchain dichiarata, ambiente applicato, servizi, log, durata
+ed esito di ciascun passo. `--job` seleziona un job o una cella; i non selezionati
+restano NON ESEGUITO. `--offline` disabilita i passi che richiedono rete.
+Le variabili imposte sono `CARGO_BUILD_JOBS=4`, `CARGO_INCREMENTAL=0`,
+`GIT_OPTIONAL_LOCKS=0` e `RUSTUP_AUTO_INSTALL=0`.
+
+PASS richiede un processo realmente terminato con codice zero. Un fallimento
+produce FAIL; passi mancanti, condizioni false o non risolvibili, piattaforme
+diverse, servizi PostgreSQL/NATS/Docker, VM, action sconosciute, cache e artefatti
+Actions producono NON ESEGUITO con motivo. I needs non riprodotti bloccano i job
+dipendenti: il runner non certifica la CI completa. In particolare i test reali
+ignorati nella suite ordinaria restano nei loro job distinti e non sono qualificati
+dal solo successo della suite ordinaria. L'opzione comune `--servizi-live` non
+abilita provisioning locale in questo repository. Le pubblicazioni sono vietate.
+Exit code: 0 completo, 1 almeno un FAIL, 2 incompleto; `--piano` restituisce 0
+per un piano leggibile, senza attestare esecuzione.
+
+Le mappe dichiarative `ACTION_MAP`, `ACTION_REVISIONS`, `ACTION_INPUTS` e
+`CHECKOUT_POLICY` in `scripts/ci_locale.py` delimitano gli adattamenti supportati.
+Un checkout aggiuntivo richiede repository/ref/path dichiarati e una destinazione
+pulita gia presente nel worktree: origin e SHA risolto devono corrispondere al
+richiesto. Non si eseguono clone, fetch o checkout; `.git` non viene scritto.
+I workflow correnti non dichiarano checkout aggiuntivi. I test sintetici ne
+verificano il rifiuto se assenti o con SHA diverso e l'assenza di mutazioni.
+
+Le controprove in `scripts/test_ci_locale.py` eseguono piccoli processi isolati
+in `target/`, confrontano ricevuta e log e confrontano ogni job e passo del piano
+reale con i workflow. La discovery Python della CI include questi test; il
+workflow di conferma viene rigenerato da `scripts/generate_boundary_confirmation.py`.

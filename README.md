@@ -80,7 +80,7 @@ I gate Python richiedono Python 3.10 o successivo, senza dipendenze esterne.
 La CI li esegue su Linux, Windows e macOS come passi bloccanti:
 
 ```sh
-python -m pip install -r scripts/requirements-chains.txt
+python -m pip install -r scripts/requirements-chains.txt -r requirements-ci-locale.txt
 python -m unittest discover -s scripts -p 'test_*.py'
 python scripts/check-contract-adoption.py
 python scripts/check_comments.py

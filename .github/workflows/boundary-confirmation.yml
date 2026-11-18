@@ -76,7 +76,7 @@ jobs:
         continue-on-error: true
         if: always()
         id: confirmation_06
-        run: python -m pip install -r scripts/requirements-chains.txt
+        run: python -m pip install -r scripts/requirements-chains.txt -r requirements-ci-locale.txt
 
       - name: Test Python gates and chain contract fixtures
         continue-on-error: true
@@ -233,7 +233,7 @@ jobs:
         continue-on-error: true
         if: always()
         id: confirmation_06
-        run: python -m pip install -r scripts/requirements-chains.txt
+        run: python -m pip install -r scripts/requirements-chains.txt -r requirements-ci-locale.txt
 
       - name: Test Python gates and chain contract fixtures
         continue-on-error: true
