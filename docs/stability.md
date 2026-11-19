@@ -7,7 +7,7 @@ throughput di coordinamento senza trasformare numeri legati all'hardware in sogl
 
 ## Scenari sempre attivi
 
-La suite normale del workspace esegue questi scenari su Windows, Linux e macOS:
+La suite normale del workspace esegue questi scenari su Windows e Linux:
 
 - 2.048 messaggi del broker con `max_in_flight=32`; esattamente 32 handler diventano attivi, 2.016
   restano in coda, ogni messaggio riceve un solo ACK e non resta alcun task attivo né consegna;

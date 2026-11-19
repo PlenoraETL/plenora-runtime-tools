@@ -21,7 +21,8 @@ uuid.workspace = true
 # Operational PostgreSQL driver, independent of ETL. ADR: docs/adr/0009-chain-postgres.md.
 tokio-postgres = { version = "=0.7.18", default-features = false, features = ["runtime"] }
 # Exact bootstrap and structural catalog identity; also used by resource test oracles.
-sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+# SHA-256 di famiglia 0.11: alloc sostituisce std, che upstream non espone piu.
+sha2 = { version = "=0.11.0", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 plenora-runtime-core = { version = "=0.1.0", path = "../plenora-runtime-core" }

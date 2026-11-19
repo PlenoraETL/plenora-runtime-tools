@@ -39,3 +39,48 @@ va reso disponibile insieme ai dati distribuiti. L'approvazione del grafo non
 sostituisce l'inclusione dei testi dovuti negli artefatti di distribuzione.
 Audit offline con database locale e yanked disabilitato e solo evidenza parziale:
 restano obbligatori audit/deny aggiornati della CI e del job settimanale.
+
+## Manifesto di famiglia
+
+La baseline immutabile in `.ci/plenora-dependencies/family-baseline.toml` proviene
+dalla qualifica database del 19/11/2026. `scripts/manifesto_dipendenze.py --write`
+genera `plenora-dependencies.toml` dai due lock e da Cargo metadata con tutte le
+feature; la modalita ordinaria verifica la riproducibilita senza scrivere.
+Il guardiano `controlla_dipendenze.py --repo . --nome plenora-runtime-tools`
+confronta versioni, fonti, interfacce e duplicati con le decisioni di famiglia.
+La CI verifica anche lo snapshot con SHA-256 esplicito nel workflow.
+
+Le qualifiche descrittive non autorizzano dipendenze. Le decisioni esplicite in
+[`manifesto_deroghe.json`](../scripts/manifesto_deroghe.json) raccolgono una voce
+per crate e i singoli archi identificati dal fingerprint del guardiano. Lo script
+espande soltanto i 68 archi transitivi incompatibili e le due identita fork
+approvati, nel formato delle deroghe di famiglia: motivazione, percorso verificato
+nel lock, profili, ambito feature/target, proprietario, rimozione e riesame entro
+il 2027-02-13. Nuovi genitori, versioni o provenienze restano errori; le deroghe
+cessate non vengono emesse. La baseline e il guardiano non cambiano.
+
+Il riesame dei 72 archi duplicati ha riallineato quattro vincoli larghi con
+`cargo update -p tempfile --precise 3.27.0 --offline`: tempfile usa getrandom
+0.4.3; errno, rustix 1.1.6 e tempfile usano windows-sys 0.61.2. Versioni di
+pacchetto, pin diretti e lock fuzz invariati. I genitori degli altri archi sono
+gia ai riferimenti applicabili della baseline; le linee preferite non soddisfano
+i loro requisiti, oppure sono archi opzionali conservati dal lock completo.
+La classificazione (b) riguarda questi requisiti e le versioni qualificate nella
+famiglia, non afferma l'assenza universale di release upstream piu recenti.
+
+Restano due errori bloccanti, senza deroga: encoding_rs 0.8.35 e zip 9.0.3,
+entrambi con condizione **chiude con IO 10.0.0**. La presenza dei due fork Parquet
+resta una garanzia di unificazione indebolita: si conservano patch di correttezza
+e identita distinte finche i prodotti proprietari migrano dopo riqualifica.
+
+Nessuna nuova licenza viene ammessa. Le 24 dipendenze private di prodotto senza
+SPDX restano soggette alla regola gia presente `licenses.private.ignore = true`:
+la qualifica registra separatamente tale esclusione e il digest del file di
+licenza quando disponibile. Non sono dichiarate licenze SPDX ammesse. Tutte le
+licenze pubbliche risolte soddisfano la policy vigente. L'eccezione
+RUSTSEC-2026-0548 resta fino all'adozione di IO 10.0.0; il pin IO non cambia.
+
+Il [registro delle deroghe](deroghe-dipendenze.md) e generato esclusivamente dal
+manifesto con lo stesso comando `--write`. Il guardiano di riproducibilita
+verifica identita byte per byte e campi obbligatori (motivazione, percorso,
+condizione di uscita e data); non aggiornare il documento a mano.

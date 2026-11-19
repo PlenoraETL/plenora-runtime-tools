@@ -6,6 +6,9 @@
 
 #![forbid(unsafe_code)]
 
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
+compile_error!("plenora-runtime supports only Linux and Windows");
+
 mod config;
 mod error;
 mod output;

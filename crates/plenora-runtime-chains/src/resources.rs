@@ -305,7 +305,11 @@ impl ResourceLedger {
                 next.objects.insert(
                     resource.reference.clone(),
                     Object {
-                        sha256: format!("{:x}", Sha256::digest(&resource.bytes)),
+                        sha256: Sha256::digest(&resource.bytes)
+                            .iter()
+                            .flat_map(|byte| [byte >> 4, byte & 0x0f])
+                            .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+                            .collect::<String>(),
                         published: false,
                         bytes: Some(resource.bytes.clone()),
                         consumers: resource
@@ -421,7 +425,12 @@ impl ResourceLedger {
                     || artifact.sha256 != object.sha256
                     || object.bytes.as_ref().is_none_or(|b| {
                         b.len() as u64 != artifact.bytes
-                            || format!("{:x}", Sha256::digest(b)) != object.sha256
+                            || Sha256::digest(b)
+                                .iter()
+                                .flat_map(|byte| [byte >> 4, byte & 0x0f])
+                                .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+                                .collect::<String>()
+                                != object.sha256
                     })
                 {
                     return Err(Error::Conflict);
@@ -459,7 +468,12 @@ impl ResourceLedger {
                     || !owned.contains(&document.artifact_ref)
                     || document.sha256 != object.sha256
                     || object.bytes.as_ref().is_none_or(|bytes| {
-                        format!("{:x}", Sha256::digest(bytes)) != document.sha256
+                        Sha256::digest(bytes)
+                            .iter()
+                            .flat_map(|byte| [byte >> 4, byte & 0x0f])
+                            .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+                            .collect::<String>()
+                            != document.sha256
                     }))
             {
                 return Err(Error::Conflict);
@@ -521,7 +535,13 @@ impl ResourceLedger {
             return Err(Error::Pending);
         }
         let bytes = object.bytes.as_deref().ok_or(Error::Expired)?;
-        if format!("{:x}", Sha256::digest(bytes)) != object.sha256 {
+        if Sha256::digest(bytes)
+            .iter()
+            .flat_map(|byte| [byte >> 4, byte & 0x0f])
+            .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+            .collect::<String>()
+            != object.sha256
+        {
             return Err(Error::Invalid);
         }
         Ok(bytes)
@@ -733,7 +753,11 @@ mod tests {
         step.stop_confirmed = false;
         let document = crate::contracts::Document {
             artifact_ref: "ref:blob".into(),
-            sha256: format!("{:x}", Sha256::digest(&request.objects[0].bytes)),
+            sha256: Sha256::digest(&request.objects[0].bytes)
+                .iter()
+                .flat_map(|byte| [byte >> 4, byte & 0x0f])
+                .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+                .collect::<String>(),
             contract: "plenora-error-v1".into(),
         };
         step.upstream_result = Some(document.clone());

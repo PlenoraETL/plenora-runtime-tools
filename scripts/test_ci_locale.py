@@ -121,13 +121,23 @@ class CiLocaleTests(unittest.TestCase):
         self.workflow({'first': self.job([{'run': 'print(1)', 'shell': 'python'}]),
                        'matrix': self.job([{'run': 'print(2)', 'shell': 'python'}],
                            needs=['first'], strategy={'matrix': {'os': ['ubuntu-latest', 'windows-latest'],
-                               'exclude': [{'os': 'ubuntu-latest'}], 'include': [{'os': 'macos-latest'}]}})})
+                               'exclude': [{'os': 'ubuntu-latest'}], 'include': [{'os': 'ubuntu-24.04'}]}})})
         plan = ci.derive(self.root)
         self.assertEqual(len(plan['jobs']), 3)
         self.assertEqual([j['matrix']['os'] for j in plan['jobs'] if j['key'] == 'matrix'],
-                         ['windows-latest', 'macos-latest'])
+                         ['windows-latest', 'ubuntu-24.04'])
         receipt = self.run_plan()
         self.assertEqual([j['status'] for j in receipt['jobs']], ['PASS', 'NON ESEGUITO', 'NON ESEGUITO'])
+
+    def test_unsupported_host_and_runner_are_never_executable(self):
+        self.workflow({'probe': self.job([{'run': 'print(1)', 'shell': 'python'}],
+                                        **{'runs-on': 'unsupported-runner'})})
+        plan = ci.derive(self.root)
+        job = plan['jobs'][0]
+        with patch.object(ci, 'host_os', return_value='sconosciuta'):
+            status, reason = ci.classify(job, job['steps'][0], self.root)
+        self.assertEqual(status, 'NON ESEGUITO')
+        self.assertIn('piattaforma', reason)
 
     def test_conditions_services_platform_and_unknown_action(self):
         cases = [({'if': 'false'}, [{'run': 'print(1)', 'shell': 'python'}]),

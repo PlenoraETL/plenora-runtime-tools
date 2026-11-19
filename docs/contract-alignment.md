@@ -1042,3 +1042,18 @@ Rischio: configurazioni precedentemente accettate sono ora rifiutate; il trait c
 Option non distingue rifiuto da esaurimento, mentre try_next_after lo distingue.
 Condizione di chiusura: ratifica del profilo operativo e qualifica Linux/Windows;
 nessuna modifica ai contratti vendorizzati o ai pin di famiglia.
+
+## Scostamenti del manifesto dipendenze
+
+Regola: versioni, fonti e linee preferite della baseline di famiglia. Ambito:
+lock workspace e fuzz, incluse dipendenze opzionali. Il registro eseguibile
+[`manifesto_deroghe.json`](../scripts/manifesto_deroghe.json) motiva per crate
+68 archi transitivi incompatibili e due identita fork Parquet; lo script genera
+le deroghe per fingerprint senza cambiare baseline o guardiano. Quattro archi
+con vincoli compatibili sono riallineati. Rischio: unificazione delle dipendenze
+indebolita, con linee e fork distinti; nessuna equivalenza nominale dei fork.
+Chiusura: aggiornamento dei genitori e rimozione degli archi, riqualifica API,
+target, licenze e correttezza dei fork; riesame entro il 2027-02-13.
+
+encoding_rs 0.8.35 e zip 9.0.3 restano errori senza deroga: chiude con IO 10.0.0.
+Il pin IO non cambia. Qualifica e rischio residuo restano nei rispettivi registri.

@@ -135,7 +135,7 @@ sulle versioni duplicate di cargo-deny non sono stati soppressi. Un primo
 comando deny con `--disable-fetch` non era valido per questa versione; ÃƒÂ¨ stato
 corretto usando `--offline`, senza dichiarare passato il tentativo invalido.
 
-Non eseguiti: CI Linux/macOS e CI Windows remota, NATS reale e gli otto test
+Non eseguiti: CI Linux e CI Windows remota, NATS reale e gli otto test
 ignorati dalla suite, coverage con soglia 90%, fuzz smoke/campagne su Linux,
 soak Docker, audit aggiornato via rete e consumatore aggregato con gli altri
 prodotti Plenora. Non sono gate verdi. La sonda TLS in memoria non qualifica

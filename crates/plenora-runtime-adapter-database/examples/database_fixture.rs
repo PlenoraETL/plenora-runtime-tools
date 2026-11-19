@@ -14,7 +14,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut request: serde_json::Value = serde_json::from_slice(bytes)?;
     request["accept_loss"] = serde_json::json!(true);
     *bytes = serde_json::to_vec(&request)?;
-    denied_plan.steps[1].parameters.sha256 = format!("{:x}", Sha256::digest(bytes));
+    denied_plan.steps[1].parameters.sha256 = Sha256::digest(bytes)
+        .iter()
+        .flat_map(|byte| [byte >> 4, byte & 0x0f])
+        .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+        .collect::<String>();
     denied_config.authorized_plans = vec![serde_json::to_string(&denied_plan)?];
     println!(
         "{}",

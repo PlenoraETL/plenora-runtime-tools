@@ -797,7 +797,7 @@ fn qualification_docs_preserve_open_release_and_security_gates() -> Result<(), B
     let mut violations = Vec::new();
 
     for required in [
-        "CI su Windows, Linux e macOS",
+        "CI su Windows e Linux",
         "Nessun candidato al rilascio è stato ancora qualificato",
         "un vero consumer Plenora",
         "un proof of concept di microservizio PFM",

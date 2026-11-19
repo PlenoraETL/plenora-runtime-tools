@@ -38,7 +38,7 @@ fn process_memory_sample() -> Result<MemorySample, MemorySampleError> {
     parse_proc_status(&status)
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "windows")]
 fn process_memory_sample() -> Result<MemorySample, MemorySampleError> {
     Err(MemorySampleError::new(
         MemorySampleErrorKind::UnsupportedPlatform,

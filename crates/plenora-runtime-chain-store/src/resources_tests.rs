@@ -93,7 +93,11 @@ mod cases {
             .ok_or(Error::Invalid)?;
             let output = result.outputs.get_mut("dataset").ok_or(Error::Invalid)?;
             output.bytes = 4;
-            output.sha256 = format!("{:x}", sha2::Sha256::digest([0, 1, 2, 3]));
+            output.sha256 = sha2::Sha256::digest([0, 1, 2, 3])
+                .iter()
+                .flat_map(|byte| [byte >> 4, byte & 0x0f])
+                .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+                .collect::<String>();
             result.counters.artifact_bytes = 4;
             result.counters.memory_bytes = 4;
             result.counters.spool_bytes = 4;

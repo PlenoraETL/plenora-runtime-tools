@@ -126,7 +126,11 @@ pub(crate) fn canonical(value: &Value) -> Checked<Vec<u8>> {
     serde_json::to_vec(&sorted(value)).map_err(|_| Code::Document.into())
 }
 pub(crate) fn digest(value: &Value) -> Checked<String> {
-    Ok(format!("{:x}", Sha256::digest(canonical(value)?)))
+    Ok(Sha256::digest(canonical(value)?)
+        .iter()
+        .flat_map(|byte| [byte >> 4, byte & 0x0f])
+        .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+        .collect::<String>())
 }
 
 #[cfg(test)]

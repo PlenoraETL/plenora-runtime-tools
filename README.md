@@ -76,8 +76,8 @@ installato sull'host, usare l'helper Docker da PowerShell:
 
 Il gate del grafo catene richiede anche Cargo e le dipendenze già disponibili
 localmente (`metadata --offline --locked --all-features`), senza compilazione.
-I gate Python richiedono Python 3.10 o successivo, senza dipendenze esterne.
-La CI li esegue su Linux, Windows e macOS come passi bloccanti:
+I gate Python richiedono Python 3.11 o successivo, senza dipendenze esterne.
+La CI li esegue su Linux, Windows come passi bloccanti:
 
 ```sh
 python -m pip install -r scripts/requirements-chains.txt -r requirements-ci-locale.txt
@@ -87,6 +87,8 @@ python scripts/check_comments.py
 python scripts/check_docs.py
 python scripts/check_chain_inventory.py
 python scripts/check_chain_graph.py
+python scripts/manifesto_dipendenze.py
+python .ci/plenora-dependencies/controlla_dipendenze.py --repo . --nome plenora-runtime-tools
 ```
 
 Il gate commenti controlla Rust, Python, PowerShell, shell, TOML e YAML,

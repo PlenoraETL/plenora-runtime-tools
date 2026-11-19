@@ -119,12 +119,13 @@ fn record_confirmation(surface: &str, case: &Value) -> Result<(), Box<dyn StdErr
         let directory = std::path::PathBuf::from(directory);
         std::fs::create_dir_all(&directory)?;
         let receipt = json!({
-            "GITHUB_SHA": std::env::var("GITHUB_SHA")?,
-            "GITHUB_RUN_ID": std::env::var("GITHUB_RUN_ID")?,
-            "GITHUB_RUN_ATTEMPT": std::env::var("GITHUB_RUN_ATTEMPT")?,
-            "matrix_sha256": format!("{:x}", Sha256::digest(include_str!("fixtures/surfaces.json").replace("\r\n", "\n").as_bytes())),
-            "rule": case["id"], "mode": "rust", "status": "passed"
-        });
+                    "GITHUB_SHA": std::env::var("GITHUB_SHA")?,
+                    "GITHUB_RUN_ID": std::env::var("GITHUB_RUN_ID")?,
+                    "GITHUB_RUN_ATTEMPT": std::env::var("GITHUB_RUN_ATTEMPT")?,
+                    "matrix_sha256": Sha256::digest(include_str!("fixtures/surfaces.json").replace("\r\n", "\n").as_bytes()).iter().flat_map(|byte| [byte >> 4, byte & 0x0f])
+        .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)])).collect::<String>(),
+                    "rule": case["id"], "mode": "rust", "status": "passed"
+                });
         std::fs::write(
             directory.join(format!(
                 "cell-rust-{}.json",

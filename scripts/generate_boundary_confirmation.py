@@ -23,7 +23,8 @@ permissions:
   contents: read
   actions: read
 env:
-  CARGO_BUILD_JOBS: 2
+  CARGO_BUILD_JOBS: 4
+  CARGO_INCREMENTAL: 0
   PLENORA_CONFIRMATION_DIR: ${{ github.workspace }}/target/p25-evidence
 jobs:
 '''

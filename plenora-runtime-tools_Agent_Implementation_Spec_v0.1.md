@@ -1204,7 +1204,7 @@ Aggiungere, coerentemente con le altre librerie:
 - policy sul codice unsafe;
 - pinning delle dipendenze;
 - verifica della MSRV;
-- Windows/Linux/macOS;
+- Windows/Linux;
 - qualificazione del rilascio sullo stesso SHA.
 
 ---

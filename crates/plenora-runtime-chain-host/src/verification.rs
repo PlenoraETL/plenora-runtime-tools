@@ -10,7 +10,11 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 fn digest(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    Sha256::digest(bytes)
+        .iter()
+        .flat_map(|byte| [byte >> 4, byte & 0x0f])
+        .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+        .collect::<String>()
 }
 fn object_digest(value: &impl Serialize) -> Result<String, Error> {
     // Value sorts every object, including nested metadata; no schema information is dropped.

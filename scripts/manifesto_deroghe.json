@@ -1,0 +1,1691 @@
+{
+  "decision_date": "2026-11-19",
+  "review_by": "2027-02-13",
+  "owner": "manutentori plenora-runtime-tools",
+  "crates": [
+    {
+      "crate": "base64",
+      "reason": "postgres-protocol 0.6.12 richiede base64 ^0.22; il client tokio-postgres diretto e gia al riferimento 0.7.18.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "base64",
+            "version": "0.22.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "postgres-protocol@0.6.12",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "f7210b9ac0a7437c0247bf5c"
+          },
+          "chain": "plenora-runtime-chain-host -> tokio-postgres@0.7.18 -> postgres-protocol@0.6.12 -> base64@0.22.1",
+          "requirements": [
+            "^0.22"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "bit-set",
+      "reason": "fancy-regex 0.19.2 richiede bit-set ^0.8; la linea di proptest non e sostituibile sotto questo vincolo.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "bit-set",
+            "version": "0.8.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "fancy-regex@0.19.2",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "ec655794332a05b6842a5bd0"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-geoparquet@9.0.0 -> jsonschema@0.56.0 -> fancy-regex@0.19.2 -> bit-set@0.8.0",
+          "requirements": [
+            "^0.8"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "bit-vec",
+      "reason": "bit-set 0.8 richiede bit-vec ^0.8; migrare il ramo fancy-regex prima di unificare con proptest.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "bit-vec",
+            "version": "0.8.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "bit-set@0.8.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "29e416756bae6a78987699da"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-geoparquet@9.0.0 -> jsonschema@0.56.0 -> fancy-regex@0.19.2 -> bit-set@0.8.0 -> bit-vec@0.8.0",
+          "requirements": [
+            "^0.8.0"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "const-oid",
+      "reason": "x509-cert 0.2.5 mantiene const-oid ^0.9.3 per i certificati del ramo sqlx/database.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "const-oid",
+            "version": "0.9.6",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "x509-cert@0.2.5",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "c5c0b2d154b1252bc4b030d4"
+          },
+          "chain": "plenora-runtime-adapter-database -> plenora-db-postgres@11.0.0 -> tokio-postgres-rustls@0.14.0 -> x509-cert@0.2.5 -> const-oid@0.9.6",
+          "requirements": [
+            "^0.9.3"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "der",
+      "reason": "x509-cert 0.2.5 mantiene der ^0.7.6; la nuova linea DER richiede migrazione del genitore.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "der",
+            "version": "0.7.10",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "x509-cert@0.2.5",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "1a2ced515fd54132b4e3142f"
+          },
+          "chain": "plenora-runtime-adapter-database -> plenora-db-postgres@11.0.0 -> tokio-postgres-rustls@0.14.0 -> x509-cert@0.2.5 -> der@0.7.10",
+          "requirements": [
+            "^0.7.6"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "encoding_rs",
+      "reason": "Il pin IO 9.0.0 mantiene encoding_rs 0.8.35; chiude con IO 10.0.0.",
+      "removal": "chiude con IO 10.0.0",
+      "entries": [
+        {
+          "category": "c",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "reference",
+            "crate": "encoding_rs",
+            "version": "0.8.35",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "versione diversa dal riferimento della linea",
+            "key": "35c4473c1e3f68d118fee4dd"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-shp@9.0.0 -> encoding_rs@0.8.35",
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "crate": "fallible-iterator",
+      "reason": "tokio-postgres 0.7.18 e i suoi postgres-types/protocol richiedono ^0.2, pur essendo gia ai riferimenti di famiglia.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "fallible-iterator",
+            "version": "0.2.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "postgres-protocol@0.6.12",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "da538aea7560367199706e8d"
+          },
+          "chain": "plenora-runtime-chain-host -> tokio-postgres@0.7.18 -> postgres-protocol@0.6.12 -> fallible-iterator@0.2.0",
+          "requirements": [
+            "^0.2"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "fallible-iterator",
+            "version": "0.2.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "postgres-types@0.2.14",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "509091d2d8df95e202ff5256"
+          },
+          "chain": "plenora-runtime-chain-host -> tokio-postgres@0.7.18 -> postgres-types@0.2.14 -> fallible-iterator@0.2.0",
+          "requirements": [
+            "^0.2"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "fallible-iterator",
+            "version": "0.2.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "tokio-postgres@0.7.18",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "33d4a544b669ed634597f4c6"
+          },
+          "chain": "plenora-runtime-chain-host -> tokio-postgres@0.7.18 -> fallible-iterator@0.2.0",
+          "requirements": [
+            "^0.2"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "generic-array",
+      "reason": "as-slice 0.1.5 e heapless 0.6 conservano le linee 0.12/0.13/0.14 del ramo rstar storico; non sono unificabili con la linea preferita.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "generic-array",
+            "version": "0.12.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "as-slice@0.1.5",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "3bfa0109cf7ff572a216f2b5"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.8.4 -> heapless@0.6.1 -> as-slice@0.1.5 -> generic-array@0.12.4",
+          "requirements": [
+            "^0.12.4",
+            "^0.13.3",
+            "^0.14.4"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "generic-array",
+            "version": "0.13.3",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "as-slice@0.1.5",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "9ef70d96541b08363fffebc3"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.8.4 -> heapless@0.6.1 -> as-slice@0.1.5 -> generic-array@0.13.3",
+          "requirements": [
+            "^0.12.4",
+            "^0.13.3",
+            "^0.14.4"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "generic-array",
+            "version": "0.14.7",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "as-slice@0.1.5",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "ef9a342d4f4149d402559fc9"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.8.4 -> heapless@0.6.1 -> as-slice@0.1.5 -> generic-array@0.14.7",
+          "requirements": [
+            "^0.12.4",
+            "^0.13.3",
+            "^0.14.4"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "generic-array",
+            "version": "0.14.7",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "heapless@0.6.1",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "b29cc719103e70080d608ae9"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.8.4 -> heapless@0.6.1 -> generic-array@0.14.7",
+          "requirements": [
+            "^0.14.4"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "getrandom",
+      "reason": "const-random-macro, ahash e jsonschema/referencing mantengono requisiti ^0.2 o ^0.3; il vincolo largo di tempfile viene invece riallineato (a).",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "getrandom",
+            "version": "0.2.17",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "const-random-macro@0.1.16",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "e66abc1661faa8abd70a2dc1"
+          },
+          "chain": "plenora-runtime-adapter-data -> arrow-array@60.1.0 -> ahash@0.8.12 -> const-random@0.1.18 -> const-random-macro@0.1.16 -> getrandom@0.2.17",
+          "requirements": [
+            "^0.2.0"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "getrandom",
+            "version": "0.3.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "ahash@0.8.12",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "7e61b95717185b4746fa306e"
+          },
+          "chain": "plenora-runtime-adapter-data -> arrow-array@60.1.0 -> ahash@0.8.12 -> getrandom@0.3.4",
+          "requirements": [
+            "^0.3.1"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "getrandom",
+            "version": "0.3.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "jsonschema@0.56.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "e1dd495117585c96f9ec6c94"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-geoparquet@9.0.0 -> jsonschema@0.56.0 -> getrandom@0.3.4",
+          "requirements": [
+            "^0.3.4"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "getrandom",
+            "version": "0.3.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "jsonschema-value@0.56.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "e54abcf89b83019a6f1a0060"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-geoparquet@9.0.0 -> jsonschema@0.56.0 -> jsonschema-value@0.56.0 -> getrandom@0.3.4",
+          "requirements": [
+            "^0.3.4"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "getrandom",
+            "version": "0.3.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "referencing@0.56.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "c6e5e91be20774194a52cc2e"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-geoparquet@9.0.0 -> jsonschema@0.56.0 -> referencing@0.56.0 -> getrandom@0.3.4",
+          "requirements": [
+            "^0.3.4",
+            "^0.4"
+          ]
+        },
+        {
+          "category": "a",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "getrandom",
+            "version": "0.3.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "tempfile@3.27.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "da2bcd7e33e9ffcacaec5655"
+          },
+          "chain": "plenora-runtime-adapter-io -> tempfile@3.27.0 -> getrandom@0.3.4",
+          "requirements": [
+            ">=0.3.0, <0.5"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "hash32",
+      "reason": "heapless 0.6 e 0.7 richiedono rispettivamente hash32 ^0.1 e ^0.2, nel ramo rstar storico.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "hash32",
+            "version": "0.1.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "heapless@0.6.1",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "9b9a1cff046fddf858a50457"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.8.4 -> heapless@0.6.1 -> hash32@0.1.1",
+          "requirements": [
+            "^0.1.0"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "hash32",
+            "version": "0.2.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "heapless@0.7.17",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "c55f0db04a09365ad9240944"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.10.0 -> heapless@0.7.17 -> hash32@0.2.1",
+          "requirements": [
+            "^0.2.1"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "hashbrown",
+      "reason": "rsqlite-vfs 0.1.1 e spade 2.15.1 richiedono ^0.16.1; nessun genitore piu recente e qualificato nella baseline di famiglia.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "hashbrown",
+            "version": "0.16.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rsqlite-vfs@0.1.1",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "932cf9db90eafca2dc9f0d3a"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-gpkg@9.0.0 -> rusqlite@0.41.1 -> sqlite-wasm-rs@0.5.5 -> rsqlite-vfs@0.1.1 -> hashbrown@0.16.1",
+          "requirements": [
+            "^0.16.1"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "hashbrown",
+            "version": "0.16.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "spade@2.15.1",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "72c9002c4b235ec9e104b0df"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> spade@2.15.1 -> hashbrown@0.16.1",
+          "requirements": [
+            "^0.16.1"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "heapless",
+      "reason": "rstar 0.8/0.9/0.10/0.11 conserva heapless 0.6/0.7; il lock comprende anche gli archi opzionali geo-types, senza dichiararne attivazione nel binario.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "heapless",
+            "version": "0.6.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rstar@0.8.4",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "79f0d7c99664483e084c48d8"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.8.4 -> heapless@0.6.1",
+          "requirements": [
+            "^0.6"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "heapless",
+            "version": "0.7.17",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rstar@0.9.3",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "5bbdf5be1649c156b11cb997"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.9.3 -> heapless@0.7.17",
+          "requirements": [
+            "^0.7.10"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "heapless",
+            "version": "0.7.17",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rstar@0.10.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "f34170746d0348b80a6fb3ff"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.10.0 -> heapless@0.7.17",
+          "requirements": [
+            "^0.7.10"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "heapless",
+            "version": "0.7.17",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rstar@0.11.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "36fd7c7e21334303cc8ff6d2"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.11.0 -> heapless@0.7.17",
+          "requirements": [
+            "^0.7.10"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "itertools",
+      "reason": "plenora-fork-dxf 0.6.1 richiede ^0.14.0 nel driver DXF di IO; serve migrazione del fork, non modifica del pin IO runtime.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "itertools",
+            "version": "0.14.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "plenora-fork-dxf@0.6.1",
+            "parent_source": "git+https://github.com/PlenoraETL/plenora-IO-tools.git?rev=9c087aa7daf5d9ad10843ebf3027ae8858f66b94#9c087aa7daf5d9ad10843ebf3027ae8858f66b94",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "13459bac2c595b0a41d2461f"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-dxf@9.0.0 -> plenora-fork-dxf@0.6.1 -> itertools@0.14.0",
+          "requirements": [
+            "^0.14.0"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "linux-raw-sys",
+      "reason": "atomicwrites 0.4.4 mantiene rustix 0.38 e linux-raw-sys ^0.4.14; API non compatibili con rustix 1.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "linux-raw-sys",
+            "version": "0.4.15",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rustix@0.38.44",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "7120434b39cc26f4801c1065"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-core@9.0.0 -> atomicwrites@0.4.4 -> rustix@0.38.44 -> linux-raw-sys@0.4.15",
+          "requirements": [
+            "^0.4.14"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "num-bigint",
+      "reason": "fraction 0.17, num 0.4 e num-rational 0.4 mantengono num-bigint ^0.4; i genitori sono gia ai riferimenti di famiglia.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "num-bigint",
+            "version": "0.4.8",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "fraction@0.17.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "80855616ad328e017af76e4b"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-geoparquet@9.0.0 -> jsonschema@0.56.0 -> fraction@0.17.0 -> num-bigint@0.4.8",
+          "requirements": [
+            "^0.4.8"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "num-bigint",
+            "version": "0.4.8",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "num@0.4.3",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "7486331d7fcd597b1e7e1c4c"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-dxf@9.0.0 -> plenora-fork-dxf@0.6.1 -> num@0.4.3 -> num-bigint@0.4.8",
+          "requirements": [
+            "^0.4.5"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "num-bigint",
+            "version": "0.4.8",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "num-rational@0.4.2",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "f03f4da858fe3ac89c170434"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-dxf@9.0.0 -> plenora-fork-dxf@0.6.1 -> num@0.4.3 -> num-rational@0.4.2 -> num-bigint@0.4.8",
+          "requirements": [
+            "^0.4.0"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "num-traits",
+      "reason": "enum_primitive 0.1.1 richiede num-traits ^0.1.32; la linea 0.2 non soddisfa il requisito.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "num-traits",
+            "version": "0.1.43",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "enum_primitive@0.1.1",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "acf745e374143c57a385fa77"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-dxf@9.0.0 -> plenora-fork-dxf@0.6.1 -> enum_primitive@0.1.1 -> num-traits@0.1.43",
+          "requirements": [
+            "^0.1.32"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "plenora-fork-parquet",
+      "reason": "Fork Parquet di IO: patch di correttezza, identita distinta da upstream e dal fork DATA; il consumer runtime lo usa anche nei test interop. Nessuna equivalenza nominale autorizzata.",
+      "removal": "Rimuovere dopo adozione upstream delle patch del fork e migrazione del prodotto proprietario; riqualificare roundtrip, EOF, API, licenze e interop.",
+      "entries": [
+        {
+          "category": "fork",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "fork",
+            "crate": "plenora-fork-parquet",
+            "version": "60.0.0",
+            "source": "git+https://github.com/PlenoraETL/plenora-IO-tools.git?rev=9c087aa7daf5d9ad10843ebf3027ae8858f66b94#9c087aa7daf5d9ad10843ebf3027ae8858f66b94",
+            "detail": "identita fork distinta da upstream",
+            "key": "6cc365272e0daaae3bc1484f"
+          },
+          "chain": "plenora-runtime-chain-host -> plenora-fork-parquet@60.0.0",
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "crate": "plenora-parquet",
+      "reason": "Fork Parquet DATA 60.0.0-eof: patch di correttezza EOF, identita distinta da upstream e dal fork IO. Nessuna equivalenza nominale autorizzata.",
+      "removal": "Rimuovere dopo adozione upstream delle patch del fork e migrazione del prodotto proprietario; riqualificare roundtrip, EOF, API, licenze e interop.",
+      "entries": [
+        {
+          "category": "fork",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "fork",
+            "crate": "plenora-parquet",
+            "version": "60.0.0",
+            "source": "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6",
+            "detail": "identita fork distinta da upstream",
+            "key": "f273a345677c82f4394b2708"
+          },
+          "chain": "plenora-runtime-adapter-data -> plenora-cli@5.0.0 -> plenora-io@5.0.0 -> plenora-parquet@60.0.0",
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "crate": "quick-xml",
+      "reason": "kml 0.14.0 richiede quick-xml ^0.41.0; la linea preferita 0.42 richiede aggiornamento del genitore KML.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "quick-xml",
+            "version": "0.41.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "kml@0.14.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "3c38ce1db6c9cc14113411cb"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-kml@9.0.0 -> kml@0.14.0 -> quick-xml@0.41.0",
+          "requirements": [
+            "^0.41.0"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "rand",
+      "reason": "nkeys 0.4.5, phf_generator 0.11.3 e tokio-websockets 0.10.1 richiedono rand ^0.8, anche nel lock fuzz.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand",
+            "version": "0.8.8",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "nkeys@0.4.5",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "75781a52111e047da8f025e9"
+          },
+          "chain": "plenora-runtime-chain-host -> async-nats@0.50.0 -> nkeys@0.4.5 -> rand@0.8.8",
+          "requirements": [
+            "^0.8"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand",
+            "version": "0.8.8",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "phf_generator@0.11.3",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "e0a164cc818c5d28ca69ab2a"
+          },
+          "chain": "plenora-runtime-scheduler -> cron@0.17.0 -> phf@0.11.3 -> phf_macros@0.11.3 -> phf_generator@0.11.3 -> rand@0.8.8",
+          "requirements": [
+            "^0.8"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand",
+            "version": "0.8.8",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "tokio-websockets@0.10.1",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "6bceea320db2e555d892bf97"
+          },
+          "chain": "plenora-runtime-chain-host -> async-nats@0.50.0 -> tokio-websockets@0.10.1 -> rand@0.8.8",
+          "requirements": [
+            "^0.8"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "fuzz/Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand",
+            "version": "0.8.8",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "nkeys@0.4.5",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "6267c78b10ac5c11a4029170"
+          },
+          "chain": "plenora-runtime-nats -> async-nats@0.50.0 -> nkeys@0.4.5 -> rand@0.8.8",
+          "requirements": [
+            "^0.8"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "fuzz/Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand",
+            "version": "0.8.8",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "phf_generator@0.11.3",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "d49fd6bd187ee18b88ae0c36"
+          },
+          "chain": "plenora-runtime-scheduler -> cron@0.17.0 -> phf@0.11.3 -> phf_macros@0.11.3 -> phf_generator@0.11.3 -> rand@0.8.8",
+          "requirements": [
+            "^0.8"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "fuzz/Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand",
+            "version": "0.8.8",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "tokio-websockets@0.10.1",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "e6c35901822e94b368c87c11"
+          },
+          "chain": "plenora-runtime-nats -> async-nats@0.50.0 -> tokio-websockets@0.10.1 -> rand@0.8.8",
+          "requirements": [
+            "^0.8"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "rand_chacha",
+      "reason": "rand 0.8.8 richiede rand_chacha ^0.3.0; la migrazione deve partire dai genitori nkeys/phf_generator/tokio-websockets.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand_chacha",
+            "version": "0.3.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rand@0.8.8",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "00b6d9ebf893a69378e616a2"
+          },
+          "chain": "plenora-runtime-chain-host -> async-nats@0.50.0 -> nkeys@0.4.5 -> rand@0.8.8 -> rand_chacha@0.3.1",
+          "requirements": [
+            "^0.3.0"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "fuzz/Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand_chacha",
+            "version": "0.3.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rand@0.8.8",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "c9ec81c5cff4a2b77c6ef92e"
+          },
+          "chain": "plenora-runtime-nats -> async-nats@0.50.0 -> nkeys@0.4.5 -> rand@0.8.8 -> rand_chacha@0.3.1",
+          "requirements": [
+            "^0.3.0"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "rand_core",
+      "reason": "rand 0.8.8 richiede rand_core ^0.6.0; la migrazione deve partire dai genitori di rand.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand_core",
+            "version": "0.6.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rand@0.8.8",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "0eaca804a4ff35d353814cd1"
+          },
+          "chain": "plenora-runtime-chain-host -> async-nats@0.50.0 -> nkeys@0.4.5 -> rand@0.8.8 -> rand_core@0.6.4",
+          "requirements": [
+            "^0.6.0"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "fuzz/Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rand_core",
+            "version": "0.6.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rand@0.8.8",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "1cf129ebfee1e0b1694791f5"
+          },
+          "chain": "plenora-runtime-nats -> async-nats@0.50.0 -> nkeys@0.4.5 -> rand@0.8.8 -> rand_core@0.6.4",
+          "requirements": [
+            "^0.6.0"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "rstar",
+      "reason": "geo-types 0.7.20 conserva compatibilita opzionali rstar 0.8-0.12; plenora-geo e kernels DATA richiedono 0.12. La presenza nel lock non implica attivazione di tutte le feature.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rstar",
+            "version": "0.8.4",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "geo-types@0.7.20",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "f1a66877f60840718a974915"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.8.4",
+          "requirements": [
+            "^0.10",
+            "^0.11",
+            "^0.12",
+            "^0.13",
+            "^0.8",
+            "^0.9"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rstar",
+            "version": "0.9.3",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "geo-types@0.7.20",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "a8cb9ca64691a40b2a1f5de9"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.9.3",
+          "requirements": [
+            "^0.10",
+            "^0.11",
+            "^0.12",
+            "^0.13",
+            "^0.8",
+            "^0.9"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rstar",
+            "version": "0.10.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "geo-types@0.7.20",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "3db6aec66ca4f7269eb24571"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.10.0",
+          "requirements": [
+            "^0.10",
+            "^0.11",
+            "^0.12",
+            "^0.13",
+            "^0.8",
+            "^0.9"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rstar",
+            "version": "0.11.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "geo-types@0.7.20",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "5c140e9f82c201614e1b40ba"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.11.0",
+          "requirements": [
+            "^0.10",
+            "^0.11",
+            "^0.12",
+            "^0.13",
+            "^0.8",
+            "^0.9"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rstar",
+            "version": "0.12.2",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "geo-types@0.7.20",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "ebdcd4e35836495f415c7309"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.12.2",
+          "requirements": [
+            "^0.10",
+            "^0.11",
+            "^0.12",
+            "^0.13",
+            "^0.8",
+            "^0.9"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rstar",
+            "version": "0.12.2",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "plenora-geo@0.33.1",
+            "parent_source": "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "bee7b7954a5cc95dedc16955"
+          },
+          "chain": "plenora-runtime-adapter-data -> plenora-pipeline@5.0.0 -> plenora-geo@0.33.1 -> rstar@0.12.2",
+          "requirements": [
+            "^0.12.0"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rstar",
+            "version": "0.12.2",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "plenora-kernels-geo@5.0.0",
+            "parent_source": "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "34e91ee62ea5b47ffcf9b927"
+          },
+          "chain": "plenora-runtime-adapter-data -> plenora-pipeline@5.0.0 -> plenora-kernels-geo@5.0.0 -> rstar@0.12.2",
+          "requirements": [
+            "=0.12.2"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "rustix",
+      "reason": "atomicwrites 0.4.4 richiede rustix ^0.38.0, incompatibile con rustix 1; non si riscrive il requisito upstream.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "rustix",
+            "version": "0.38.44",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "atomicwrites@0.4.4",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "e002457b8851046498b0fcd6"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-core@9.0.0 -> atomicwrites@0.4.4 -> rustix@0.38.44",
+          "requirements": [
+            "^0.38.0"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "spin",
+      "reason": "heapless 0.7.17 richiede spin ^0.9.2 nel ramo rstar storico.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "spin",
+            "version": "0.9.9",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "heapless@0.7.17",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "57792de2e414cb0d1d2b73be"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-model@9.0.0 -> geo-types@0.7.20 -> rstar@0.10.0 -> heapless@0.7.17 -> spin@0.9.9",
+          "requirements": [
+            "^0.9.2"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "spki",
+      "reason": "x509-cert 0.2.5 richiede spki ^0.7.3; serve migrazione coordinata della catena certificati.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "spki",
+            "version": "0.7.3",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "x509-cert@0.2.5",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "1d333194b4f26fcb18f16cf7"
+          },
+          "chain": "plenora-runtime-adapter-database -> plenora-db-postgres@11.0.0 -> tokio-postgres-rustls@0.14.0 -> x509-cert@0.2.5 -> spki@0.7.3",
+          "requirements": [
+            "^0.7.3"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "syn",
+      "reason": "pyo3-macros/backend e le altre macro elencate richiedono syn 2; syn 3 del test architetturale non e un sostituto semver compatibile.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "syn",
+            "version": "2.0.119",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "der_derive@0.7.3",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "550c89519eb085a46112d145"
+          },
+          "chain": "plenora-runtime-adapter-database -> plenora-db-postgres@11.0.0 -> tokio-postgres-rustls@0.14.0 -> x509-cert@0.2.5 -> der@0.7.10 -> der_derive@0.7.3 -> syn@2.0.119",
+          "requirements": [
+            "^2"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "syn",
+            "version": "2.0.119",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "pyo3-macros@0.29.2",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "ffacf4e8836dc07216d5fe1c"
+          },
+          "chain": "plenora-runtime-chain-python -> pyo3@0.29.2 -> pyo3-macros@0.29.2 -> syn@2.0.119",
+          "requirements": [
+            "^2"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "syn",
+            "version": "2.0.119",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "pyo3-macros-backend@0.29.2",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "1d9be72c94a0776417c8d65c"
+          },
+          "chain": "plenora-runtime-chain-python -> pyo3@0.29.2 -> pyo3-macros@0.29.2 -> pyo3-macros-backend@0.29.2 -> syn@2.0.119",
+          "requirements": [
+            "^2.0.59"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "syn",
+            "version": "2.0.119",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "strum_macros@0.28.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "141df4202ec254a1755ab6d1"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-geoparquet@9.0.0 -> jsonschema@0.56.0 -> strum@0.28.0 -> strum_macros@0.28.0 -> syn@2.0.119",
+          "requirements": [
+            "^2.0"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "syn",
+            "version": "2.0.119",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "thiserror-impl@1.0.69",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "8ce9a816df09af0d632a222e"
+          },
+          "chain": "plenora-runtime-adapter-data -> plenora-pipeline@5.0.0 -> plenora-kernels-geo@5.0.0 -> plenora-wkt@0.14.0 -> thiserror@1.0.69 -> thiserror-impl@1.0.69 -> syn@2.0.119",
+          "requirements": [
+            "^2.0.87"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "syn",
+            "version": "2.0.119",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "tls_codec_derive@0.4.2",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "09923b35ac201f6497a3c4af"
+          },
+          "chain": "plenora-runtime-adapter-database -> plenora-db-postgres@11.0.0 -> tokio-postgres-rustls@0.14.0 -> x509-cert@0.2.5 -> tls_codec@0.4.2 -> tls_codec_derive@0.4.2 -> syn@2.0.119",
+          "requirements": [
+            "^2"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "syn",
+            "version": "2.0.119",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "zerocopy-derive@0.8.59",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "0fabad1e6849b35883ab2eaa"
+          },
+          "chain": "plenora-runtime-adapter-data -> arrow-array@60.1.0 -> ahash@0.8.12 -> zerocopy@0.8.59 -> zerocopy-derive@0.8.59 -> syn@2.0.119",
+          "requirements": [
+            "^2.0.46"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "syn",
+            "version": "2.0.119",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "zeroize_derive@1.5.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "4e216adba18f33e970790f13"
+          },
+          "chain": "plenora-runtime-chain-host -> async-nats@0.50.0 -> rustls-pki-types@1.15.1 -> zeroize@1.9.0 -> zeroize_derive@1.5.0 -> syn@2.0.119",
+          "requirements": [
+            "^2"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "fuzz/Cargo.lock",
+            "rule": "duplicate",
+            "crate": "syn",
+            "version": "2.0.119",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "zerocopy-derive@0.8.59",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "523318ff608127369219c186"
+          },
+          "chain": "plenora-runtime-nats -> async-nats@0.50.0 -> nkeys@0.4.5 -> rand@0.8.8 -> rand_chacha@0.3.1 -> ppv-lite86@0.2.21 -> zerocopy@0.8.59 -> zerocopy-derive@0.8.59 -> syn@2.0.119",
+          "requirements": [
+            "^2.0.46"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "thiserror",
+      "reason": "wkt e plenora-wkt 0.14.0 richiedono thiserror ^1.0.23, incompatibile con la linea 2.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "thiserror",
+            "version": "1.0.69",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "plenora-wkt@0.14.0",
+            "parent_source": "git+https://github.com/PlenoraETL/plenora-data-tools.git?rev=eba11205df585469a154de3ad76ab22a0cb9cad6#eba11205df585469a154de3ad76ab22a0cb9cad6",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "890ae6684e2b7254c77e52f1"
+          },
+          "chain": "plenora-runtime-adapter-data -> plenora-pipeline@5.0.0 -> plenora-kernels-geo@5.0.0 -> plenora-wkt@0.14.0 -> thiserror@1.0.69",
+          "requirements": [
+            "^1.0.23"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "thiserror",
+            "version": "1.0.69",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "wkt@0.14.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "41a22017635779ce848744bd"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-csv@9.0.0 -> driver-common@9.0.0 -> wkt@0.14.0 -> thiserror@1.0.69",
+          "requirements": [
+            "^1.0.23"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "thiserror-impl",
+      "reason": "thiserror 1.0.69 impone thiserror-impl =1.0.69; migrare prima wkt/plenora-wkt.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "thiserror-impl",
+            "version": "1.0.69",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "thiserror@1.0.69",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "64e444dee3642113e2924fef"
+          },
+          "chain": "plenora-runtime-adapter-data -> plenora-pipeline@5.0.0 -> plenora-kernels-geo@5.0.0 -> plenora-wkt@0.14.0 -> thiserror@1.0.69 -> thiserror-impl@1.0.69",
+          "requirements": [
+            "=1.0.69"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "wasi",
+      "reason": "mio 1.2.3 mantiene wasi ^0.11.0 per il suo target condizionale; la presenza nel lock non estende il supporto runtime oltre Linux/Windows.",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "wasi",
+            "version": "0.11.1+wasi-snapshot-preview1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "mio@1.2.3",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "a27cb17bde5a029b9668beb6"
+          },
+          "chain": "plenora-example-http-service -> tokio@1.53.3 -> mio@1.2.3 -> wasi@0.11.1+wasi-snapshot-preview1",
+          "requirements": [
+            "^0.11.0"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "fuzz/Cargo.lock",
+            "rule": "duplicate",
+            "crate": "wasi",
+            "version": "0.11.1+wasi-snapshot-preview1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "mio@1.2.3",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "3da4c22628c0a5f26a719114"
+          },
+          "chain": "plenora-runtime-boundary -> tokio@1.53.3 -> mio@1.2.3 -> wasi@0.11.1+wasi-snapshot-preview1",
+          "requirements": [
+            "^0.11.0"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "windows-sys",
+      "reason": "atomicwrites impone ^0.52 e rustix 0.38 accetta al massimo 0.59; nessuno dei due puo usare la linea preferita 0.61. I vincoli larghi errno/rustix 1/tempfile vengono riallineati (a).",
+      "removal": "Rimuovere quando i genitori elencati adottano la linea preferita del manifesto e questi archi scompaiono; riqualificare API, target, licenze e i due lock. Non basta aggiornare una patch della stessa linea incompatibile.",
+      "entries": [
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "windows-sys",
+            "version": "0.52.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "atomicwrites@0.4.4",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "fb9bef025da59898e3062600"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-core@9.0.0 -> atomicwrites@0.4.4 -> windows-sys@0.52.0",
+          "requirements": [
+            "^0.52.0"
+          ]
+        },
+        {
+          "category": "a",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "windows-sys",
+            "version": "0.52.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "errno@0.3.14",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "957fecfeffc4d72fb8d8e319"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-core@9.0.0 -> rustix@1.1.6 -> errno@0.3.14 -> windows-sys@0.52.0",
+          "requirements": [
+            ">=0.52, <0.62"
+          ]
+        },
+        {
+          "category": "b",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "windows-sys",
+            "version": "0.52.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rustix@0.38.44",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "ff4ed104822db2a9ac2528f1"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-core@9.0.0 -> atomicwrites@0.4.4 -> rustix@0.38.44 -> windows-sys@0.52.0",
+          "requirements": [
+            ">=0.52, <=0.59"
+          ]
+        },
+        {
+          "category": "a",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "windows-sys",
+            "version": "0.52.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "rustix@1.1.6",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "e399e88a025a9ae5b1b3e430"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-core@9.0.0 -> rustix@1.1.6 -> windows-sys@0.52.0",
+          "requirements": [
+            ">=0.52, <0.62"
+          ]
+        },
+        {
+          "category": "a",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "duplicate",
+            "crate": "windows-sys",
+            "version": "0.52.0",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "parent": "tempfile@3.27.0",
+            "parent_source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "linea incompatibile nel perimetro di famiglia",
+            "key": "6ab48a9eb391287ac34fc5d3"
+          },
+          "chain": "plenora-runtime-adapter-io -> tempfile@3.27.0 -> windows-sys@0.52.0",
+          "requirements": [
+            ">=0.52, <0.62"
+          ]
+        }
+      ]
+    },
+    {
+      "crate": "zip",
+      "reason": "Il pin IO 9.0.0 mantiene zip 9.0.3; chiude con IO 10.0.0.",
+      "removal": "chiude con IO 10.0.0",
+      "entries": [
+        {
+          "category": "c",
+          "finding": {
+            "repo": "plenora-runtime-tools",
+            "file": "Cargo.lock",
+            "rule": "reference",
+            "crate": "zip",
+            "version": "9.0.3",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "detail": "versione diversa dal riferimento della linea",
+            "key": "da332bc0590e786ab2c8b0b7"
+          },
+          "chain": "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-xls@9.0.0 -> zip@9.0.3",
+          "requirements": []
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
 ## Checklist di approvazione del rilascio
 
 - [ ] Commit esatto del rilascio creato e pushato.
-- [ ] Passati sullo stesso SHA tutti i job di `ci.yml`: qualità su Windows, Linux e macOS (con la
+- [ ] Passati sullo stesso SHA tutti i job di `ci.yml`: qualità su Windows e Linux (con la
   documentazione), anti-panic, dependency-policy, NATS, coverage e fuzz smoke.
 - [ ] Rivista l'autenticazione e l'autorizzazione specifica del consumer.
 - [ ] Rivisti TLS e permessi di NATS in produzione.
@@ -513,3 +513,20 @@ ma non sono certificati formalmente da questo audit. Gli estremi SystemTime non
 rappresentabili su una piattaforma richiedono prove sulla piattaforma che li supporta.
 Condizione di chiusura: gate multipiattaforma, backend reali pertinenti e revisione
 indipendente del codice; una suite locale non qualifica il deploy TLS/subject NATS.
+
+## Rischio residuo del manifesto di famiglia
+
+Regola: uno scostamento non deliberato e un errore bloccante. Ambito: i due lock
+runtime qualificati con tutte le feature il 19/11/2026. Quattro archi compatibili
+riallineati; 68 archi incompatibili e due fork Parquet derogati esplicitamente in
+[`manifesto_deroghe.json`](../scripts/manifesto_deroghe.json), riesame 2027-02-13.
+Rischio accettato: piu linee transitive e fork distinti aumentano superficie di
+manutenzione e supply chain; l'unificazione non e garantita. Nessuna nuova
+licenza o feature e ammessa. Chiusura per ogni voce: migrare i genitori, eliminare
+l'arco/identita e riqualificare API, target, licenze e interop; per i fork devono
+essere preservate le patch di correttezza, incluso EOF del fork DATA.
+
+Restano bloccanti encoding_rs 0.8.35 e zip 9.0.3: chiude con IO 10.0.0.
+RUSTSEC-2026-0548 conserva la stessa condizione di rimozione. Il pin IO resta
+immutato. I gate supply-chain e la CI Linux/Windows restano necessari; una
+deroga al manifesto non costituisce un audit di sicurezza superato.
