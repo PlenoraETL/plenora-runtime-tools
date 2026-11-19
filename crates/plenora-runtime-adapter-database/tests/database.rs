@@ -27,7 +27,11 @@ use std::{
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 const RUN: &str = "00000000-0000-4000-8000-000000000041";
 fn digest(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    Sha256::digest(bytes)
+        .iter()
+        .flat_map(|byte| [byte >> 4, byte & 0x0f])
+        .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+        .collect::<String>()
 }
 fn batch() -> Result<RecordBatch, Box<dyn std::error::Error>> {
     let schema = plenora_database_core::protocol::contract_schema(vec![Field::new(

@@ -40,8 +40,7 @@ cui sono scritte.
    client di infrastruttura richiede un ADR in [`docs/adr/`](docs/adr/README.md).
 7. **Suite completa prima del commit**: fmt, clippy con `-D warnings`, clippy
    anti-panic sulle librerie (`--lib`), test completi. Prima del merge in
-   `main` la CI è verde su Linux **e** Windows; macOS gira ma non è
-   obbligatorio.
+   `main` la CI è verde su Linux **e** Windows; sono le sole piattaforme supportate.
 8. **Errori senza dati.** Messaggi d'errore, `Display` e `Debug` non
    trasportano payload, valori di metadati, credenziali o segreti: contesto
    operativo sì, dato no ([`docs/error-model.md`](docs/error-model.md)).
@@ -73,7 +72,7 @@ risultato:
   esce un'advisory: per questo girano anche ogni settimana
   (`supply-chain.yml`), e un rosso lì non dice che il commit è cambiato;
 - il fuzz ha due livelli: lo smoke da 2000 esecuzioni su ogni PR e le
-  campagne con budget di tempo di `fuzz.yml`, settimanali o a mano;
+  campagne con budget di tempo di `fuzz.yml`, solo a mano;
 - le prove su NATS reale valgono per il container effimero della CI, non per un
   deploy con TLS e permessi dei subject reali;
 - se un gate non è stato eseguito, si dice che non è stato eseguito. Un gate

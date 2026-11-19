@@ -39,3 +39,27 @@ va reso disponibile insieme ai dati distribuiti. L'approvazione del grafo non
 sostituisce l'inclusione dei testi dovuti negli artefatti di distribuzione.
 Audit offline con database locale e yanked disabilitato e solo evidenza parziale:
 restano obbligatori audit/deny aggiornati della CI e del job settimanale.
+
+## Manifesto di famiglia
+
+La baseline immutabile in `.ci/plenora-dependencies/family-baseline.toml` proviene
+dalla qualifica database del 19/11/2026. `scripts/manifesto_dipendenze.py --write`
+genera `plenora-dependencies.toml` dai due lock e da Cargo metadata con tutte le
+feature; la modalita ordinaria verifica la riproducibilita senza scrivere.
+Il guardiano `controlla_dipendenze.py --repo . --nome plenora-runtime-tools`
+confronta versioni, fonti, interfacce e duplicati con le decisioni di famiglia.
+La CI verifica anche lo snapshot con SHA-256 esplicito nel workflow.
+
+Le qualifiche descrittive non autorizzano dipendenze: nessuna nuova deroga e
+stata aggiunta. Le deroghe cessate sono rimosse dal manifesto generato, mentre
+la baseline rimane intatta. L'allineamento dei lock e dei pin diretti sha2 0.11.0
+e syn 3.0.6 lascia 76 errori bloccanti (72 archi duplicati, due fork e due
+versioni imposte da IO). La chiusura richiede allineamento upstream oppure una
+decisione esplicita di famiglia, registrata e revisionata; non basta rigenerare.
+
+Nessuna nuova licenza viene ammessa. Le 24 dipendenze private di prodotto senza
+SPDX restano soggette alla regola gia presente `licenses.private.ignore = true`:
+la qualifica registra separatamente tale esclusione e il digest del file di
+licenza quando disponibile. Non sono dichiarate licenze SPDX ammesse. Tutte le
+licenze pubbliche risolte soddisfano la policy vigente. L'eccezione
+RUSTSEC-2026-0548 resta fino all'adozione di IO 10.0.0; il pin IO non cambia.

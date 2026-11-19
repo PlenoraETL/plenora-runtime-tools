@@ -171,8 +171,12 @@ fn windows_aliases_and_case_collisions_are_rejected() -> TestResult {
             files: files.into_iter().map(|s| (s.into(), vec![1])).collect(),
         };
         let reference = format!(
-            "artifact://sha256/{:x}",
+            "artifact://sha256/{}",
             Sha256::digest(serde_json::to_vec(&source)?)
+                .iter()
+                .flat_map(|byte| [byte >> 4, byte & 0x0f])
+                .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+                .collect::<String>()
         );
         config.sources = BTreeMap::from([(reference, source)]);
         assert!(
@@ -307,7 +311,11 @@ async fn write_primary_rewrite_is_rejected_before_external_effect() -> TestResul
     let bytes = ipc(&batch(Some("none"), 2)?)?;
     let (mut config, mut plan) = fixture::fixture(root.path(), bytes.clone(), false, "ipc")?;
     let port = plan.steps[1].inputs["data"].expected.clone();
-    let digest = format!("{:x}", Sha256::digest(&bytes));
+    let digest = Sha256::digest(&bytes)
+        .iter()
+        .flat_map(|byte| [byte >> 4, byte & 0x0f])
+        .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+        .collect::<String>();
     let input = Input {
         artifact_ref: "ref:external".into(),
         port: port.clone(),
@@ -383,7 +391,11 @@ async fn real_discovery_limits_and_closed_parameters_reject_without_effect() -> 
             .ok_or("object")?
             .extend(patch.as_object().ok_or("patch")?.clone());
         *bytes = serde_json::to_vec(&value)?;
-        plan.steps[0].parameters.sha256 = format!("{:x}", Sha256::digest(bytes));
+        plan.steps[0].parameters.sha256 = Sha256::digest(bytes)
+            .iter()
+            .flat_map(|byte| [byte >> 4, byte & 0x0f])
+            .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+            .collect::<String>();
         config.authorized_plans = vec![serde_json::to_string(&plan)?];
         let adapter = IoAdapter::new(
             config,
@@ -409,7 +421,11 @@ async fn real_durable_publication_never_claims_unconfirmed_success() -> TestResu
     let mut value: serde_json::Value = serde_json::from_slice(bytes)?;
     value["durable"] = serde_json::json!(true);
     *bytes = serde_json::to_vec(&value)?;
-    plan.steps[1].parameters.sha256 = format!("{:x}", Sha256::digest(bytes));
+    plan.steps[1].parameters.sha256 = Sha256::digest(bytes)
+        .iter()
+        .flat_map(|byte| [byte >> 4, byte & 0x0f])
+        .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+        .collect::<String>();
     config.authorized_plans = vec![serde_json::to_string(&plan)?];
     let (result, engine) = run_case(config, &plan).await?;
     assert!(root.path().join("bundle/data.ipc").is_file());

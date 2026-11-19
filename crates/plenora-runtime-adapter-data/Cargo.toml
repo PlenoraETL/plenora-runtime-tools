@@ -19,7 +19,8 @@ arrow-ipc = "=60.1.0"
 arrow-array = "=60.1.0"
 arrow-schema = { version = "=60.1.0", features = ["serde"] }
 # Same content-addressed evidence digest as the chain contract.
-sha2 = "=0.10.9"
+# SHA-256 di famiglia 0.11: alloc sostituisce std, che upstream non espone piu.
+sha2 = "=0.11.0"
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true

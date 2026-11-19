@@ -29,7 +29,8 @@ futures-util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 # Same exact digest implementation as chain-contracts; verifies immutable fake resource bytes.
-sha2 = "=0.10.9"
+# SHA-256 di famiglia 0.11: alloc sostituisce std, che upstream non espone piu.
+sha2 = "=0.11.0"
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "sync", "time"] }
 
 [lints]

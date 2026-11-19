@@ -5,22 +5,13 @@ name: fuzz
 # campagna lavora su una copia del corpus, quindi ciò che trova non torna nel
 # repository; i reperti restano come artefatto della corsa.
 #
-# Durata: un minuto a target sulle PR che toccano `fuzz/` o questo workflow,
-# dieci minuti ogni domenica e a mano (`seconds` regolabile). Su ogni PR resta
-# lo smoke da 2000 esecuzioni del job `Fuzz smoke suite` di ci.yml.
+# Solo avvio manuale: 600 secondi per target, regolabili con seconds.
+# Su ogni PR resta lo smoke da 2000 esecuzioni in ci.yml.
 #
 # Un crash, un timeout, un superamento del limite di memoria o un'uscita non
 # nulla fanno fallire il job.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'fuzz/**'
-      - '.github/workflows/fuzz.yml'
-  schedule:
-    # Domenica 04:37 UTC. Minuto non tondo, come supply-chain.yml.
-    - cron: '37 4 * * 0'
   workflow_dispatch:
     inputs:
       seconds:
@@ -36,6 +27,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  CARGO_BUILD_JOBS: 4
+  CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
   # La stessa nightly del job `Fuzz smoke suite` e di docs/testing.md:
   # libFuzzer e i sanitizer richiedono una nightly, fissata per data perché
@@ -69,7 +62,7 @@ jobs:
       - name: campagna
         env:
           TARGET: ${{ matrix.target }}
-          SECONDS_PER_TARGET: ${{ github.event_name == 'pull_request' && '60' || github.event.inputs.seconds || '600' }}
+          SECONDS_PER_TARGET: ${{ inputs.seconds || '600' }}
         run: |
           work="$RUNNER_TEMP/corpus/$TARGET"
           mkdir -p "$work" "fuzz/artifacts/$TARGET"

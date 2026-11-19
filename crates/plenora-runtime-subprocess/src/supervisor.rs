@@ -434,14 +434,14 @@ fn build_command(spec: &SubprocessSpec, tree_mode: ProcessTreeMode) -> Command {
     command
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 fn configure_process_tree(command: &mut Command, mode: ProcessTreeMode) {
     if mode == ProcessTreeMode::IsolatedTree {
         command.process_group(0);
     }
 }
 
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 fn configure_process_tree(command: &mut Command, mode: ProcessTreeMode) {
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
     if mode == ProcessTreeMode::IsolatedTree {
@@ -648,7 +648,7 @@ impl Drop for AbandonedTreeGuard {
 /// The child was spawned with its own process group, so the group identifier equals the pinned
 /// leader identifier and no lookup helper is required. That keeps this blocking path to one helper
 /// process whose every wait is deadline-bounded, though its creation is not.
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 fn kill_abandoned_tree(pid: u32, mode: ProcessTreeMode, budget: Duration) -> bool {
     let target = if mode == ProcessTreeMode::IsolatedTree {
         format!("-{pid}")
@@ -672,7 +672,7 @@ fn kill_abandoned_tree(pid: u32, mode: ProcessTreeMode, budget: Duration) -> boo
     }
 }
 
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 fn kill_abandoned_tree(pid: u32, mode: ProcessTreeMode, budget: Duration) -> bool {
     let mut command = std::process::Command::new("taskkill.exe");
     command.arg("/PID").arg(pid.to_string());
@@ -807,7 +807,7 @@ async fn signal_tree(
     .map_err(|error| io::Error::new(io::ErrorKind::TimedOut, error))?
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 async fn signal_process(pid: u32, mode: ProcessTreeMode, signal: TreeSignal) -> io::Result<()> {
     let target = if mode == ProcessTreeMode::IsolatedTree {
         let child_group = process_group_id(pid).await?;
@@ -839,7 +839,7 @@ async fn signal_process(pid: u32, mode: ProcessTreeMode, signal: TreeSignal) -> 
     }
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 async fn process_group_id(pid: u32) -> io::Result<u32> {
     let output = Command::new("/bin/ps")
         .arg("-o")
@@ -862,7 +862,7 @@ async fn process_group_id(pid: u32) -> io::Result<u32> {
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 fn isolated_process_group_target(
     pid: u32,
     child_group: u32,
@@ -876,7 +876,7 @@ fn isolated_process_group_target(
     Ok(format!("-{child_group}"))
 }
 
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 async fn signal_process(pid: u32, mode: ProcessTreeMode, signal: TreeSignal) -> io::Result<()> {
     let mut command = Command::new("taskkill.exe");
     command.arg("/PID").arg(pid.to_string());
@@ -926,7 +926,7 @@ async fn resident_memory_bytes(pid: u32) -> io::Result<u64> {
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VmRSS byte count overflowed"))
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "windows")]
 // Keep every platform implementation compatible with the shared awaited call site.
 #[allow(clippy::unused_async)]
 async fn resident_memory_bytes(_pid: u32) -> io::Result<u64> {

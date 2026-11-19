@@ -53,8 +53,7 @@ cargo +nightly-2026-08-01 fuzz run retry_policy fuzz/corpus/retry_policy -- -max
 Su Windows, si esegue lo stesso comando in un container Linux o in WSL, perché libFuzzer richiede
 un ambiente di tipo Unix. La CI esegue 2.000 iterazioni di smoke per ogni target a ogni push e pull
 request. `.github/workflows/fuzz.yml` esegue campagne con budget di tempo su una copia di ciascun
-corpus: 60 secondi per target sulle pull request che toccano `fuzz/`, 600 secondi per target ogni
-domenica e nel dispatch manuale (input `seconds`). Gli input che causano crash si conservano come
+corpus: solo dispatch manuale, 600 secondi per target per default (input `seconds`). Gli input che causano crash si conservano come
 artefatti dell'esecuzione; ogni input di regressione minimizzato va tenuto nel corpus.
 
 ## Qualifica della ritenzione di memoria
@@ -162,3 +161,13 @@ Le controprove in `scripts/test_ci_locale.py` eseguono piccoli processi isolati
 in `target/`, confrontano ricevuta e log e confrontano ogni job e passo del piano
 reale con i workflow. La discovery Python della CI include questi test; il
 workflow di conferma viene rigenerato da `scripts/generate_boundary_confirmation.py`.
+
+## Campagne su richiesta
+
+Decisione del titolare del 19/11/2026: i job `coverage`, `nats-integration` e
+`postgres-integration` di `ci.yml` girano solo con `workflow_dispatch` e SHA
+esplicito. Anche `fuzz.yml` e `boundary-confirmation.yml` sono solo manuali.
+Su push e PR restano quality Linux/Windows, anti-panic, dependency-policy e
+fuzz smoke da 2000 iterazioni. Le soglie e le prove delle campagne restano
+invariate; un job non avviato non costituisce una qualifica passata.
+La sonda `memory-soak.ps1` resta un comando manuale locale.

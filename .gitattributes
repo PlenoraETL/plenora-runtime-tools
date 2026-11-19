@@ -18,3 +18,6 @@ contracts/capabilities-v2/** -text
 
 # Bootstrap identity is exact across Linux and Windows; no runtime normalization.
 *.sql text eol=lf
+
+# Dependency snapshot hashes must survive checkout on both supported platforms.
+.ci/plenora-dependencies/** text eol=lf

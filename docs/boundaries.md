@@ -63,6 +63,10 @@ Vedere [allineamento del profilo](contract-alignment.md#p21b-confine-delle-facci
 
 Classificazione delle superfici inventariate in `boundary-api.txt`:
 
+Le macro `compile_error!` di core, resources e subprocess rifiutano target diversi
+da Linux e Windows in compilazione: non ricevono ingressi runtime. La conversione
+esadecimale SHA-256 conserva identita persistite e prefissi; non apre nuove API.
+
 - NegotiatedRuntime e NegotiatedDelivery: ammissione e invio canonici con
   acceptance autorevole; carrier ammesso senza accesso mutabile.
 - DurableRuntime, DurableWorker, RawDelivery, SettlementRetry: coordinamento

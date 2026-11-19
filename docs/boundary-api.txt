@@ -588,7 +588,6 @@ crates/plenora-runtime-adapter-data/src/lib.rs |  | fn encode (value : & impl Se
 crates/plenora-runtime-adapter-data/src/lib.rs |  | fn reference (i : & Invocation , label : & str) -> String
 crates/plenora-runtime-adapter-data/src/lib.rs |  | fn run (reference : & str) -> Option < & str >
 crates/plenora-runtime-adapter-data/src/lib.rs |  | format ! ("ref:data-{}-{}" , i . run_id , digest (format ! ("{}:{label}" , i . message_id) . as_bytes ()))
-crates/plenora-runtime-adapter-data/src/lib.rs |  | format ! ("{:x}" , Sha256 :: digest (bytes))
 crates/plenora-runtime-adapter-data/src/lib.rs |  | mod ipc ;
 crates/plenora-runtime-adapter-data/src/lib.rs |  | mod operation ;
 crates/plenora-runtime-adapter-data/src/lib.rs |  | mod receipt ;
@@ -717,7 +716,6 @@ crates/plenora-runtime-adapter-database/src/lib.rs |  | fn postgres_plaintext (d
 crates/plenora-runtime-adapter-database/src/lib.rs |  | fn reference (i : & Invocation , label : & str) -> String
 crates/plenora-runtime-adapter-database/src/lib.rs |  | fn run (reference : & str) -> Option < & str >
 crates/plenora-runtime-adapter-database/src/lib.rs |  | format ! ("ref:db-{}-{}" , i . run_id , digest (format ! ("{}:{label}" , i . message_id) . as_bytes ()))
-crates/plenora-runtime-adapter-database/src/lib.rs |  | format ! ("{:x}" , Sha256 :: digest (bytes))
 crates/plenora-runtime-adapter-database/src/lib.rs |  | include_bytes ! ("../catalog.json")
 crates/plenora-runtime-adapter-database/src/lib.rs |  | mod arrow ;
 crates/plenora-runtime-adapter-database/src/lib.rs |  | mod operation ;
@@ -821,7 +819,6 @@ crates/plenora-runtime-adapter-io/src/lib.rs |  | fn encode (value : & impl Seri
 crates/plenora-runtime-adapter-io/src/lib.rs |  | fn reference (i : & Invocation , label : & str) -> String
 crates/plenora-runtime-adapter-io/src/lib.rs |  | fn run (reference : & str) -> Option < & str >
 crates/plenora-runtime-adapter-io/src/lib.rs |  | format ! ("ref:io-{}-{}" , i . run_id , digest (format ! ("{}:{label}" , i . message_id) . as_bytes ()))
-crates/plenora-runtime-adapter-io/src/lib.rs |  | format ! ("{:x}" , Sha256 :: digest (bytes))
 crates/plenora-runtime-adapter-io/src/lib.rs |  | mod ipc ;
 crates/plenora-runtime-adapter-io/src/lib.rs |  | mod operation ;
 crates/plenora-runtime-adapter-io/src/lib.rs |  | mod receipt ;
@@ -1046,13 +1043,12 @@ crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStor
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | async fn relay_pending (& self , limit : usize) -> Result < usize , SettlementError >
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | fn key (& self , message : & SerializedMessage) -> String
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | fn new (boundary : RuntimeBoundary , store : Arc < S > , scope : & str , plan : DeliveryPlan , routes : RouteTable ,) -> Result < Self , SettlementError >
-crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{:x}" , Sha256 :: digest (selector))
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:" , self . scope . len () , self . scope)
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:" , self . scope . len () , self . scope)
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:" , self . scope . len () , self . scope)
-crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:c:{:x}" , self . scope . len () , self . scope , hash . finalize ())
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:c:{}" , self . scope . len () , self . scope , hash . finalize () . iter () . flat_map (| byte | [byte >> 4 , byte & 0x0f]) . map (| nibble | char :: from (b"0123456789abcdef" [usize :: from (nibble)])) . collect ::< String > ())
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:m:{id}" , self . scope . len () , self . scope)
-crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:r:{:x}" , self . scope . len () , self . scope , Sha256 :: digest (fingerprint (message)))
+crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | format ! ("{}:{}:r:{}" , self . scope . len () , self . scope , Sha256 :: digest (fingerprint (message)) . iter () . flat_map (| byte | [byte >> 4 , byte & 0x0f]) . map (| nibble | char :: from (b"0123456789abcdef" [usize :: from (nibble)])) . collect ::< String > ())
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | matches ! (j . stage () , DeliveryStage :: Evidence | DeliveryStage :: Finished)
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | matches ! (k . as_str () , ID | plenora_runtime_messaging :: CORRELATION_ID_METADATA_KEY | plenora_runtime_messaging :: CAUSATION_ID_METADATA_KEY)
 crates/plenora-runtime-boundary/src/durable.rs | impl < S : DurableExecutionStore > DurableRuntime < S > { } | matches ! (outcome , Ok (PublishOutcome :: Confirmed))
@@ -1796,7 +1792,6 @@ crates/plenora-runtime-chain-contracts/src/codec.rs |  | fn canonical (value : &
 crates/plenora-runtime-chain-contracts/src/codec.rs |  | fn digest (value : & Value) -> Checked < String >
 crates/plenora-runtime-chain-contracts/src/codec.rs |  | fn parse (raw : & [u8]) -> Checked < Value >
 crates/plenora-runtime-chain-contracts/src/codec.rs |  | fn sorted (value : & Value) -> Value
-crates/plenora-runtime-chain-contracts/src/codec.rs |  | format ! ("{:x}" , Sha256 :: digest (canonical (value) ?))
 crates/plenora-runtime-chain-contracts/src/codec.rs |  | pub (crate)
 crates/plenora-runtime-chain-contracts/src/codec.rs |  | pub (crate)
 crates/plenora-runtime-chain-contracts/src/codec.rs |  | pub (crate)
@@ -2295,7 +2290,7 @@ crates/plenora-runtime-chain-host/src/lib.rs | impl ScriptedHost { } | pub
 crates/plenora-runtime-chain-host/src/lib.rs | impl ScriptedHost { } | pub
 crates/plenora-runtime-chain-host/src/ownership.rs |  | fn owned_run (reference : & str) -> Option < & str >
 crates/plenora-runtime-chain-host/src/ownership.rs |  | fn scoped (run : & str , reference : & str) -> String
-crates/plenora-runtime-chain-host/src/ownership.rs |  | format ! ("ref:owned-{run}-{:x}" , Sha256 :: digest (reference . as_bytes ()))
+crates/plenora-runtime-chain-host/src/ownership.rs |  | format ! ("ref:owned-{run}-{}" , Sha256 :: digest (reference . as_bytes ()) . iter () . flat_map (| byte | [byte >> 4 , byte & 0x0f]) . map (| nibble | char :: from (b"0123456789abcdef" [usize :: from (nibble)])) . collect ::< String > ())
 crates/plenora-runtime-chain-host/src/ownership.rs |  | pub (super)
 crates/plenora-runtime-chain-host/src/ownership.rs |  | pub (super)
 crates/plenora-runtime-chain-host/src/ownership.rs | impl ScriptedAdapter { } | async fn check_owned_inputs (& self , i : & Invocation) -> Result < () , Error >
@@ -2345,7 +2340,6 @@ crates/plenora-runtime-chain-host/src/verification.rs |  | # [derive (Deserializ
 crates/plenora-runtime-chain-host/src/verification.rs |  | fn decode < T : serde :: de :: DeserializeOwned > (bytes : & [u8]) -> Result < T , Error >
 crates/plenora-runtime-chain-host/src/verification.rs |  | fn digest (bytes : & [u8]) -> String
 crates/plenora-runtime-chain-host/src/verification.rs |  | fn object_digest (value : & impl Serialize) -> Result < String , Error >
-crates/plenora-runtime-chain-host/src/verification.rs |  | format ! ("{:x}" , Sha256 :: digest (bytes))
 crates/plenora-runtime-chain-host/src/verification.rs | impl Schema { } | 
 crates/plenora-runtime-chain-host/src/verification.rs | impl Schema { } | fn primary (& self) -> Result < bool , Error >
 crates/plenora-runtime-chain-host/src/verification.rs | impl Schema { } | matches ! (field . data_type . as_str () , "int64" | "utf8" | "binary")
@@ -2963,10 +2957,6 @@ crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn re
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn renew (& mut self , lease : & ResourceLease , now : u64) -> Result < ResourceLease , Error >
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn stopped (& mut self , message_id : & str) -> Result < () , Error >
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | fn to_json (& self) -> Result < Vec < u8 > , Error >
-crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | format ! ("{:x}" , Sha256 :: digest (& resource . bytes))
-crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | format ! ("{:x}" , Sha256 :: digest (b))
-crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | format ! ("{:x}" , Sha256 :: digest (bytes))
-crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | format ! ("{:x}" , Sha256 :: digest (bytes))
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | matches ! (c , Consumer :: Pending)
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | matches ! (s . state . as_str () , "succeeded" | "failed" | "cancelled")
 crates/plenora-runtime-chains/src/resources.rs | impl ResourceLedger { } | matches ! (state , Consumer :: Pending)
@@ -3185,6 +3175,7 @@ crates/plenora-runtime-core/src/health.rs | impl HealthRegistry { } | pub
 crates/plenora-runtime-core/src/health.rs | impl HealthRegistry { } | pub
 crates/plenora-runtime-core/src/health.rs | impl HealthRegistry { } | pub
 crates/plenora-runtime-core/src/health.rs | impl HealthRegistry { } | pub
+crates/plenora-runtime-core/src/lib.rs |  | # [cfg (not (any (target_os = "linux" , target_os = "windows")))] compile_error ! ("plenora-runtime supports only Linux and Windows") ;
 crates/plenora-runtime-core/src/lib.rs |  | mod clock ;
 crates/plenora-runtime-core/src/lib.rs |  | mod health ;
 crates/plenora-runtime-core/src/lib.rs |  | mod runtime ;
@@ -4117,6 +4108,7 @@ crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } |
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | pub
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | pub
 crates/plenora-runtime-resources/src/config.rs | impl MemoryPressureConfig { } | pub
+crates/plenora-runtime-resources/src/lib.rs |  | # [cfg (not (any (target_os = "linux" , target_os = "windows")))] compile_error ! ("plenora-runtime supports only Linux and Windows") ;
 crates/plenora-runtime-resources/src/lib.rs |  | mod config ;
 crates/plenora-runtime-resources/src/lib.rs |  | mod monitor ;
 crates/plenora-runtime-resources/src/lib.rs |  | mod sampler ;
@@ -4454,6 +4446,7 @@ crates/plenora-runtime-subprocess/src/error.rs | impl SubprocessError { } | pub
 crates/plenora-runtime-subprocess/src/error.rs | impl SubprocessError { } | pub
 crates/plenora-runtime-subprocess/src/error.rs | impl SubprocessError { } | pub (crate)
 crates/plenora-runtime-subprocess/src/error.rs | impl SubprocessError { } | pub (crate)
+crates/plenora-runtime-subprocess/src/lib.rs |  | # [cfg (not (any (target_os = "linux" , target_os = "windows")))] compile_error ! ("plenora-runtime supports only Linux and Windows") ;
 crates/plenora-runtime-subprocess/src/lib.rs |  | mod config ;
 crates/plenora-runtime-subprocess/src/lib.rs |  | mod error ;
 crates/plenora-runtime-subprocess/src/lib.rs |  | mod output ;

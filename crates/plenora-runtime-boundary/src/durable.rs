@@ -124,10 +124,14 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
             format!("{}:{}:m:{id}", self.scope.len(), self.scope)
         } else {
             format!(
-                "{}:{}:r:{:x}",
+                "{}:{}:r:{}",
                 self.scope.len(),
                 self.scope,
                 Sha256::digest(fingerprint(message))
+                    .iter()
+                    .flat_map(|byte| [byte >> 4, byte & 0x0f])
+                    .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+                    .collect::<String>()
             )
         }
     }
@@ -159,10 +163,14 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
                 hash.update(binding);
                 hash.update(serde_json::to_vec(&self.plan).map_err(|_| SettlementError)?);
                 key = format!(
-                    "{}:{}:c:{:x}",
+                    "{}:{}:c:{}",
                     self.scope.len(),
                     self.scope,
                     hash.finalize()
+                        .iter()
+                        .flat_map(|byte| [byte >> 4, byte & 0x0f])
+                        .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+                        .collect::<String>()
                 );
                 match self
                     .negotiated
@@ -504,7 +512,11 @@ impl<S: DurableExecutionStore> DurableRuntime<S> {
             key,
         ))
         .map_err(|_| E::Storage)?;
-        let alias = format!("{:x}", Sha256::digest(selector));
+        let alias = Sha256::digest(selector)
+            .iter()
+            .flat_map(|byte| [byte >> 4, byte & 0x0f])
+            .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+            .collect::<String>();
         let mut semantic = checked.raw.clone();
         semantic.bytes = self
             .negotiated

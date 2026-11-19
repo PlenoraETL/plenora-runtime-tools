@@ -12,7 +12,7 @@ path = "src/lib.rs"
 
 [dev-dependencies]
 # Parse every Rust production API structurally; already resolved by workspace macros.
-syn = { version = "=2.0.119", features = ["full", "visit"] }
+syn = { version = "=3.0.6", features = ["full", "visit"] }
 # Stable token rendering for reviewed API signatures, not substring name matching.
 quote = "=1.0.47"
 

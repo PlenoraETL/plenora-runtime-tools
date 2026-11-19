@@ -61,7 +61,7 @@
 ## Checklist di approvazione del rilascio
 
 - [ ] Commit esatto del rilascio creato e pushato.
-- [ ] Passati sullo stesso SHA tutti i job di `ci.yml`: qualità su Windows, Linux e macOS (con la
+- [ ] Passati sullo stesso SHA tutti i job di `ci.yml`: qualità su Windows e Linux (con la
   documentazione), anti-panic, dependency-policy, NATS, coverage e fuzz smoke.
 - [ ] Rivista l'autenticazione e l'autorizzazione specifica del consumer.
 - [ ] Rivisti TLS e permessi di NATS in produzione.
@@ -513,3 +513,16 @@ ma non sono certificati formalmente da questo audit. Gli estremi SystemTime non
 rappresentabili su una piattaforma richiedono prove sulla piattaforma che li supporta.
 Condizione di chiusura: gate multipiattaforma, backend reali pertinenti e revisione
 indipendente del codice; una suite locale non qualifica il deploy TLS/subject NATS.
+
+## Rischio residuo del manifesto di famiglia
+
+Regola: uno scostamento non deliberato e un errore bloccante. Ambito: i due lock
+runtime qualificati con tutte le feature il 19/11/2026. Rischio: restano 76
+scostamenti (72 archi duplicati, due fork e due pin transitivi IO), elencati dal
+guardiano; la qualifica generata non costituisce accettazione del rischio.
+Chiusura: allineamenti compatibili o decisione esplicita di famiglia, verifica
+del guardiano e dei gate supply-chain. RUSTSEC-2026-0548 mantiene la condizione
+di rimozione gia deliberata: adozione di IO 10.0.0.
+
+Le campagne manuali non sono una garanzia automatica per ogni PR. La checklist
+di rilascio richiede il loro avvio sullo stesso SHA qualificato.

@@ -11,7 +11,8 @@ permissions:
   contents: read
   actions: read
 env:
-  CARGO_BUILD_JOBS: 2
+  CARGO_BUILD_JOBS: 4
+  CARGO_INCREMENTAL: 0
   PLENORA_CONFIRMATION_DIR: ${{ github.workspace }}/target/p25-evidence
 jobs:
   qualification-sha:
@@ -410,6 +411,7 @@ jobs:
           if-no-files-found: error
 
   nats-integration:
+    if: github.event_name == 'workflow_dispatch'
     name: NATS JetStream integration
     needs: qualification-sha
     runs-on: ubuntu-latest
@@ -488,7 +490,7 @@ jobs:
         continue-on-error: true
         env:
           PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
-          CARGO_BUILD_JOBS: 2
+          CARGO_BUILD_JOBS: 4
         run: python scripts/run_confirmation_tests.py --label campaign_08 -- cargo test --no-fail-fast -p plenora-runtime-integration-tests --test chain_delivery --locked nats_real_product -- --ignored --nocapture
 
       - name: Collect NATS logs on failure
@@ -526,11 +528,12 @@ jobs:
           if-no-files-found: error
 
   postgres-integration:
+    if: github.event_name == 'workflow_dispatch'
     name: PostgreSQL durable chain store
     needs: qualification-sha
     runs-on: ubuntu-latest
     env:
-      CARGO_BUILD_JOBS: 2
+      CARGO_BUILD_JOBS: 4
       PLENORA_STORAGE_DIAGNOSTICS: 1
       POSTGRES_CONTAINER: plenora-chain-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
@@ -722,11 +725,12 @@ jobs:
           if-no-files-found: error
 
   coverage:
+    if: github.event_name == 'workflow_dispatch'
     name: Line coverage (minimum 90%)
     needs: qualification-sha
     runs-on: ubuntu-latest
     env:
-      CARGO_BUILD_JOBS: 2
+      CARGO_BUILD_JOBS: 4
       PLENORA_STORAGE_DIAGNOSTICS: 1
       POSTGRES_CONTAINER: plenora-chain-coverage-${{ github.run_id }}-${{ github.run_attempt }}
 

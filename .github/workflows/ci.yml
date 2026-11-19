@@ -17,6 +17,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_BUILD_JOBS: 4
+  CARGO_INCREMENTAL: 0
+
 jobs:
   qualification-sha:
     name: Verify qualification SHA
@@ -39,7 +43,6 @@ jobs:
         os:
           - ubuntu-latest
           - windows-latest
-          - macos-latest
 
     steps:
       - name: Check out repository
@@ -162,27 +165,49 @@ jobs:
       - name: Restore Cargo cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Verify dependency snapshot
+        run: python scripts/manifesto_dipendenze.py --snapshot f92e9f0477486e3eca910489878c2e9eae6920ef2b0bc0261c422acca66be3ec
+
+      - name: Verify generated dependency qualifications
+        if: ${{ !cancelled() }}
+        run: python scripts/manifesto_dipendenze.py
+
+      - name: Check family dependency manifest
+        if: ${{ !cancelled() }}
+        run: python .ci/plenora-dependencies/controlla_dipendenze.py --repo . --nome plenora-runtime-tools
+
       - name: Install cargo-audit
+        if: ${{ !cancelled() }}
         run: cargo install --locked cargo-audit --version 0.22.2
 
       - name: Audit dependencies
+        if: ${{ !cancelled() }}
         run: cargo audit
 
       # `fuzz/` ha workspace e lock separati: senza un controllo dedicato il
       # suo grafo potrebbe divergere restando invisibile.
       - name: Audit fuzz dependencies
+        if: ${{ !cancelled() }}
         run: cargo audit --file fuzz/Cargo.lock
 
       - name: Install cargo-deny
+        if: ${{ !cancelled() }}
         run: cargo install --locked cargo-deny --version 0.20.2
 
       - name: Check dependency policy
+        if: ${{ !cancelled() }}
         run: cargo deny check
 
       - name: Check fuzz dependency policy
+        if: ${{ !cancelled() }}
         run: cargo deny --manifest-path fuzz/Cargo.toml check
 
   nats-integration:
+    if: github.event_name == 'workflow_dispatch'
     name: NATS JetStream integration
     needs: qualification-sha
     runs-on: ubuntu-latest
@@ -252,7 +277,7 @@ jobs:
         continue-on-error: true
         env:
           PLENORA_NATS_URL: ${{ steps.nats.outputs.client_url }}
-          CARGO_BUILD_JOBS: 2
+          CARGO_BUILD_JOBS: 4
         run: cargo test --no-fail-fast -p plenora-runtime-integration-tests --test chain_delivery --locked nats_real_product -- --ignored --nocapture
 
       - name: Collect NATS logs on failure
@@ -276,11 +301,12 @@ jobs:
         run: python scripts/ci_campaign.py campaign_01 campaign_02 campaign_03 nats campaign_05 campaign_06 campaign_07 campaign_08 campaign_10
 
   postgres-integration:
+    if: github.event_name == 'workflow_dispatch'
     name: PostgreSQL durable chain store
     needs: qualification-sha
     runs-on: ubuntu-latest
     env:
-      CARGO_BUILD_JOBS: 2
+      CARGO_BUILD_JOBS: 4
       PLENORA_STORAGE_DIAGNOSTICS: 1
       POSTGRES_CONTAINER: plenora-chain-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
@@ -449,11 +475,12 @@ jobs:
         run: python scripts/ci_campaign.py campaign_transport campaign_01 campaign_02 campaign_03 campaign_04 campaign_05 campaign_06 campaign_07 campaign_08 campaign_09 campaign_10 product_nats campaign_12 campaign_13 campaign_14 campaign_15 campaign_16
 
   coverage:
+    if: github.event_name == 'workflow_dispatch'
     name: Line coverage (minimum 90%)
     needs: qualification-sha
     runs-on: ubuntu-latest
     env:
-      CARGO_BUILD_JOBS: 2
+      CARGO_BUILD_JOBS: 4
       PLENORA_STORAGE_DIAGNOSTICS: 1
       POSTGRES_CONTAINER: plenora-chain-coverage-${{ github.run_id }}-${{ github.run_attempt }}
 

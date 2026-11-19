@@ -50,7 +50,7 @@ consumer Plenora sia pronto.
 | Common Runtime Binding 1.0 | Percorso di richiesta/discovery/successo implementato | Vettori pinnati verificano routing e discovery REST. I risultati confermati conservano versione dell'operazione, contratto di output, content type e correlazione. La pubblicazione dell'errore terminale tipizzato dopo il settlement dei retry resta un gate di rilascio aperto. |
 | Audit e policy delle dipendenze | Completo in locale | `cargo-audit 0.22.2` e `cargo-deny 0.20.2` pinnati passano; gli avvisi ammessi sulle versioni duplicate restano da rivedere. |
 | Revisione di sicurezza | Tecnicamente completa, approvazione di rilascio in attesa | Vedi [`security-review.md`](security-review.md). L'approvazione organizzativa deve riferirsi al commit esatto. |
-| CI su Windows, Linux e macOS | Gira a ogni push e pull request; Linux e Windows saranno i check obbligatori di `main`, macOS informativo, ma la protezione di `main` non è ancora attiva | Il dispatch di `ci.yml` sullo stesso SHA su `main` a `9972954` (2026-10-10) ha passato ogni job tranne la policy delle dipendenze: `cargo audit` ha segnalato RUSTSEC-2026-0285 in `rustls 0.23.43` e il `chacha20 0.10.1` ritirato (yanked), entrambi risolti da un aggiornamento del lockfile. Nessun candidato al rilascio è stato ancora qualificato; resta il gate 6 del congelamento dell'API. |
+| CI su Windows e Linux | Gira a ogni push e pull request; Linux e Windows saranno i check obbligatori di `main`, ma la protezione di `main` non è ancora attiva | Il dispatch di `ci.yml` sullo stesso SHA su `main` a `9972954` (2026-10-10) ha passato ogni job tranne la policy delle dipendenze: `cargo audit` ha segnalato RUSTSEC-2026-0285 in `rustls 0.23.43` e il `chacha20 0.10.1` ritirato (yanked), entrambi risolti da un aggiornamento del lockfile. Nessun candidato al rilascio è stato ancora qualificato; resta il gate 6 del congelamento dell'API. |
 
 ## Matrice degli scenari obbligatori
 
@@ -153,7 +153,7 @@ Moduli upstream eseguiti: `test_conformance_checks`, `test_runtime_vectors`,
 Il validatore normative e questi test non attestano il comportamento di un
 endpoint runtime-tools: i relativi limiti restano registrati sopra.
 
-Non eseguiti: CI Linux/macOS e remota Windows, NATS reale (test ignorati),
+Non eseguiti: CI Linux e remota Windows, NATS reale (test ignorati),
 coverage, campagne libFuzzer, cargo audit/deny, build rustdoc e guardia upstream
 di immutabilita con verifica di origin/main remoto (vietata la rete).
 Il manifesto v4 di artefatti rilasciati non e stato prodotto: e una deviazione,
@@ -671,3 +671,20 @@ SystemTime oltre chrono dove rappresentabile, NATS reale e PostgreSQL per la reg
 settlement/journal. Rischio: sola esecuzione locale Windows non prova Linux, servizi
 reali o dipendenze in esercizio. Condizione di chiusura: evidenze di questi comandi
 sulla stessa revisione, poi normale CI di merge; nessun commit o merge in questa attivita.
+
+## Gate manutenzione famiglia del 19/11/2026
+
+Regola: Linux e Windows sono le sole piattaforme supportate. Il core e i crate
+con rami di piattaforma rifiutano gli altri target in compilazione. Le campagne
+coverage, NATS, PostgreSQL e fuzz sono manuali; lo smoke e i controlli rapidi
+restano automatici. Rischio: una PR verde non attesta le campagne non avviate.
+Chiusura del gate di rilascio: avvio esplicito e risultati verdi delle campagne
+sullo stesso SHA, oltre alla CI Linux/Windows.
+
+Regola: manifesto dipendenze di famiglia bloccante su entrambi i lock, tutte le
+feature. Ambito: workspace e fuzz. Restano 76 scostamenti non autorizzati dal
+manifesto (72 archi duplicati, due fork, encoding_rs e zip imposti da IO).
+Rischio: qualifica della famiglia incompleta; il guardiano resta rosso.
+Chiusura: allineamento upstream o decisioni esplicite registrate, senza cambiare
+IO prima della 10.0.0. Nessuna nuova eccezione di licenza e nessuna feature
+rimossa. Il resoconto locale non sostituisce i gate remoti Linux e Windows.

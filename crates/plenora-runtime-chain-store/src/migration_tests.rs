@@ -79,7 +79,11 @@ mod cases {
         let oracle = include_str!("../tests/fixtures/baseline-schema.sql");
         assert!(canonical_source(oracle));
         assert_eq!(
-            format!("{:x}", Sha256::digest(oracle.as_bytes())),
+            Sha256::digest(oracle.as_bytes())
+                .iter()
+                .flat_map(|byte| [byte >> 4, byte & 0x0f])
+                .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+                .collect::<String>(),
             "deafe93105cbdcb32e6426b1440ef32b57ce7e690f693cac45784961c38bb32f"
         );
         let layout: serde_json::Value = serde_json::from_str(include_str!("schema-layout.json"))?;

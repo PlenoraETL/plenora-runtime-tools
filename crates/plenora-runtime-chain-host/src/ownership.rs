@@ -8,7 +8,14 @@ use std::collections::BTreeMap;
 
 pub(super) fn scoped(run: &str, reference: &str) -> String {
     use sha2::{Digest, Sha256};
-    format!("ref:owned-{run}-{:x}", Sha256::digest(reference.as_bytes()))
+    format!(
+        "ref:owned-{run}-{}",
+        Sha256::digest(reference.as_bytes())
+            .iter()
+            .flat_map(|byte| [byte >> 4, byte & 0x0f])
+            .map(|nibble| char::from(b"0123456789abcdef"[usize::from(nibble)]))
+            .collect::<String>()
+    )
 }
 pub(super) fn owned_run(reference: &str) -> Option<&str> {
     let suffix = reference.strip_prefix("ref:owned-")?;

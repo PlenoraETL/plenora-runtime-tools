@@ -19,7 +19,8 @@ async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 # Same exact digest pin as chain-contracts; binds owned provider bytes to confirmed manifests.
-sha2 = "=0.10.9"
+# SHA-256 di famiglia 0.11: alloc sostituisce std, che upstream non espone piu.
+sha2 = "=0.11.0"
 chrono.workspace = true
 uuid.workspace = true
 # Bounded cooperative backoff while the same durable run is observed in-process.
