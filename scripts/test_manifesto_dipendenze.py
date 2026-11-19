@@ -33,6 +33,90 @@ class ManifestoTests(unittest.TestCase):
                                       'source': 'git+https://example.invalid/#fixed'}]}
         self.assertEqual(tomllib.loads(manifesto.render(copy.deepcopy(policy))), policy)
 
+    def policy(self):
+        import tomllib
+        return tomllib.loads((manifesto.HOME / 'plenora-dependencies.toml').read_text(encoding='utf-8'))
+
+    def test_deroghe_document_matches_manifest_and_covers_every_entry(self):
+        policy = self.policy()
+        manifesto.check_deroghe(policy)
+        document = manifesto.render_deroghe(policy)
+        entries = [e for e in policy['exceptions'] if e['repo'] == manifesto.REPO]
+        for entry in entries + policy['open_deviations']:
+            self.assertEqual(document.count(entry['key']), 1)
+        self.assertEqual(sum(e['rule'] == 'fork' for e in entries), 2)
+        self.assertEqual({e['crate'] for e in policy['open_deviations']}, {'encoding_rs', 'zip'})
+        self.assertTrue(all(e['removal'] == 'chiude con IO 10.0.0'
+                            for e in policy['open_deviations']))
+        self.assertTrue({e['key'] for e in entries}.isdisjoint(
+            {e['key'] for e in policy['open_deviations']}))
+        reordered = copy.deepcopy(policy)
+        reordered['exceptions'].reverse()
+        reordered['open_deviations'].reverse()
+        reordered['qualifications'].reverse()
+        self.assertEqual(document, manifesto.render_deroghe(reordered))
+
+    def test_deroghe_rejects_missing_empty_and_invalid_required_fields(self):
+        for section in ('exceptions', 'open_deviations'):
+            for field in ('reason', 'chain', 'removal'):
+                for bad in (None, '', '   ', [], 42):
+                    policy = self.policy()
+                    entry = next(e for e in policy[section] if e['repo'] == manifesto.REPO)
+                    if bad is None:
+                        del entry[field]
+                    else:
+                        entry[field] = bad
+                    with self.subTest(section=section, field=field, bad=bad):
+                        with self.assertRaisesRegex(ValueError, 'deroga incompleta'):
+                            manifesto.render_deroghe(policy)
+        for bad in (None, '', '   ', '20261119', '2026-02-30'):
+            policy = self.policy()
+            policy['decision_date'] = bad
+            with self.subTest(date=bad), self.assertRaises(ValueError):
+                manifesto.render_deroghe(policy)
+
+    def test_deroghe_main_rejects_tampered_or_missing_document(self):
+        from pathlib import Path
+        import tempfile
+        policy = self.policy()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'docs').mkdir()
+            path = root / 'docs/deroghe-dipendenze.md'
+            content = manifesto.render_deroghe(policy).encode('utf-8')
+            with patch.object(manifesto, 'ROOT', root), patch.object(manifesto, 'generate', return_value=policy), patch('sys.argv', ['manifesto']):
+                for changed in (content + b'alterato', content.replace(b'\n', b'\r\n')):
+                    path.write_bytes(changed)
+                    with patch.object(manifesto.gate, 'evaluate') as evaluate:
+                        self.assertEqual(manifesto.main(), 1)
+                        evaluate.assert_not_called()
+                path.unlink()
+                self.assertEqual(manifesto.main(), 1)
+
+    def test_io_paths_are_validated_without_authorizing_exceptions(self):
+        decisions = self.decisions()
+        entry = next(e for g in decisions['crates'] for e in g['entries'] if e['category'] == 'c')
+        entry['chain'] = 'nonexistent -> bogus'
+        with self.assertRaisesRegex(ValueError, 'percorso'):
+            manifesto.approved_exceptions([entry['finding']], decisions)
+
+    def test_deroghe_escapes_table_cells(self):
+        policy = self.policy()
+        entry = next(e for e in policy['exceptions'] if e['repo'] == manifesto.REPO)
+        entry['reason'] = 'a | b\n<script>'
+        self.assertIn('a &#124; b<br>&lt;script&gt;', manifesto.render_deroghe(policy))
+
+    def test_decision_fields_reject_whitespace_before_expansion(self):
+        for field in ('reason', 'removal'):
+            decisions = self.decisions()
+            decisions['crates'][0][field] = '   '
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                manifesto.approved_exceptions([], decisions)
+        decisions = self.decisions()
+        decisions['crates'][0]['entries'][0]['chain'] = '   '
+        with self.assertRaises(ValueError):
+            manifesto.approved_exceptions([], decisions)
+
     def decisions(self):
         import json
         return json.loads((manifesto.ROOT / 'scripts/manifesto_deroghe.json').read_text(encoding='utf-8'))

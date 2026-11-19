@@ -79,3 +79,8 @@ la qualifica registra separatamente tale esclusione e il digest del file di
 licenza quando disponibile. Non sono dichiarate licenze SPDX ammesse. Tutte le
 licenze pubbliche risolte soddisfano la policy vigente. L'eccezione
 RUSTSEC-2026-0548 resta fino all'adozione di IO 10.0.0; il pin IO non cambia.
+
+Il [registro delle deroghe](deroghe-dipendenze.md) e generato esclusivamente dal
+manifesto con lo stesso comando `--write`. Il guardiano di riproducibilita
+verifica identita byte per byte e campi obbligatori (motivazione, percorso,
+condizione di uscita e data); non aggiornare il documento a mano.

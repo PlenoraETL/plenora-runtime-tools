@@ -22211,6 +22211,32 @@ owner = "manutentori plenora-runtime-tools"
 release = "prossima release prevista Runtime (0.1.1 o riqualifica 0.1.0)"
 action = "Allineare requisito/genitore e rigenerare questo lock nella release prevista; nessuna deroga al gate."
 
+[[open_deviations]]
+repo = "plenora-runtime-tools"
+file = "Cargo.lock"
+rule = "reference"
+crate = "encoding_rs"
+version = "0.8.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+detail = "versione diversa dal riferimento della linea"
+key = "35c4473c1e3f68d118fee4dd"
+reason = "Il pin IO 9.0.0 mantiene encoding_rs 0.8.35; chiude con IO 10.0.0."
+chain = "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-shp@9.0.0 -> encoding_rs@0.8.35"
+removal = "chiude con IO 10.0.0"
+
+[[open_deviations]]
+repo = "plenora-runtime-tools"
+file = "Cargo.lock"
+rule = "reference"
+crate = "zip"
+version = "9.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+detail = "versione diversa dal riferimento della linea"
+key = "da332bc0590e786ab2c8b0b7"
+reason = "Il pin IO 9.0.0 mantiene zip 9.0.3; chiude con IO 10.0.0."
+chain = "plenora-runtime-adapter-io -> plenora-io-tools@9.0.0 -> driver-xls@9.0.0 -> zip@9.0.3"
+removal = "chiude con IO 10.0.0"
+
 [[qualifications]]
 repo = "plenora-runtime-tools"
 file = "Cargo.lock"

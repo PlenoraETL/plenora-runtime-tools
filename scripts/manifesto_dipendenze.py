@@ -7,6 +7,8 @@ mai un passo CI; il default confronta gli artefatti senza aggiornarli.
 from __future__ import annotations
 
 import argparse
+import datetime
+import html
 import hashlib
 import json
 import os
@@ -113,6 +115,79 @@ def render(policy):
     return '\n'.join(lines) + '\n'
 
 
+def required_text(record, field):
+    value = record.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError('deroga incompleta: ' + field)
+    return value
+
+
+def render_deroghe(policy):
+    """Registro derivato esclusivamente dal manifesto, senza clock o accessi Cargo."""
+    date = required_text(policy, 'decision_date')
+    if datetime.date.fromisoformat(date).isoformat() != date:
+        raise ValueError('data di registrazione non canonica')
+    lines = [
+        '# Deroghe del manifesto dipendenze', '',
+        '<!-- Generato da scripts/manifesto_dipendenze.py --write; non modificare a mano. -->', '',
+        'Regola: una versione per crate. La deroga e ammessa solo quando la versione',
+        'vecchia e imposta da una dipendenza esterna senza versione compatibile, oppure',
+        'per un fork. Ogni deroga deve avere motivazione, percorso nel grafo e condizione',
+        'di uscita; una deroga priva di questi campi e rifiutata dal guardiano.', '',
+        'Fonte: [manifesto](../.ci/plenora-dependencies/plenora-dependencies.toml).',
+        'La data registra la decisione nel manifesto runtime, non la generazione.',
+        'Il titolare ha accettato 68 nuove deroghe per archi incompatibili e due fork',
+        'il 19/11/2026. Il registro comprende le deroghe tuttora presenti nel manifesto,',
+        'incluse quelle ereditate dalla baseline; le deroghe cessate vengono rimosse.',
+        'Le versioni elencate sono quelle qualificate nel lock indicato; la linea',
+        'preferita e il riferimento di famiglia. Nuovi archi richiedono una nuova decisione.', '',
+    ]
+
+    def cell(value):
+        return (html.escape(value, quote=False).replace('|', '&#124;')
+                .replace('\r\n', '\n').replace('\r', '\n').replace('\n', '<br>'))
+
+    def table(entries):
+        for entry in entries:
+            for field in ('crate', 'version', 'file', 'key', 'reason', 'chain', 'removal'):
+                required_text(entry, field)
+            chain = entry['chain'].split(' -> ')
+            if len(chain) < 2 or any(not part.strip() for part in chain):
+                raise ValueError('percorso deroga incompleto')
+        lines.extend([
+            '| Crate | Versioni nel lock; linea preferita | Chi impone la versione (percorso) | Motivazione | Condizione di uscita | Data di registrazione |',
+            '| --- | --- | --- | --- | --- | --- |',
+        ])
+        for entry in sorted(entries, key=lambda e: (e['crate'], e['file'], e['key'])):
+            versions = sorted({q['version'] for q in policy['qualifications']
+                               if q['repo'] == REPO and q['file'] == entry['file']
+                               and q['crate'] == entry['crate']} | {entry['version']})
+            values = [entry['crate'] + ' (' + entry['file'] + '; ' + entry['key'] + ')',
+                      ', '.join(versions) + '; preferita: ' + policy['preferred'].get(entry['crate'], 'identita fork distinta'),
+                      entry['chain'], entry['reason'], entry['removal'], date]
+            lines.append('| ' + ' | '.join(cell(v) for v in values) + ' |')
+        lines.append('')
+
+    entries = [e for e in policy['exceptions'] if e['repo'] == REPO]
+    for title, rules in [('Versioni duplicate accettate', {'duplicate'}),
+                         ('Fork accettati', {'fork'}),
+                         ('Altre deroghe ereditate dalla baseline', {'reference'})]:
+        lines.extend(['## ' + title, ''])
+        table([e for e in entries if e['rule'] in rules])
+    if any(e['rule'] not in {'duplicate', 'fork', 'reference'} for e in entries):
+        raise ValueError('tipo deroga non documentato')
+    lines.extend(['## Scostamenti imposti da IO', '',
+                  'Restano errori bloccanti senza deroga; ciascuno **chiude con IO 10.0.0**.', ''])
+    table(policy['open_deviations'])
+    return '\n'.join(lines)
+
+
+def check_deroghe(policy):
+    expected = render_deroghe(policy).encode('utf-8')
+    if (ROOT / 'docs/deroghe-dipendenze.md').read_bytes() != expected:
+        raise ValueError('registro deroghe obsoleto: rigenerare e revisionare il diff')
+
+
 def metadata(manifest):
     result = subprocess.run(['cargo', 'metadata', '--locked', '--all-features',
                              '--format-version', '1', '--manifest-path', str(ROOT / manifest)],
@@ -190,10 +265,13 @@ def approved_exceptions(raw, decisions):
     current = {f['key']: f for f in raw}
     seen, crates, result = set(), set(), []
     for group in decisions['crates']:
-        if group['crate'] in crates or not group['reason'] or not group['removal']:
+        for field in ('crate', 'reason', 'removal'):
+            required_text(group, field)
+        if group['crate'] in crates:
             raise ValueError('decisione duplicata o incompleta')
         crates.add(group['crate'])
         for entry in group['entries']:
+            required_text(entry, 'chain')
             f = entry['finding']
             key = f['key']
             category = entry['category']
@@ -211,8 +289,6 @@ def approved_exceptions(raw, decisions):
                 raise ValueError('identita decisione cambiata')
             if category == 'a':
                 raise ValueError('riallineamento compatibile non applicato')
-            if category == 'c':
-                continue
             packages = tomllib.loads((ROOT / f['file']).read_text(encoding='utf-8'))['package']
             parents = gate.graph(packages)
             labels = {gate.label(p): p for p in packages}
@@ -227,6 +303,8 @@ def approved_exceptions(raw, decisions):
             for parent, child in zip(chain, chain[1:]):
                 if labels[parent] not in parents[gate.identity(labels[child])]:
                     raise ValueError('arco decisione assente')
+            if category == 'c':
+                continue
             result.append(dict(f, id='E-' + key, owner=decisions['owner'],
                                reason=group['reason'], chain=entry['chain'],
                                profiles=['normal', 'build', 'dev'],
@@ -265,6 +343,13 @@ def generate():
     if {e['key'] for e in additions} & {e['key'] for e in policy['exceptions']}:
         raise ValueError('deroga gia presente nella baseline')
     policy['exceptions'].extend(additions)
+    # Scostamenti descrittivi: non entrano mai nelle eccezioni autorizzate.
+    policy['open_deviations'] = [
+        dict(entry['finding'], reason=group['reason'], chain=entry['chain'],
+             removal=group['removal'])
+        for group in decisions['crates'] for entry in group['entries']
+        if entry['category'] == 'c' and entry['finding']['key'] in raw_keys
+    ]
     policy['qualifications'] = qualifications
     return policy
 
@@ -292,11 +377,13 @@ def main():
             return 0
         policy = generate()
         content = render(policy)
+        document = render_deroghe(policy)
         # Controllo del serializzatore e dello scope delle sezioni.
         if tomllib.loads(content) != policy:
             raise ValueError('serializzazione incoerente')
         path = HOME / 'plenora-dependencies.toml'
         if args.write:
+            (ROOT / 'docs/deroghe-dipendenze.md').write_text(document, encoding='utf-8', newline='\n')
             path.write_text(content, encoding='utf-8', newline='\n')
             (HOME / 'plenora-dependencies.sha256').write_text(sha(path) + '  ' + path.name + '\n', encoding='ascii', newline='\n')
             files = ['plenora-dependencies.toml', 'plenora-dependencies.sha256',
@@ -306,6 +393,7 @@ def main():
                 encoding='ascii', newline='\n')
         elif path.read_text(encoding='utf-8') != content:
             raise ValueError('qualifica obsoleta: rigenerare e revisionare il diff')
+        check_deroghe(policy)
         denied = [q for q in policy['qualifications'] if not q['license_allowed'] and not q['license_private_ignored']]
         report = gate.evaluate(policy, {REPO: ROOT})
         print('qualifiche:', len(policy['qualifications']), 'licenze da decidere:', len(denied),
