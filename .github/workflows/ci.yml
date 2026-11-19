@@ -170,7 +170,7 @@ jobs:
           python-version-file: .python-version
 
       - name: Verify dependency snapshot
-        run: python scripts/manifesto_dipendenze.py --snapshot f92e9f0477486e3eca910489878c2e9eae6920ef2b0bc0261c422acca66be3ec
+        run: python scripts/manifesto_dipendenze.py --snapshot bc663b03a8c63ae5c3991f137c4586f3c0bf675093ced68f5374360f6316bd55
 
       - name: Verify generated dependency qualifications
         if: ${{ !cancelled() }}

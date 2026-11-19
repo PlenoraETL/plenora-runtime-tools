@@ -517,12 +517,16 @@ indipendente del codice; una suite locale non qualifica il deploy TLS/subject NA
 ## Rischio residuo del manifesto di famiglia
 
 Regola: uno scostamento non deliberato e un errore bloccante. Ambito: i due lock
-runtime qualificati con tutte le feature il 19/11/2026. Rischio: restano 76
-scostamenti (72 archi duplicati, due fork e due pin transitivi IO), elencati dal
-guardiano; la qualifica generata non costituisce accettazione del rischio.
-Chiusura: allineamenti compatibili o decisione esplicita di famiglia, verifica
-del guardiano e dei gate supply-chain. RUSTSEC-2026-0548 mantiene la condizione
-di rimozione gia deliberata: adozione di IO 10.0.0.
+runtime qualificati con tutte le feature il 19/11/2026. Quattro archi compatibili
+riallineati; 68 archi incompatibili e due fork Parquet derogati esplicitamente in
+[`manifesto_deroghe.json`](../scripts/manifesto_deroghe.json), riesame 2027-02-13.
+Rischio accettato: piu linee transitive e fork distinti aumentano superficie di
+manutenzione e supply chain; l'unificazione non e garantita. Nessuna nuova
+licenza o feature e ammessa. Chiusura per ogni voce: migrare i genitori, eliminare
+l'arco/identita e riqualificare API, target, licenze e interop; per i fork devono
+essere preservate le patch di correttezza, incluso EOF del fork DATA.
 
-Le campagne manuali non sono una garanzia automatica per ogni PR. La checklist
-di rilascio richiede il loro avvio sullo stesso SHA qualificato.
+Restano bloccanti encoding_rs 0.8.35 e zip 9.0.3: chiude con IO 10.0.0.
+RUSTSEC-2026-0548 conserva la stessa condizione di rimozione. Il pin IO resta
+immutato. I gate supply-chain e la CI Linux/Windows restano necessari; una
+deroga al manifesto non costituisce un audit di sicurezza superato.

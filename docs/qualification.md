@@ -682,9 +682,12 @@ Chiusura del gate di rilascio: avvio esplicito e risultati verdi delle campagne
 sullo stesso SHA, oltre alla CI Linux/Windows.
 
 Regola: manifesto dipendenze di famiglia bloccante su entrambi i lock, tutte le
-feature. Ambito: workspace e fuzz. Restano 76 scostamenti non autorizzati dal
-manifesto (72 archi duplicati, due fork, encoding_rs e zip imposti da IO).
+feature. Ambito: workspace e fuzz. Quattro archi riallineati, 68 archi transitivi
+e due fork con decisioni esplicite generate da
+[`manifesto_deroghe.json`](../scripts/manifesto_deroghe.json). Restano due errori
+non autorizzati: encoding_rs 0.8.35 e zip 9.0.3, chiude con IO 10.0.0.
 Rischio: qualifica della famiglia incompleta; il guardiano resta rosso.
-Chiusura: allineamento upstream o decisioni esplicite registrate, senza cambiare
-IO prima della 10.0.0. Nessuna nuova eccezione di licenza e nessuna feature
-rimossa. Il resoconto locale non sostituisce i gate remoti Linux e Windows.
+Chiusura: adozione IO 10.0.0, rigenerazione e guardiano senza errori, gate
+supply-chain e CI Linux/Windows verdi. Le deroghe hanno riesame 2027-02-13 e
+condizioni di rimozione per crate; nessuna nuova eccezione di licenza o feature
+rimossa. Le verifiche Windows locali non sostituiscono i gate remoti.

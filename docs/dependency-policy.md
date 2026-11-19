@@ -50,12 +50,28 @@ Il guardiano `controlla_dipendenze.py --repo . --nome plenora-runtime-tools`
 confronta versioni, fonti, interfacce e duplicati con le decisioni di famiglia.
 La CI verifica anche lo snapshot con SHA-256 esplicito nel workflow.
 
-Le qualifiche descrittive non autorizzano dipendenze: nessuna nuova deroga e
-stata aggiunta. Le deroghe cessate sono rimosse dal manifesto generato, mentre
-la baseline rimane intatta. L'allineamento dei lock e dei pin diretti sha2 0.11.0
-e syn 3.0.6 lascia 76 errori bloccanti (72 archi duplicati, due fork e due
-versioni imposte da IO). La chiusura richiede allineamento upstream oppure una
-decisione esplicita di famiglia, registrata e revisionata; non basta rigenerare.
+Le qualifiche descrittive non autorizzano dipendenze. Le decisioni esplicite in
+[`manifesto_deroghe.json`](../scripts/manifesto_deroghe.json) raccolgono una voce
+per crate e i singoli archi identificati dal fingerprint del guardiano. Lo script
+espande soltanto i 68 archi transitivi incompatibili e le due identita fork
+approvati, nel formato delle deroghe di famiglia: motivazione, percorso verificato
+nel lock, profili, ambito feature/target, proprietario, rimozione e riesame entro
+il 2027-02-13. Nuovi genitori, versioni o provenienze restano errori; le deroghe
+cessate non vengono emesse. La baseline e il guardiano non cambiano.
+
+Il riesame dei 72 archi duplicati ha riallineato quattro vincoli larghi con
+`cargo update -p tempfile --precise 3.27.0 --offline`: tempfile usa getrandom
+0.4.3; errno, rustix 1.1.6 e tempfile usano windows-sys 0.61.2. Versioni di
+pacchetto, pin diretti e lock fuzz invariati. I genitori degli altri archi sono
+gia ai riferimenti applicabili della baseline; le linee preferite non soddisfano
+i loro requisiti, oppure sono archi opzionali conservati dal lock completo.
+La classificazione (b) riguarda questi requisiti e le versioni qualificate nella
+famiglia, non afferma l'assenza universale di release upstream piu recenti.
+
+Restano due errori bloccanti, senza deroga: encoding_rs 0.8.35 e zip 9.0.3,
+entrambi con condizione **chiude con IO 10.0.0**. La presenza dei due fork Parquet
+resta una garanzia di unificazione indebolita: si conservano patch di correttezza
+e identita distinte finche i prodotti proprietari migrano dopo riqualifica.
 
 Nessuna nuova licenza viene ammessa. Le 24 dipendenze private di prodotto senza
 SPDX restano soggette alla regola gia presente `licenses.private.ignore = true`:

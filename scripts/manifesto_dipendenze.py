@@ -185,6 +185,60 @@ def qualify(meta, lock, deny):
     return rows
 
 
+def approved_exceptions(raw, decisions):
+    """Espande solo gli archi deliberati, mai i nuovi rilievi del guardiano."""
+    current = {f['key']: f for f in raw}
+    seen, crates, result = set(), set(), []
+    for group in decisions['crates']:
+        if group['crate'] in crates or not group['reason'] or not group['removal']:
+            raise ValueError('decisione duplicata o incompleta')
+        crates.add(group['crate'])
+        for entry in group['entries']:
+            f = entry['finding']
+            key = f['key']
+            category = entry['category']
+            if (key in seen or key != gate.fingerprint(f) or f['repo'] != REPO
+                    or f['crate'] != group['crate']
+                    or f['file'] not in ('Cargo.lock', 'fuzz/Cargo.lock')
+                    or (category, f['rule']) not in {('a', 'duplicate'), ('b', 'duplicate'),
+                                                   ('c', 'reference'), ('fork', 'fork')}):
+                raise ValueError('decisione non valida')
+            seen.add(key)
+            actual = current.get(key)
+            if actual is None:
+                continue
+            if {k: v for k, v in actual.items() if k != 'sample'} != f:
+                raise ValueError('identita decisione cambiata')
+            if category == 'a':
+                raise ValueError('riallineamento compatibile non applicato')
+            if category == 'c':
+                continue
+            packages = tomllib.loads((ROOT / f['file']).read_text(encoding='utf-8'))['package']
+            parents = gate.graph(packages)
+            labels = {gate.label(p): p for p in packages}
+            chain = entry['chain'].split(' -> ')
+            target = dict(name=f['crate'], version=f['version'], source=f['source'])
+            if (len(labels) != len(packages) or len(chain) < 2
+                    or chain[-1] != gate.label(target)
+                    or any(label not in labels for label in chain)
+                    or labels[chain[0]].get('source') is not None
+                    or (f['rule'] == 'duplicate' and chain[-2] != f['parent'])):
+                raise ValueError('percorso decisione non valido')
+            for parent, child in zip(chain, chain[1:]):
+                if labels[parent] not in parents[gate.identity(labels[child])]:
+                    raise ValueError('arco decisione assente')
+            result.append(dict(f, id='E-' + key, owner=decisions['owner'],
+                               reason=group['reason'], chain=entry['chain'],
+                               profiles=['normal', 'build', 'dev'],
+                               target='tutti i target del lock; attivazione non determinata',
+                               feature_scope='lock completo, nessuna nuova attivazione',
+                               review_by=decisions['review_by'], removal=group['removal'],
+                               upstream='scripts/manifesto_deroghe.json; requisiti genitore: '
+                                        + ', '.join(entry['requirements'])
+                                        + '; baseline famiglia immutabile del 2026-11-19'))
+    return result
+
+
 def generate():
     baseline = HOME / 'family-baseline.toml'
     if sha(baseline) != BASELINE_SHA:
@@ -199,13 +253,18 @@ def generate():
     qualifications = []
     for manifest, lock in [('Cargo.toml', 'Cargo.lock'), ('fuzz/Cargo.toml', 'fuzz/Cargo.lock')]:
         qualifications.extend(qualify(metadata(manifest), lock, deny))
-    # La qualifica descrive il grafo, non concede deroghe ne cambia i riferimenti.
-    # Ogni scostamento resta rosso nel guardiano fino a una decisione esplicita.
+    # Decisioni per crate e archi esatti: docs/dependency-policy.md.
+    # I nuovi rilievi restano rossi; nessuna deroga automatica per nome di crate.
     raw, _ = gate.collect(policy, {REPO: ROOT})
     raw_keys = {f['key'] for f in raw}
     # Rimuovere deroghe cessate non autorizza alcuno scostamento nuovo.
     policy['exceptions'] = [e for e in policy['exceptions']
                             if e['repo'] != REPO or e['key'] in raw_keys]
+    decisions = json.loads((ROOT / 'scripts/manifesto_deroghe.json').read_text(encoding='utf-8'))
+    additions = approved_exceptions(raw, decisions)
+    if {e['key'] for e in additions} & {e['key'] for e in policy['exceptions']}:
+        raise ValueError('deroga gia presente nella baseline')
+    policy['exceptions'].extend(additions)
     policy['qualifications'] = qualifications
     return policy
 
